@@ -10,6 +10,18 @@ All changes to Patchfeld. Version scheme: every digit runs from 0 to 9 –
 
 <!-- releases -->
 
+## 0.1.2 – 2026-09-11
+
+- Kaufmännische Grundlagen auf 20 Fragen erweitert
+- Neue Themen: verspätete Annahme, Mahnverfahren, Nacherfüllung, Gewährleistung vs. Garantie und Beweislast, Rechtsformen, Ausbildungsvertrag nach BBiG, Lieferverzug und Deckungskauf, Zahlungs- und Lieferbedingungen, Leasing, qualitativer Angebotsvergleich, Beschaffungsprozess, Werk- vs. Dienstvertrag
+- Neue Rechenaufgaben mit Zufallswerten: Angebotskalkulation bis zum Listenverkaufspreis, Skonto vs. Kontokorrentkredit; Verzugszinsen
+
+**English**
+
+- Business basics extended to 20 questions
+- New topics: late acceptance, dunning procedure, supplementary performance, warranty vs guarantee and burden of proof, legal forms, training contract under BBiG, late delivery and cover purchase, payment and delivery terms, leasing, qualitative comparison of offers, procurement process, contract for work vs service contract
+- New random calculations: sales price calculation up to list price, cash discount vs overdraft; default interest
+
 ## 0.1.1 – 2026-09-11
 
 - Datenschutz auf 20 Fragen erweitert

@@ -1,15 +1,17 @@
 {
-  "version": "0.1.1",
+  "version": "0.1.2",
   "date": "2026-09-11",
   "file": "index.html",
   "notes": {
     "de": [
-      "Datenschutz auf 20 Fragen erweitert",
-      "Neue Themen: Rechtsgrundlagen nach Art. 6, Datenschutzbeauftragter (§ 38 BDSG), besondere Kategorien, Pseudonymisierung vs. Anonymisierung, Auskunftsersuchen, DSFA, Videoüberwachung, Data Privacy Framework, Verarbeitungsverzeichnis, Privacy by Default, Rollen nach DSGVO, Bußgeldrahmen, Löschkonzept, Datenschutz vs. Datensicherheit"
+      "Kaufmännische Grundlagen auf 20 Fragen erweitert",
+      "Neue Themen: verspätete Annahme, Mahnverfahren, Nacherfüllung, Gewährleistung vs. Garantie und Beweislast, Rechtsformen, Ausbildungsvertrag nach BBiG, Lieferverzug und Deckungskauf, Zahlungs- und Lieferbedingungen, Leasing, qualitativer Angebotsvergleich, Beschaffungsprozess, Werk- vs. Dienstvertrag",
+      "Neue Rechenaufgaben mit Zufallswerten: Angebotskalkulation bis zum Listenverkaufspreis, Skonto vs. Kontokorrentkredit; Verzugszinsen"
     ],
     "en": [
-      "Data protection extended to 20 questions",
-      "New topics: legal bases under Art. 6, data protection officer (§ 38 BDSG), special categories, pseudonymisation vs anonymisation, access requests, DPIA, video surveillance, Data Privacy Framework, record of processing, privacy by default, GDPR roles, fine ranges, deletion concept, data protection vs data security"
+      "Business basics extended to 20 questions",
+      "New topics: late acceptance, dunning procedure, supplementary performance, warranty vs guarantee and burden of proof, legal forms, training contract under BBiG, late delivery and cover purchase, payment and delivery terms, leasing, qualitative comparison of offers, procurement process, contract for work vs service contract",
+      "New random calculations: sales price calculation up to list price, cash discount vs overdraft; default interest"
     ]
   }
 }
