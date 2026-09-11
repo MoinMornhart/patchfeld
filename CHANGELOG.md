@@ -10,6 +10,18 @@ All changes to Patchfeld. Version scheme: every digit runs from 0 to 9 –
 
 <!-- releases -->
 
+## 0.0.2 – 2026-09-11
+
+- IT-Systeme & Hardware auf 20 Fragen erweitert
+- Neue Themen: Dual Channel, TPM 2.0, RAM-Bauformen, UEFI-Start, Monitore für Bildbearbeitung, TB vs. TiB, M.2/NVMe, Netzteildimensionierung, Drucktechniken, Bedarfsanalyse
+- Neue Rechenaufgaben mit Zufallswerten: Stromkosten pro Jahr, Druckkosten pro Seite; Zahlensysteme binär/hex
+
+**English**
+
+- IT systems & hardware extended to 20 questions
+- New topics: dual channel, TPM 2.0, RAM form factors, UEFI start-up, monitors for image editing, TB vs TiB, M.2/NVMe, PSU sizing, printing technologies, needs analysis
+- New random calculations: annual power cost, cost per printed page; binary/hex number systems
+
 ## 0.0.1 – 2026-09-11
 
 - Grundgerüst mit allen Lernmechaniken: Runden (10 Fragen, 3 Leben), Leitner-Karteikasten, Fehlerbuch, Karteikarten, Glossar, Prüfungssimulationen AP 1 (30 Fragen/90 min) und AP 2 (40 Fragen/120 min)

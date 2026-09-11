@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Patchfeld</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<meta name="app-version" content="0.0.1">
+<meta name="app-version" content="0.0.2">
 <meta name="theme-color" content="#1b1f24">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -311,8 +311,11 @@ dialog::backdrop{background:rgba(10,12,14,.55)}
 /* =====================================================================
    PATCHFELD – Kern: Version, Bereiche, Hilfsfunktionen, Generatoren
    ===================================================================== */
-const APP_VERSION = '0.0.1';
+const APP_VERSION = '0.0.2';
 const CHANGELOG = [
+  {v:'0.0.2', d:'2026-09-11',
+   de:['IT-Systeme & Hardware auf 20 Fragen erweitert','Neue Themen: Dual Channel, TPM 2.0, RAM-Bauformen, UEFI-Start, Monitore für Bildbearbeitung, TB vs. TiB, M.2/NVMe, Netzteildimensionierung, Drucktechniken, Bedarfsanalyse','Neue Rechenaufgaben mit Zufallswerten: Stromkosten pro Jahr, Druckkosten pro Seite; Zahlensysteme binär/hex'],
+   en:['IT systems & hardware extended to 20 questions','New topics: dual channel, TPM 2.0, RAM form factors, UEFI start-up, monitors for image editing, TB vs TiB, M.2/NVMe, PSU sizing, printing technologies, needs analysis','New random calculations: annual power cost, cost per printed page; binary/hex number systems']},
   {v:'0.0.1', d:'2026-09-11',
    de:['Grundgerüst mit allen Lernmechaniken: Runden, Leitner-Karteikasten, Fehlerbuch, Karteikarten, Glossar, Prüfungssimulationen AP 1 und AP 2','XP, Level, Ränge, Tagesziel, Serie, Kombo und Abzeichen','Lernpfad als Patchfeld, Statistik, Prüfungscountdown','5 Beispielfragen je Bereich, Rechenaufgaben mit Zufallswerten','Deutsch und Englisch, Dunkelmodus, JSON-Export/-Import, Update-Prüfung'],
    en:['Base app with all learning mechanics: rounds, Leitner box, mistake log, flashcards, glossary, exam simulations AP 1 and AP 2','XP, levels, ranks, daily goal, streak, combo and badges','Learning path as a patch panel, statistics, exam countdown','5 sample questions per topic, calculation tasks with random values','German and English, dark mode, JSON export/import, update check']}
@@ -646,6 +649,207 @@ Q.push(
      o:['Secure Boot blocks an unsigned bootloader','The notebook has no TPM module','The stick is formatted with NTFS instead of FAT32','CSM (legacy mode) is disabled'],
      e:'Secure Boot only starts bootloaders with a valid signature. Many distributions use a signed shim; older or self-built images are blocked.',
      n:'The TPM measures the boot process (e.g. for BitLocker) but does not prevent booting – a "Security Violation" comes from Secure Boot.'}}
+);
+
+/* ----- BEREICH:hw – Erweiterung ----- */
+/* Stromkosten bzw. Einsparung eines PC-Bestands pro Jahr */
+GEN.hwPowerCost = function(L){
+  const price = pick([0.28,0.30,0.32,0.35,0.38]), h = pick([8,9,10]), d = pick([220,225,230,250]);
+  const pr = eur(price,L) + '/kWh';
+  if (Math.random() < 0.5){
+    const n = pick([10,12,15,20,25,30,40]), w = pick([35,45,55,65,85,110]);
+    const wh = n*w*h*d, kwh = Math.round(wh/1000), cost = r2(kwh*price);
+    return { t:'in',
+      s: tx(L, `Die Geschäftsführung eines Ingenieurbüros möchte die jährlichen Stromkosten der ${n} Büro-PCs kennen. Ein PC nimmt im Betrieb durchschnittlich ${w} W auf. Die PCs laufen ${h} Stunden pro Tag an ${d} Arbeitstagen im Jahr und sind sonst vollständig vom Netz getrennt. Der Strompreis beträgt ${pr}.`,
+               `The management of an engineering office wants to know the annual electricity costs of its ${n} office PCs. One PC draws ${w} W on average during operation. The PCs run ${h} hours a day on ${d} working days a year and are otherwise fully disconnected from the mains. The electricity price is ${pr}.`),
+      q: tx(L, 'Berechnen Sie den jährlichen Energiebedarf aller PCs (auf ganze kWh gerundet) und die jährlichen Stromkosten (mit dem gerundeten Energiebedarf, auf Cent genau).',
+               'Calculate the annual energy demand of all PCs (rounded to whole kWh) and the annual electricity costs (using the rounded energy demand, to the cent).'),
+      f: [ {l:tx(L,'Energiebedarf pro Jahr','Annual energy demand'), v:kwh, tol:0.5, u:'kWh'}, {l:tx(L,'Stromkosten pro Jahr','Annual electricity costs'), v:cost, tol:r2(price/2)+0.01, u:'€'} ],
+      e: tx(L, `${n} × ${w} W × ${h} h × ${d} Tage = ${fmt(wh,0,L)} Wh ÷ 1.000 = ${fmt(wh/1000,2,L)} kWh ≈ ${fmt(kwh,0,L)} kWh. ${fmt(kwh,0,L)} kWh × ${pr} = ${eur(cost,L)}.`,
+               `${n} × ${w} W × ${h} h × ${d} days = ${fmt(wh,0,L)} Wh ÷ 1,000 = ${fmt(wh/1000,2,L)} kWh ≈ ${fmt(kwh,0,L)} kWh. ${fmt(kwh,0,L)} kWh × ${pr} = ${eur(cost,L)}.`),
+      n: tx(L, 'Typischer Fehler: die Wattstunden nicht durch 1.000 zu teilen – der Strompreis bezieht sich auf kWh, die Kosten wären sonst 1.000-mal zu hoch.',
+               'Typical mistake: not dividing the watt-hours by 1,000 – the price refers to kWh, otherwise the costs are 1,000 times too high.')
+    };
+  }
+  const n = pick([12,20,25,30,40,50]), w1 = pick([65,80,95,120]), w2 = pick([12,15,18,25]), diff = w1 - w2;
+  const wh = n*diff*h*d, kwh = Math.round(wh/1000), cost = r2(kwh*price);
+  return { t:'in',
+    s: tx(L, `Ein Callcenter ersetzt ${n} ältere Tower-PCs (durchschnittlich ${w1} W im Betrieb) durch Mini-PCs mit gleicher Nutzung (durchschnittlich ${w2} W). Die Geräte laufen ${h} Stunden pro Tag an ${d} Arbeitstagen, außerhalb der Arbeitszeit sind sie vom Netz getrennt. Der Strompreis beträgt ${pr}.`,
+             `A call centre replaces ${n} older tower PCs (${w1} W on average during operation) with mini PCs used the same way (${w2} W on average). The devices run ${h} hours a day on ${d} working days; outside working hours they are disconnected from the mains. The electricity price is ${pr}.`),
+    q: tx(L, 'Wie viel Energie (auf ganze kWh gerundet) und wie viel Geld (mit der gerundeten Energiemenge, auf Cent genau) spart der Austausch pro Jahr?',
+             'How much energy (rounded to whole kWh) and how much money (using the rounded energy, to the cent) does the replacement save per year?'),
+    f: [ {l:tx(L,'Energieeinsparung pro Jahr','Annual energy saving'), v:kwh, tol:0.5, u:'kWh'}, {l:tx(L,'Kosteneinsparung pro Jahr','Annual cost saving'), v:cost, tol:r2(price/2)+0.01, u:'€'} ],
+    e: tx(L, `Leistungsdifferenz je Gerät: ${w1} W − ${w2} W = ${diff} W. ${n} × ${diff} W × ${h} h × ${d} Tage = ${fmt(wh,0,L)} Wh = ${fmt(wh/1000,2,L)} kWh ≈ ${fmt(kwh,0,L)} kWh. ${fmt(kwh,0,L)} kWh × ${pr} = ${eur(cost,L)}.`,
+             `Power difference per device: ${w1} W − ${w2} W = ${diff} W. ${n} × ${diff} W × ${h} h × ${d} days = ${fmt(wh,0,L)} Wh = ${fmt(wh/1000,2,L)} kWh ≈ ${fmt(kwh,0,L)} kWh. ${fmt(kwh,0,L)} kWh × ${pr} = ${eur(cost,L)}.`),
+    n: tx(L, 'Naheliegend, aber falsch: nur den Verbrauch der neuen Mini-PCs zu berechnen – gefragt ist die Einsparung, also die Differenz der Leistungsaufnahmen.',
+             'Tempting but wrong: calculating only the consumption of the new mini PCs – the question asks for the saving, i.e. the difference in power draw.')
+  };
+};
+
+/* Seitenkosten eines Laserdruckers */
+GEN.hwPrintCost = function(L){
+  const tp = pick([79.9,89.9,109,129.9,149]), ty = pick([3000,4000,6000,8000,10000]);
+  const dp = pick([49.9,69,89.9,119]), dy = pick([12000,20000,30000,40000]);
+  const pp = pick([3.99,4.49,4.99,5.99]), m = pick([1500,2500,4000,6000,8000]);
+  const cT = tp/ty*100, cD = dp/dy*100, cP = pp/500*100;
+  const ct = r2(cT + cD + cP), month = r2(ct*m/100);
+  return { t:'in',
+    s: tx(L, `Die Personalabteilung druckt monatlich etwa ${fmt(m,0,L)} Seiten auf einem Schwarz-Weiß-Laserdrucker. Verbrauchsmaterial: Tonerkartusche ${eur(tp,L)} für ${fmt(ty,0,L)} Seiten (Reichweite nach ISO/IEC 19752), Trommeleinheit ${eur(dp,L)} für ${fmt(dy,0,L)} Seiten, Papier ${eur(pp,L)} je Paket mit 500 Blatt. Gedruckt wird einseitig.`,
+             `The HR department prints about ${fmt(m,0,L)} pages per month on a monochrome laser printer. Consumables: toner cartridge ${eur(tp,L)} for ${fmt(ty,0,L)} pages (yield according to ISO/IEC 19752), drum unit ${eur(dp,L)} for ${fmt(dy,0,L)} pages, paper ${eur(pp,L)} per pack of 500 sheets. Printing is single-sided.`),
+    q: tx(L, 'Berechnen Sie die Materialkosten pro Seite in Cent (auf zwei Nachkommastellen) und die monatlichen Materialkosten in Euro (mit dem gerundeten Seitenpreis, auf Cent genau).',
+             'Calculate the material cost per page in euro cents (to two decimal places) and the monthly material cost in euros (using the rounded cost per page, to the cent).'),
+    f: [ {l:tx(L,'Kosten pro Seite','Cost per page'), v:ct, tol:0.011, u:'ct'}, {l:tx(L,'Kosten pro Monat','Cost per month'), v:month, tol:r2(m*0.005/100)+0.02, u:'€'} ],
+    e: tx(L, `Toner: ${eur(tp,L)} ÷ ${fmt(ty,0,L)} = ${fmt(cT,3,L)} ct. Trommel: ${eur(dp,L)} ÷ ${fmt(dy,0,L)} = ${fmt(cD,3,L)} ct. Papier: ${eur(pp,L)} ÷ 500 = ${fmt(cP,3,L)} ct. Summe ≈ ${fmt(ct,2,L)} ct pro Seite. Monat: ${fmt(ct,2,L)} ct × ${fmt(m,0,L)} = ${eur(month,L)}.`,
+             `Toner: ${eur(tp,L)} ÷ ${fmt(ty,0,L)} = ${fmt(cT,3,L)} ct. Drum: ${eur(dp,L)} ÷ ${fmt(dy,0,L)} = ${fmt(cD,3,L)} ct. Paper: ${eur(pp,L)} ÷ 500 = ${fmt(cP,3,L)} ct. Total ≈ ${fmt(ct,2,L)} ct per page. Month: ${fmt(ct,2,L)} ct × ${fmt(m,0,L)} = ${eur(month,L)}.`),
+    n: tx(L, 'Häufiger Fehler: nur den Toner zu berücksichtigen – Trommel und Papier gehören ebenfalls zu den Seitenkosten und machen oft ein Drittel oder mehr aus.',
+             'Common mistake: considering only the toner – the drum and the paper are also part of the cost per page and often account for a third or more.')
+  };
+};
+
+Q.push(
+{id:'hw-06', a:'hw', t:'sc', c:0,
+ de:{s:'Ein Kunde bestellt 20 Büro-PCs mit Prozessorgrafik (iGPU), an denen jeweils zwei Monitore betrieben werden. Der Lieferant bietet zum gleichen Preis 1 × 16 GB DDR5-5600 oder 2 × 8 GB DDR5-5600 an. Das Mainboard hat zwei Speichersteckplätze, je einen pro Speicherkanal.',
+     q:'Mit welcher Begründung empfehlen Sie die Bestückung mit 2 × 8 GB?',
+     o:['Beide Speicherkanäle werden genutzt, dadurch verdoppelt sich die Speicherbandbreite – davon profitiert besonders die integrierte Grafik, die den Arbeitsspeicher mitnutzt','Im Dual-Channel-Betrieb verdoppelt sich die Taktfrequenz der Module von DDR5-5600 auf DDR5-11200','Die Daten werden auf beide Module gespiegelt, sodass der PC bei Ausfall eines Moduls ohne Unterbrechung weiterläuft','Zwei Module bieten mehr nutzbare Kapazität, weil ein einzelnes 16-GB-Modul einen Teil seines Speichers für ECC reserviert'],
+     e:'Mit einem Modul pro Kanal arbeitet der Speichercontroller parallel auf zwei Kanälen und die Bandbreite verdoppelt sich. Eine iGPU hat keinen eigenen Grafikspeicher und ist daher stark bandbreitenabhängig. Nachteil: Für eine spätere Erweiterung müssen beide Module getauscht werden.',
+     n:'Dual Channel verändert nicht den Takt der Module – DDR5-5600 bleibt DDR5-5600. Die höhere Leistung entsteht allein durch die parallele Nutzung zweier Kanäle.'},
+ en:{s:'A customer orders 20 office PCs with integrated graphics (iGPU), each driving two monitors. For the same price, the supplier offers 1 × 16 GB DDR5-5600 or 2 × 8 GB DDR5-5600. The mainboard has two memory slots, one per memory channel.',
+     q:'With which reasoning do you recommend fitting 2 × 8 GB?',
+     o:['Both memory channels are used, doubling the memory bandwidth – this particularly benefits the integrated graphics, which shares the main memory','In dual-channel mode the module clock doubles from DDR5-5600 to DDR5-11200','The data is mirrored to both modules, so the PC keeps running without interruption if one module fails','Two modules offer more usable capacity because a single 16 GB module reserves part of its memory for ECC'],
+     e:'With one module per channel the memory controller works on two channels in parallel and the bandwidth doubles. An iGPU has no dedicated video memory and therefore depends heavily on bandwidth. Drawback: a later upgrade requires replacing both modules.',
+     n:'Dual channel does not change the module clock – DDR5-5600 stays DDR5-5600. The higher performance comes solely from using two channels in parallel.'}},
+{id:'hw-07', a:'hw', gen:'hwPowerCost'},
+{id:'hw-08', a:'hw', t:'mc', c:[0,1,2],
+ de:{s:'Die Geschäftsführung fragt, warum bei der Beschaffung neuer Notebooks ein TPM 2.0 zwingend im Anforderungskatalog steht. Sie erläutern die Aufgaben dieses Sicherheitschips.',
+     q:'Welche Aufgaben übernimmt das TPM 2.0? (Mehrere Antworten)',
+     o:['Den BitLocker-Schlüssel geschützt speichern und nur bei unverändertem Startvorgang freigeben','Kryptografische Schlüssel erzeugen und manipulationssicher speichern, z. B. für Windows Hello for Business','Messwerte des Startvorgangs in Plattformregistern (PCR) protokollieren (Measured Boot)','Die Signaturen von Bootloadern prüfen und unsignierte Bootloader am Start hindern','Den gesamten Netzwerkverkehr des Notebooks transparent verschlüsseln'],
+     e:'Das TPM ist ein Kryptoprozessor: Es erzeugt und schützt Schlüssel, misst den Startvorgang in PCRs und gibt z. B. den BitLocker-Schlüssel nur frei, wenn die Messwerte unverändert sind.',
+     n:'Die Signaturprüfung von Bootloadern ist Aufgabe von Secure Boot in der UEFI-Firmware. Das TPM misst nur und blockiert selbst keinen Start.'},
+ en:{s:'Management asks why a TPM 2.0 is a mandatory item in the requirements for procuring new notebooks. You explain the tasks of this security chip.',
+     q:'Which tasks does the TPM 2.0 perform? (Multiple answers)',
+     o:['Store the BitLocker key securely and release it only if the boot process is unchanged','Generate cryptographic keys and store them tamper-resistantly, e.g. for Windows Hello for Business','Record measurements of the boot process in platform configuration registers (PCR) (measured boot)','Check the signatures of bootloaders and prevent unsigned bootloaders from starting','Transparently encrypt all network traffic of the notebook'],
+     e:'The TPM is a crypto processor: it generates and protects keys, measures the boot process into PCRs and releases e.g. the BitLocker key only if the measurements are unchanged.',
+     n:'Checking bootloader signatures is the job of Secure Boot in the UEFI firmware. The TPM only measures and does not block a boot itself.'}},
+{id:'hw-09', a:'hw', t:'match',
+ de:{s:'Im Ersatzteillager Ihres Systemhauses liegen verschiedene Speichermodule. Sie sollen für anstehende Aufträge das passende Modul auswählen.',
+     q:'Ordnen Sie jedem Speichertyp den passenden Einsatz zu.',
+     p:[['DDR5-UDIMM','Aufrüstung eines aktuellen Desktop-PCs (nicht steckkompatibel zu DDR4)'],['DDR5-SO-DIMM','Wechselbarer Arbeitsspeicher in Notebooks und Mini-PCs'],['DDR5-RDIMM mit ECC','Server: Registerbaustein, Erkennung und Korrektur von Bitfehlern über das gesamte Modul'],['LPDDR5X','Fest auf das Mainboard gelötet, besonders stromsparend, nicht nachrüstbar'],['GDDR7','Grafikspeicher auf einer dedizierten Grafikkarte']],
+     e:'Desktop-PCs nutzen UDIMMs, Notebooks SO-DIMMs, Server Registered-DIMMs mit ECC. LPDDR ist für mobile Geräte optimiert und verlötet – das muss man bei der Bedarfsanalyse wissen, weil später keine Aufrüstung möglich ist.',
+     n:'Häufige Fehlannahme: DDR5-UDIMMs hätten wegen ihres „On-Die-ECC“ bereits vollwertiges ECC. On-Die-ECC korrigiert nur Fehler innerhalb des Chips, nicht auf dem Weg zum Speichercontroller – für Server braucht man echte ECC-Module.'},
+ en:{s:'Your IT service company keeps various memory modules in the spare parts store. You are to pick the right module for upcoming orders.',
+     q:'Match each memory type to the appropriate use.',
+     p:[['DDR5 UDIMM','Upgrading a current desktop PC (not slot-compatible with DDR4)'],['DDR5 SO-DIMM','Replaceable memory in notebooks and mini PCs'],['DDR5 RDIMM with ECC','Server: register chip, detection and correction of bit errors across the whole module'],['LPDDR5X','Soldered onto the mainboard, particularly power-saving, not upgradable'],['GDDR7','Video memory on a dedicated graphics card']],
+     e:'Desktop PCs use UDIMMs, notebooks SO-DIMMs, servers registered DIMMs with ECC. LPDDR is optimised for mobile devices and soldered – you need to know this during the needs analysis because no later upgrade is possible.',
+     n:'Common misconception: DDR5 UDIMMs already have full ECC because of their "on-die ECC". On-die ECC only corrects errors inside the chip, not on the way to the memory controller – servers need real ECC modules.'}},
+{id:'hw-10', a:'hw', t:'sc', c:0,
+ de:{s:'Ein Callcenter mit 60 Plätzen im Schichtbetrieb erneuert seine Arbeitsplätze. Alle Anwendungen laufen künftig zentral auf einer Terminalserver-Farm (Remote Desktop Services) im eigenen Rechenzentrum. Gewünscht sind geringer Wartungsaufwand, niedriger Stromverbrauch und keine lokal gespeicherten Kundendaten.',
+     q:'Welche Endgeräte empfehlen Sie?',
+     o:['Thin Clients mit zentral verwaltetem, schlankem Betriebssystem','Leistungsstarke Desktop-PCs mit lokal installierter Callcenter-Software','Business-Notebooks mit Dockingstation','Workstations mit dedizierter Grafikkarte für flüssige Remote-Sitzungen'],
+     e:'Thin Clients stellen nur die Remote-Sitzung dar, die Verarbeitung und Datenhaltung erfolgt zentral. Sie sind lüfterlos, sparsam, schnell austauschbar und zentral verwaltbar. Voraussetzung sind ein ausfallsicherer Terminalserver und ein stabiles Netzwerk.',
+     n:'Notebooks wirken flexibel, sind für feste Schichtplätze aber teurer, speichern Daten lokal und müssen einzeln gepatcht werden – ihr Mobilitätsvorteil wird hier gar nicht benötigt.'},
+ en:{s:'A call centre with 60 seats in shift operation is renewing its workstations. In future, all applications will run centrally on a terminal server farm (Remote Desktop Services) in its own data centre. The goals are low maintenance effort, low power consumption and no customer data stored locally.',
+     q:'Which end devices do you recommend?',
+     o:['Thin clients with a centrally managed, lightweight operating system','Powerful desktop PCs with locally installed call centre software','Business notebooks with docking stations','Workstations with a dedicated graphics card for smooth remote sessions'],
+     e:'Thin clients only display the remote session; processing and data storage take place centrally. They are fanless, economical, quick to replace and centrally manageable. Prerequisites are a highly available terminal server and a stable network.',
+     n:'Notebooks seem flexible, but for fixed shift seats they are more expensive, store data locally and must be patched individually – their mobility advantage is not needed here.'}},
+{id:'hw-11', a:'hw', t:'order',
+ de:{s:'Nach einer RAM-Aufrüstung laufen bei einem PC die Lüfter an, der Bildschirm bleibt aber schwarz. Um einer Auszubildenden zu zeigen, an welcher Stelle der PC hängen bleibt, gehen Sie mit ihr den Startvorgang bis zur Übergabe an das Betriebssystem durch.',
+     q:'Bringen Sie die Phasen des Startvorgangs eines UEFI-PCs in die richtige Reihenfolge.',
+     o:['Netzteil stellt stabile Spannungen bereit und meldet „Power Good“ an das Mainboard','CPU startet am Reset-Vektor und führt die UEFI-Firmware aus dem Flash-Baustein aus','Arbeitsspeicher wird erkannt und initialisiert (Memory Training)','POST: Grafik, Controller und PCIe-Geräte werden geprüft und initialisiert','Firmware wertet die Bootreihenfolge (Booteinträge im NVRAM) aus','Bootloader wird von der EFI-Systempartition geladen (bei Secure Boot nach Signaturprüfung) und übernimmt den Start'],
+     e:'Ohne „Power Good“ startet die CPU nicht; ohne initialisierten RAM kann die Firmware keine weiteren Geräte einrichten. Dass die Lüfter laufen, aber kein Bild erscheint, deutet daher auf einen Abbruch bei der Speicherinitialisierung hin – Debug-LEDs oder Piepcodes bestätigen das.',
+     n:'Viele erwarten die Grafikinitialisierung vor dem RAM, weil man „zuerst etwas sieht“. Die Grafikausgabe setzt aber funktionierenden Arbeitsspeicher voraus.'},
+ en:{s:'After a RAM upgrade, a PC spins up its fans but the screen stays black. To show a trainee where the PC gets stuck, you walk her through the start-up process until control passes to the operating system.',
+     q:'Put the phases of the start-up of a UEFI PC in the correct order.',
+     o:['The power supply provides stable voltages and signals "Power Good" to the mainboard','The CPU starts at the reset vector and executes the UEFI firmware from the flash chip','Main memory is detected and initialised (memory training)','POST: graphics, controllers and PCIe devices are tested and initialised','The firmware evaluates the boot order (boot entries in NVRAM)','The bootloader is loaded from the EFI system partition (after a signature check with Secure Boot) and takes over the boot'],
+     e:'Without "Power Good" the CPU does not start; without initialised RAM the firmware cannot set up any further devices. Fans running but no picture therefore suggests an abort during memory initialisation – debug LEDs or beep codes confirm this.',
+     n:'Many expect graphics initialisation before RAM because you "see something first". But video output requires working main memory.'}},
+{id:'hw-12', a:'hw', gen:'hwPrintCost'},
+{id:'hw-13', a:'hw', t:'mc', c:[0,1,2],
+ de:{s:'Eine Werbeagentur bestellt vier Monitore für die Bildbearbeitung von Druckprodukten. Die Kundin betont: „Was ich am Bildschirm sehe, muss später im Druck genauso aussehen.“',
+     q:'Welche Merkmale nehmen Sie in die Anforderungsliste auf? (Mehrere Antworten)',
+     o:['IPS-Panel mit hoher Blickwinkelstabilität','Großer Farbraum (z. B. ca. 99 % Adobe RGB) und Hardware-Kalibrierung','Hohe Auflösung, z. B. 3840 × 2160 Pixel bei 27 Zoll, für feine Details','TN-Panel wegen der kürzesten Reaktionszeit','Bildwiederholrate von mindestens 240 Hz','VA-Panel mit starker Krümmung (1000R) für mehr Übersicht'],
+     e:'Für farbverbindliches Arbeiten zählen Farbraumabdeckung, Kalibrierbarkeit und ein Panel, dessen Farben sich beim Blickwinkel nicht verschieben (IPS). Eine hohe Pixeldichte erleichtert die Detailarbeit.',
+     n:'Kurze Reaktionszeiten und hohe Bildwiederholraten sind Gaming-Merkmale. TN-Panels verfälschen Farben schon bei leicht geändertem Blickwinkel und sind für Bildbearbeitung ungeeignet.'},
+ en:{s:'An advertising agency orders four monitors for editing images for print products. The customer stresses: "What I see on screen must look exactly the same in print later."',
+     q:'Which characteristics do you include in the list of requirements? (Multiple answers)',
+     o:['IPS panel with high viewing-angle stability','Wide colour gamut (e.g. approx. 99 % Adobe RGB) and hardware calibration','High resolution, e.g. 3840 × 2160 pixels at 27 inches, for fine detail','TN panel because of the shortest response time','Refresh rate of at least 240 Hz','VA panel with strong curvature (1000R) for a better overview'],
+     e:'For colour-accurate work, gamut coverage, calibration capability and a panel whose colours do not shift with the viewing angle (IPS) matter. A high pixel density makes detailed work easier.',
+     n:'Short response times and high refresh rates are gaming features. TN panels distort colours even at slightly changed viewing angles and are unsuitable for image editing.'}},
+{id:'hw-14', a:'hw', t:'sc', c:0,
+ de:{s:'Ein Kunde ruft verärgert an: Die neue SSD mit „2 TB“ laut Datenblatt wird im Windows-Explorer nur mit 1,81 TB angezeigt. Er vermutet ein gefälschtes Produkt und will reklamieren.',
+     q:'Wie erklären Sie dem Kunden die Abweichung?',
+     o:['Der Hersteller rechnet dezimal (1 TB = 10¹² Byte), Windows binär (1 TiB = 2⁴⁰ Byte) und zeigt TiB mit der Einheit „TB“ an: 2 · 10¹² Byte ≈ 1,82 TiB','Das Dateisystem NTFS belegt nach der Formatierung etwa 10 % der Kapazität für seine Verwaltungsstrukturen','Der SSD-Controller zieht die Reserve für Over-Provisioning von der angegebenen Kapazität ab','Die SSD ist wahrscheinlich defekt oder gefälscht und sollte umgetauscht werden'],
+     e:'2.000.000.000.000 Byte ÷ 1.099.511.627.776 Byte/TiB ≈ 1,819 TiB. Es fehlt kein Speicher – die Zahl ist nur in einer anderen Einheit angegeben, die Windows fälschlich „TB“ nennt.',
+     n:'Die NTFS-Verwaltungsstrukturen sind im Verhältnis winzig und erscheinen als belegter Platz, nicht als geringere Gesamtgröße. Die Reserve für Over-Provisioning ist in der Herstellerangabe bereits nicht enthalten.'},
+ en:{s:'An annoyed customer calls: the new SSD with "2 TB" according to the data sheet is shown in Windows Explorer with only 1.81 TB. He suspects a counterfeit product and wants to file a complaint.',
+     q:'How do you explain the difference to the customer?',
+     o:['The manufacturer calculates in decimal (1 TB = 10¹² bytes), Windows in binary (1 TiB = 2⁴⁰ bytes) and displays TiB with the unit "TB": 2 · 10¹² bytes ≈ 1.82 TiB','After formatting, the NTFS file system occupies about 10 % of the capacity for its management structures','The SSD controller deducts the over-provisioning reserve from the stated capacity','The SSD is probably defective or counterfeit and should be exchanged'],
+     e:'2,000,000,000,000 bytes ÷ 1,099,511,627,776 bytes/TiB ≈ 1.819 TiB. No storage is missing – the figure is merely given in a different unit, which Windows wrongly labels "TB".',
+     n:'The NTFS management structures are tiny in comparison and appear as used space, not as a smaller total size. The over-provisioning reserve is already excluded from the manufacturer\'s figure.'}},
+{id:'hw-15', a:'hw', t:'match',
+ de:{s:'Ein Logistikunternehmen erneuert die Drucker in mehreren Abteilungen. Sie erstellen eine Empfehlung je Einsatzzweck.',
+     q:'Ordnen Sie jedem Einsatzzweck die geeignete Drucktechnik zu.',
+     p:[['Personalabteilung: viele Textseiten täglich, niedrige Seitenkosten','Schwarz-Weiß-Laserdrucker'],['Lager: Lieferscheine mit mehreren Durchschlägen in einem Druckgang','Nadeldrucker (Matrixdrucker)'],['Versand: Paketetiketten, die nur wenige Wochen halten müssen, ohne Farbband und Toner','Thermodirektdrucker'],['Inventarisierung: wisch- und kratzfeste Etiketten für Geräte, lange haltbar','Thermotransferdrucker'],['Marketing: Fotos in hoher Farbqualität auf Spezialpapier','Tintenstrahl-Fotodrucker']],
+     e:'Nur Anschlagdrucker wie der Nadeldrucker drücken durch mehrere Lagen. Thermodirektdruck braucht kein Verbrauchsmaterial außer Spezialpapier, verblasst aber bei Wärme und Licht; Thermotransfer überträgt Farbe von einem Farbband und ist dauerhaft.',
+     n:'Thermodirekt- und Thermotransferdruck werden oft verwechselt. Für langlebige Inventaretiketten ist Thermodirekt ungeeignet, da das wärmeempfindliche Papier mit der Zeit vergilbt und verblasst.'},
+ en:{s:'A logistics company is replacing the printers in several departments. You prepare a recommendation for each purpose.',
+     q:'Match each purpose to the suitable printing technology.',
+     p:[['HR: many text pages daily, low cost per page','Monochrome laser printer'],['Warehouse: delivery notes with several carbon copies in one pass','Dot-matrix printer'],['Shipping: parcel labels that only need to last a few weeks, without ribbon or toner','Direct thermal printer'],['Asset tagging: wipe- and scratch-resistant device labels, long-lasting','Thermal transfer printer'],['Marketing: high-quality colour photos on special paper','Inkjet photo printer']],
+     e:'Only impact printers such as dot-matrix printers print through several layers. Direct thermal printing needs no consumables other than special paper but fades with heat and light; thermal transfer applies ink from a ribbon and is durable.',
+     n:'Direct thermal and thermal transfer are often confused. Direct thermal is unsuitable for long-lasting asset labels because the heat-sensitive paper yellows and fades over time.'}},
+{id:'hw-16', a:'hw', t:'in', f:[{v:'10101100'},{v:'AC'},{v:63, tol:0}],
+ de:{s:'An einer Industriesteuerung in der Produktion wird die Geräteadresse über acht DIP-Schalter binär eingestellt (Schalter 8 = höchstwertiges Bit). Die Konfigurationssoftware zeigt Adressen hexadezimal an. Laut Adressplan soll die Steuerung die Adresse 172 (dezimal) erhalten. Eine zweite Steuerung meldet sich in der Software mit der Adresse 3F (hexadezimal).',
+     q:'Geben Sie die Adresse 172 als 8-stellige Binärzahl und als Hexadezimalzahl (ohne Präfix 0x) an. Welcher Dezimaladresse entspricht 3F?',
+     l:['172 binär (8 Bit)','172 hexadezimal','3F dezimal'],
+     e:'172 = 128 + 32 + 8 + 4 → 1010 1100. Jede Vierergruppe (Nibble) ergibt eine Hex-Ziffer: 1010 = A, 1100 = C → AC. 3F = 3 × 16 + 15 = 63.',
+     n:'Häufiger Fehler: bei der Umrechnung nach Hex die Dezimalziffern einzeln umzuwandeln (z. B. „172“ → „1 7 2“). Richtig ist, die Binärzahl in Vierergruppen zu teilen oder fortlaufend durch 16 zu dividieren.'},
+ en:{s:'On an industrial controller in production, the device address is set in binary via eight DIP switches (switch 8 = most significant bit). The configuration software displays addresses in hexadecimal. According to the address plan, the controller is to receive address 172 (decimal). A second controller appears in the software with address 3F (hexadecimal).',
+     q:'State address 172 as an 8-digit binary number and as a hexadecimal number (without the prefix 0x). Which decimal address corresponds to 3F?',
+     l:['172 binary (8 bits)','172 hexadecimal','3F decimal'],
+     e:'172 = 128 + 32 + 8 + 4 → 1010 1100. Each group of four bits (nibble) gives one hex digit: 1010 = A, 1100 = C → AC. 3F = 3 × 16 + 15 = 63.',
+     n:'Common mistake: converting the decimal digits to hex one by one (e.g. "172" → "1 7 2"). The correct way is to split the binary number into groups of four or to divide repeatedly by 16.'}},
+{id:'hw-17', a:'hw', t:'sc', c:0,
+ de:{s:'Sie rüsten einen fünf Jahre alten Büro-PC mit einer M.2-2280-NVMe-SSD auf und setzen sie in den einzigen M.2-Steckplatz. Weder das UEFI-Setup noch das Windows-Setup zeigt die SSD an. Im Mainboard-Handbuch steht zum Steckplatz: „M.2 Socket 3, M-Key, Typ 2242/2260/2280, nur SATA-Modus“.',
+     q:'Was ist die Ursache?',
+     o:['Der Steckplatz ist nur mit SATA angebunden – eine NVMe-SSD benötigt PCIe-Lanes am M.2-Steckplatz','Die SSD muss zuerst unter Windows mit GPT initialisiert werden, bevor UEFI und Setup sie erkennen','Die SSD ist mit 80 mm zu lang für den Steckplatz','Der SATA-Controller muss im UEFI von AHCI auf IDE umgestellt werden'],
+     e:'M.2 beschreibt nur Formfaktor und Stecker. Ob ein Steckplatz SATA, PCIe/NVMe oder beides unterstützt, legt das Mainboard fest. Hier passt nur eine M.2-SATA-SSD – alternativ eine NVMe-SSD auf einer PCIe-Adapterkarte, sofern das UEFI davon booten kann.',
+     n:'Eine nicht initialisierte SSD wird im UEFI trotzdem als Gerät gelistet und erscheint im Windows-Setup als „nicht zugewiesener Speicher“. Wird sie nirgends angezeigt, fehlt die elektrische Anbindung.'},
+ en:{s:'You upgrade a five-year-old office PC with an M.2 2280 NVMe SSD and insert it into the only M.2 slot. Neither UEFI setup nor Windows setup shows the SSD. The mainboard manual says about the slot: "M.2 Socket 3, M key, type 2242/2260/2280, SATA mode only".',
+     q:'What is the cause?',
+     o:['The slot is wired to SATA only – an NVMe SSD needs PCIe lanes on the M.2 slot','The SSD must first be initialised with GPT in Windows before UEFI and setup recognise it','At 80 mm the SSD is too long for the slot','The SATA controller must be switched from AHCI to IDE in the UEFI'],
+     e:'M.2 only describes the form factor and connector. Whether a slot supports SATA, PCIe/NVMe or both is determined by the mainboard. Only an M.2 SATA SSD fits here – alternatively an NVMe SSD on a PCIe adapter card, provided the UEFI can boot from it.',
+     n:'An uninitialised SSD is still listed as a device in the UEFI and appears in Windows setup as "unallocated space". If it is not shown anywhere, the electrical connection is missing.'}},
+{id:'hw-18', a:'hw', t:'mc', c:[0,1,2],
+ de:{s:'Für eine Büro-Workstation haben Sie mit einem Messgerät eine maximale Leistungsaufnahme des Gesamtsystems von 190 W unter Volllast gemessen. Ein Kollege schlägt „zur Sicherheit“ ein 1.200-W-Netzteil vor.',
+     q:'Welche Aussagen zur Auswahl des Netzteils sind zutreffend? (Mehrere Antworten)',
+     o:['Die Nennleistung gibt an, wie viel Leistung das Netzteil dauerhaft abgeben kann – der PC entnimmt nur so viel, wie er gerade benötigt','Der Wirkungsgrad ist typischerweise im mittleren Lastbereich (um 50 %) am höchsten und sinkt bei sehr geringer Auslastung deutlich','Ein Netzteil mit etwa 400 bis 450 W bietet Reserve für Lastspitzen und Aufrüstungen und arbeitet dabei in einem effizienten Lastbereich','Ein 1.200-W-Netzteil entnimmt dem Stromnetz ständig 1.200 W und verursacht dadurch hohe Stromkosten','Die 80-PLUS-Stufe (z. B. Gold) gibt die maximale Ausgangsleistung des Netzteils an'],
+     e:'Bei 190 W wäre ein 1.200-W-Netzteil nur zu etwa 16 % ausgelastet – im Leerlauf noch deutlich weniger – und damit weniger effizient und teurer. Ein 400–450-W-Netzteil liegt bei Volllast um 45 % Auslastung, also nahe am Effizienzoptimum.',
+     n:'Ein Netzteil zieht nicht seine Nennleistung, sondern die abgerufene Leistung plus Umwandlungsverluste. Das Problem der Überdimensionierung ist der schlechtere Wirkungsgrad bei Teillast, nicht ein Dauerverbrauch von 1.200 W.'},
+ en:{s:'For an office workstation you measured a maximum power draw of the entire system of 190 W under full load using a power meter. A colleague suggests a 1,200 W power supply "to be on the safe side".',
+     q:'Which statements on choosing the power supply are correct? (Multiple answers)',
+     o:['The rated power states how much power the PSU can deliver continuously – the PC only draws as much as it currently needs','Efficiency is typically highest in the medium load range (around 50 %) and drops significantly at very low load','A PSU of about 400 to 450 W provides a reserve for load peaks and upgrades while operating in an efficient load range','A 1,200 W PSU constantly draws 1,200 W from the mains and therefore causes high electricity costs','The 80 PLUS level (e.g. Gold) states the maximum output power of the PSU'],
+     e:'At 190 W a 1,200 W PSU would only be loaded to about 16 % – considerably less at idle – and thus less efficient and more expensive. A 400–450 W PSU runs at around 45 % load under full load, close to its efficiency optimum.',
+     n:'A PSU does not draw its rated power but the power demanded plus conversion losses. The problem with oversizing is the poorer efficiency at partial load, not a constant draw of 1,200 W.'}},
+{id:'hw-19', a:'hw', t:'open',
+ de:{s:'Ein Ingenieurbüro möchte acht neue Arbeitsplätze ausstatten: fünf für Sachbearbeitung (Office, ERP, Videokonferenzen) und drei für die Konstruktion mit einer 3D-CAD-Software. Der Geschäftsführer sagt: „Warum so viele Fragen? Bestellen Sie einfach acht gute PCs.“',
+     q:'Erläutern Sie, wie Sie bei der Bedarfsanalyse vorgehen und welche Anforderungen Sie für die beiden Nutzergruppen ableiten.',
+     m:'• Ziel: passende statt „gute“ Geräte – Überdimensionierung kostet Geld und Energie, Unterdimensionierung Produktivität.\n• Ist-Analyse: vorhandene Hardware, Software, Peripherie, Netzwerk, Lizenzen.\n• Anforderungen je Nutzergruppe erfragen: Anwendungen und deren Systemanforderungen, Mobilität (Notebook oder Desktop), Anzahl Monitore, Datenschutz.\n• Sachbearbeitung: aktuelle Mittelklasse-CPU, 16 GB RAM (Dual Channel), 512-GB-NVMe-SSD, integrierte Grafik, zwei Monitore, Headset/Webcam.\n• Konstruktion: CPU mit hohem Single-Core-Takt, 32–64 GB RAM, vom CAD-Hersteller zertifizierte Workstation-Grafikkarte, großer IPS-Monitor, ggf. ECC-Speicher.\n• Rahmenbedingungen: Budget, Windows 11 Pro mit TPM 2.0, Energieeffizienz, Garantie und Vor-Ort-Service, einheitliche Modelle.\n• Ergebnis dokumentieren (Anforderungsliste bzw. Lastenheft), Angebote einholen und per Nutzwertanalyse vergleichen.',
+     k:['Überdimensionierung vs. Unterdimensionierung begründet','Ist-Analyse','Anforderungen je Nutzergruppe und Anwendung','Konkrete Ausstattung Sachbearbeitung','Konkrete Ausstattung CAD (RAM, zertifizierte GPU)','Rahmenbedingungen: Budget, Energie, Service, Betriebssystem','Dokumentation und Angebotsvergleich']},
+ en:{s:'An engineering office wants to equip eight new workstations: five for clerical work (Office, ERP, video conferencing) and three for design work with 3D CAD software. The managing director says: "Why so many questions? Just order eight good PCs."',
+     q:'Explain how you proceed with the needs analysis and which requirements you derive for the two user groups.',
+     m:'• Goal: suitable rather than "good" devices – oversizing costs money and energy, undersizing costs productivity.\n• As-is analysis: existing hardware, software, peripherals, network, licences.\n• Ask about requirements per user group: applications and their system requirements, mobility (notebook or desktop), number of monitors, data protection.\n• Clerical work: current mid-range CPU, 16 GB RAM (dual channel), 512 GB NVMe SSD, integrated graphics, two monitors, headset/webcam.\n• Design: CPU with high single-core clock, 32–64 GB RAM, workstation graphics card certified by the CAD vendor, large IPS monitor, possibly ECC memory.\n• Constraints: budget, Windows 11 Pro with TPM 2.0, energy efficiency, warranty and on-site service, uniform models.\n• Document the result (requirements list or specification, Lastenheft), obtain offers and compare them with a weighted scoring model.',
+     k:['Oversizing vs. undersizing justified','As-is analysis','Requirements per user group and application','Concrete configuration for clerical work','Concrete configuration for CAD (RAM, certified GPU)','Constraints: budget, energy, service, operating system','Documentation and comparison of offers']}},
+{id:'hw-20', a:'hw', t:'order',
+ de:{s:'Auf einem Abteilungs-Laserdrucker lässt sich der Toner auf frisch bedruckten Seiten mit dem Finger verwischen. Um den Fehler einzugrenzen, gehen Sie mit einem Kollegen den Druckprozess Schritt für Schritt durch.',
+     q:'Bringen Sie die Schritte des Laserdruckprozesses in die richtige Reihenfolge.',
+     o:['Die Fotoleitertrommel wird über Ladewalze bzw. Korona gleichmäßig elektrostatisch aufgeladen','Der Laser belichtet die Trommel und entlädt sie an den Stellen des Druckbilds','Toner lagert sich an den belichteten Stellen der Trommel an (Entwicklung)','Die Transferwalze zieht den Toner von der Trommel auf das Papier','Die Fixiereinheit schmilzt den Toner mit Hitze und Druck in das Papier ein','Resttoner wird von der Trommel entfernt und die Trommel entladen (Reinigung)'],
+     e:'Erst die Fixierung verbindet den Toner dauerhaft mit dem Papier. Lässt sich das Druckbild verwischen, ist die Fixiereinheit (Heizung, Andruckwalze) die wahrscheinlichste Fehlerquelle.',
+     n:'Häufig wird die Fixierung vor den Transfer auf das Papier gesetzt. Geschmolzen wird aber erst der Toner, der bereits auf dem Papier liegt.'},
+ en:{s:'On a departmental laser printer, the toner on freshly printed pages can be smudged with a finger. To narrow down the fault, you go through the printing process step by step with a colleague.',
+     q:'Put the steps of the laser printing process in the correct order.',
+     o:['The photoconductor drum is charged uniformly by a charge roller or corona','The laser exposes the drum and discharges it where the print image is to appear','Toner adheres to the exposed areas of the drum (developing)','The transfer roller pulls the toner from the drum onto the paper','The fuser unit melts the toner into the paper with heat and pressure','Residual toner is removed from the drum and the drum is discharged (cleaning)'],
+     e:'Only fusing bonds the toner permanently to the paper. If the print can be smudged, the fuser unit (heater, pressure roller) is the most likely source of the fault.',
+     n:'Fusing is often placed before the transfer to the paper. But only toner that already lies on the paper is melted.'}}
 );
 
 /* ===== BEREICH:bs – Betriebssysteme (1. Lehrjahr) ===== */
