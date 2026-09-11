@@ -10,6 +10,18 @@ All changes to Patchfeld. Version scheme: every digit runs from 0 to 9 –
 
 <!-- releases -->
 
+## 0.2.0 – 2026-09-11
+
+- Linux-Administration auf 20 Fragen erweitert
+- Neue Themen: Umleitungen in crontab, Sticky Bit, sudoers, /etc/fstab mit UUID, usermod -aG, SSH-Härtung, /etc/passwd und /etc/shadow, journalctl, Shell-Werkzeuge, cron-Ausdrücke, apt-Updates im Wartungsfenster, eigener systemd-Dienst, Fehlersuche nach Update
+- Neue Rechenaufgaben mit Zufallswerten: umask zu Rechten, symbolisches chmod zu Oktalwert
+
+**English**
+
+- Linux administration extended to 20 questions
+- New topics: redirection in crontab, sticky bit, sudoers, /etc/fstab with UUID, usermod -aG, SSH hardening, /etc/passwd and /etc/shadow, journalctl, shell tools, cron expressions, apt updates in a maintenance window, custom systemd service, troubleshooting after an update
+- New random calculations: umask to permissions, symbolic chmod to octal
+
 ## 0.1.9 – 2026-09-11
 
 - Active Directory & Rechte auf 20 Fragen erweitert

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Patchfeld</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<meta name="app-version" content="0.1.9">
+<meta name="app-version" content="0.2.0">
 <meta name="theme-color" content="#1b1f24">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -311,8 +311,11 @@ dialog::backdrop{background:rgba(10,12,14,.55)}
 /* =====================================================================
    PATCHFELD – Kern: Version, Bereiche, Hilfsfunktionen, Generatoren
    ===================================================================== */
-const APP_VERSION = '0.1.9';
+const APP_VERSION = '0.2.0';
 const CHANGELOG = [
+  {v:'0.2.0', d:'2026-09-11',
+   de:['Linux-Administration auf 20 Fragen erweitert','Neue Themen: Umleitungen in crontab, Sticky Bit, sudoers, /etc/fstab mit UUID, usermod -aG, SSH-Härtung, /etc/passwd und /etc/shadow, journalctl, Shell-Werkzeuge, cron-Ausdrücke, apt-Updates im Wartungsfenster, eigener systemd-Dienst, Fehlersuche nach Update','Neue Rechenaufgaben mit Zufallswerten: umask zu Rechten, symbolisches chmod zu Oktalwert'],
+   en:['Linux administration extended to 20 questions','New topics: redirection in crontab, sticky bit, sudoers, /etc/fstab with UUID, usermod -aG, SSH hardening, /etc/passwd and /etc/shadow, journalctl, shell tools, cron expressions, apt updates in a maintenance window, custom systemd service, troubleshooting after an update','New random calculations: umask to permissions, symbolic chmod to octal']},
   {v:'0.1.9', d:'2026-09-11',
    de:['Active Directory & Rechte auf 20 Fragen erweitert','Neue Themen: Kopieren vs. Verschieben und NTFS-Rechte, Loopback-Verarbeitung, DNS beim Domänenbeitritt, Gruppenbereiche, explizites Zulassen vs. geerbtes Verweigern, GPO-Fehlersuche, Fine-Grained Password Policies, Entra Connect, AD-Struktur, FSMO-Rollen, erster Domänencontroller, GPO-Rollout, Delegierung','Neue Rechenaufgaben mit Zufallswerten: Kontosperrung aus Anmeldeprotokoll, Gruppen und Mitgliedschaften nach AGDLP'],
    en:['Active Directory & permissions extended to 20 questions','New topics: copying vs moving and NTFS permissions, loopback processing, DNS for domain join, group scopes, explicit allow vs inherited deny, GPO troubleshooting, fine-grained password policies, Entra Connect, AD structure, FSMO roles, first domain controller, GPO rollout, delegation','New random calculations: account lockout from a logon log, groups and memberships per AGDLP']},
@@ -2421,6 +2424,226 @@ Q.push(
      o:['Create a key pair on the admin PC with ssh-keygen','Copy the public key to the server with ssh-copy-id','Test logon with the key in a second session','Set "PasswordAuthentication no" in /etc/ssh/sshd_config','Reload the SSH service and test again'],
      e:'Password logon is only disabled once key logon demonstrably works. The existing session stays open as a way back.',
      n:'Disabling password logon first locks you out if the key was not installed correctly.'}}
+);
+
+/* ----- BEREICH:linux – Erweiterung ----- */
+/* umask: Rechte einer neuen Datei bzw. eines neuen Verzeichnisses */
+GEN.linuxUmask = function(L){
+  const um = pick(['0022','0027','0002','0077','0007','0033','0037','0023','0026']), dir = Math.random() < 0.5;
+  const base = dir ? 7 : 6, m = um.slice(1).split('').map(Number), res = m.map(d => base & ~d & 7);
+  const sym = n => (n&4?'r':'-')+(n&2?'w':'-')+(n&1?'x':'-');
+  const oct = res.join(''), s = res.map(sym).join('');
+  const name = pick(['angebot','quartal','protokoll','entwurf']), nameEn = {angebot:'offer', quartal:'quarter', protokoll:'minutes', entwurf:'draft'}[name];
+  const cmd = dir ? `mkdir /srv/team/${tx(L,name,nameEn)}` : `touch /srv/team/${tx(L,name,nameEn)}.txt`;
+  const who = ['Besitzer','Gruppe','andere'], whoEn = ['owner','group','others'];
+  const stepsDe = m.map((d,i) => `${who[i]} ${base} (${sym(base)}) ohne ${d} (${sym(d)}) = ${res[i]}`).join(', ');
+  const stepsEn = m.map((d,i) => `${whoEn[i]} ${base} (${sym(base)}) without ${d} (${sym(d)}) = ${res[i]}`).join(', ');
+  const trap = !dir && m.slice(1).includes(3);
+  return { t:'in',
+    s: tx(L, 'Auf dem Dateiserver legt die Mitarbeiterin S. Hoffmann Daten für ihr Team an. In ihrer Shell sehen Sie:', 'On the file server, the employee S. Hoffmann creates data for her team. In her shell you see:'),
+    code: `$ umask\n${um}\n$ ${cmd}`,
+    q: tx(L, `Welche Rechte erhält ${dir?'das neue Verzeichnis':'die neue Datei'}? Geben Sie den Oktalwert (3 Stellen) und die Rechte wie in ls -l an (9 Zeichen, ohne Typzeichen).`, `Which permissions does the new ${dir?'directory':'file'} get? State the octal value (3 digits) and the permissions as shown by ls -l (9 characters, without the type character).`),
+    f: [ {l:tx(L,'Oktalwert','Octal value'), v:oct}, {l:tx(L,'Rechte (ls -l)','Permissions (ls -l)'), v:s} ],
+    e: tx(L, `Ausgangswert für ${dir?'Verzeichnisse 777':'Dateien 666 – Dateien erhalten nie automatisch x'}. Die umask ${um} blendet Bits stellenweise aus: ${stepsDe}. Ergebnis ${oct} = ${s}.`,
+             `Starting value for ${dir?'directories 777':'files 666 – files never get x automatically'}. The umask ${um} masks out bits digit by digit: ${stepsEn}. Result ${oct} = ${s}.`),
+    n: trap
+      ? tx(L, `Naheliegend, aber falsch: 666 − ${um.slice(1)} zu rechnen – die umask subtrahiert nicht, sie blendet Bits aus. 6 (rw-) ohne 3 (-wx) ergibt 4 (r--), nicht 3.`, `Tempting but wrong: calculating 666 − ${um.slice(1)} – the umask does not subtract, it masks out bits. 6 (rw-) without 3 (-wx) gives 4 (r--), not 3.`)
+      : dir
+        ? tx(L, 'Naheliegend, aber falsch: auch bei Verzeichnissen von 666 auszugehen – Verzeichnisse starten mit 777, weil x zum Betreten nötig ist.', 'Tempting but wrong: starting from 666 for directories too – directories start at 777 because x is needed to enter them.')
+        : tx(L, 'Naheliegend, aber falsch: auch bei Dateien von 777 auszugehen – neue Dateien erhalten das Ausführungsrecht nie über die umask.', 'Tempting but wrong: starting from 777 for files too – new files never get execute permission through the umask.')
+  };
+};
+
+/* chmod symbolisch: Ausgangsrechte + Ausdruck → Oktalwert */
+GEN.linuxChmodSym = function(L){
+  const sym = n => (n&4?'r':'-')+(n&2?'w':'-')+(n&1?'x':'-');
+  const apply = (p, c) => {
+    const [, w, op, pr] = c.match(/^([ugoa]+)([+\-=])([rwx]*)$/);
+    const bits = (pr.includes('r')?4:0) | (pr.includes('w')?2:0) | (pr.includes('x')?1:0);
+    const idx = w === 'a' ? [0,1,2] : [...w].map(ch => 'ugo'.indexOf(ch));
+    const q = p.slice(); idx.forEach(i => { q[i] = op === '+' ? q[i] | bits : op === '-' ? q[i] & ~bits : bits; }); return q;
+  };
+  const POOL = ['u+x','u-w','g+w','g-w','g+x','g-x','o-r','o+r','o-x','o=','o=r','g=rx','g=r','a+x','a-w','ug+x','go-w','go-rwx','a+r'];
+  const run = (p, list) => list.reduce((a, c) => apply(a, c), p).join('');
+  let start, cls, steps, ok;
+  do {
+    start = pick([[6,4,4],[6,4,0],[6,0,0],[6,6,4],[6,6,0],[7,5,5],[7,5,0],[7,0,0],[7,7,5],[7,5,4]]);
+    cls = shuffle(POOL).slice(0, pick([2,2,3]));
+    steps = []; let p = start; ok = true;
+    for (const c of cls){ const n = apply(p, c); if (n.join('') === p.join('')) { ok = false; break; } steps.push([c, n]); p = n; }
+    /* jeder Teilausdruck muss das Ergebnis beeinflussen (keine überflüssigen Klauseln) */
+    if (ok) { const full = run(start, cls); ok = full !== start.join('') && cls.every((_, j) => run(start, cls.filter((__, k) => k !== j)) !== full); }
+    /* keine zwei Teilausdrücke für dieselbe Klassenangabe (z. B. g=rx,g-x) */
+    if (ok) ok = new Set(cls.map(c => c.match(/^[ugoa]+/)[0])).size === cls.length;
+  } while (!ok);
+  const res = steps[steps.length-1][1], oct = res.join(''), expr = cls.join(','), file = pick(['deploy.sh','export.csv','backup.sh','config.yml']);
+  const chain = steps.map(([c,n]) => `${c} → ${n.map(sym).join('')} (${n.join('')})`).join('; ');
+  const hasO = cls.some(c => /^[ug]*o/.test(c)), hasEq = cls.some(c => c.includes('=')), hasA = cls.some(c => c[0] === 'a');
+  return { t:'in',
+    s: tx(L, 'Ein Kollege hat auf dem Webserver die Rechte einer Datei angepasst. Im Terminalverlauf finden Sie:', 'A colleague adjusted the permissions of a file on the web server. In the terminal history you find:'),
+    code: `$ ls -l ${file}\n-${start.map(sym).join('')} 1 deploy web 2048 ${file}\n$ chmod ${expr} ${file}`,
+    q: tx(L, 'Welche Rechte hat die Datei nach dem chmod-Befehl? Geben Sie den Oktalwert an.', 'Which permissions does the file have after the chmod command? State the octal value.'),
+    f: [ {l:tx(L,'Oktalwert','Octal value'), v:oct} ],
+    e: tx(L, `Start: ${start.map(sym).join('')} (${start.join('')}). Die Teilausdrücke werden von links nach rechts angewendet: ${chain}. u = Besitzer, g = Gruppe, o = andere, a = alle; + ergänzt, - entfernt, = setzt genau. Ergebnis: ${oct}.`,
+             `Start: ${start.map(sym).join('')} (${start.join('')}). The clauses are applied from left to right: ${chain}. u = owner (user), g = group, o = others, a = all; + adds, - removes, = sets exactly. Result: ${oct}.`),
+    n: hasO
+      ? tx(L, 'Naheliegend, aber falsch: „o“ als Besitzer (owner) zu lesen – o steht für others (andere), der Besitzer ist u (user).', 'Tempting but wrong: reading "o" as owner – o stands for others; the owner is u (user).')
+      : hasEq
+        ? tx(L, 'Naheliegend, aber falsch: „=“ wie „+“ zu behandeln – = setzt die Rechte der Klasse genau auf die genannten Bits und entfernt alle anderen.', 'Tempting but wrong: treating "=" like "+" – = sets the class to exactly the listed bits and removes all others.')
+        : hasA
+          ? tx(L, 'Naheliegend, aber falsch: „a“ nur auf die anderen zu beziehen – a steht für all (Besitzer, Gruppe und andere).', 'Tempting but wrong: applying "a" only to others – a stands for all (owner, group and others).')
+          : tx(L, 'Naheliegend, aber falsch: nur den letzten Teilausdruck zu beachten – chmod wendet alle durch Komma getrennten Ausdrücke nacheinander an.', 'Tempting but wrong: considering only the last clause – chmod applies all comma-separated clauses one after the other.')
+  };
+};
+
+Q.push(
+{id:'linux-06', a:'linux', t:'sc', c:0,
+ de:{s:'Das Sicherungsskript /opt/scripts/backup.sh läuft nachts per cron. Normale Ausgaben und Fehlermeldungen sollen an die Datei /var/log/backup.log angehängt werden, ohne ältere Einträge zu überschreiben.',
+     q:'Welche Zeile tragen Sie in die crontab ein?',
+     o:['0 2 * * * /opt/scripts/backup.sh >> /var/log/backup.log 2>&1','0 2 * * * /opt/scripts/backup.sh > /var/log/backup.log 2>&1','0 2 * * * /opt/scripts/backup.sh 2>&1 >> /var/log/backup.log','0 2 * * * /opt/scripts/backup.sh >> /var/log/backup.log 2>/dev/null'],
+     e:'>> hängt an, > überschreibt. 2>&1 leitet die Fehlerausgabe (Kanal 2) dorthin, wohin die Standardausgabe (Kanal 1) in diesem Moment zeigt – deshalb muss es hinter der Dateiumleitung stehen.',
+     n:'Bei „2>&1 >> datei“ wird stderr zuerst auf das bisherige Ziel von stdout gelegt (bei cron die Mail an den Benutzer) und erst danach stdout in die Datei umgeleitet – die Fehlermeldungen fehlen im Log.'},
+ en:{s:'The backup script /opt/scripts/backup.sh runs at night via cron. Normal output and error messages should be appended to the file /var/log/backup.log without overwriting older entries.',
+     q:'Which line do you add to the crontab?',
+     o:['0 2 * * * /opt/scripts/backup.sh >> /var/log/backup.log 2>&1','0 2 * * * /opt/scripts/backup.sh > /var/log/backup.log 2>&1','0 2 * * * /opt/scripts/backup.sh 2>&1 >> /var/log/backup.log','0 2 * * * /opt/scripts/backup.sh >> /var/log/backup.log 2>/dev/null'],
+     e:'>> appends, > overwrites. 2>&1 redirects the error output (stream 2) to wherever standard output (stream 1) points at that moment – so it must come after the file redirection.',
+     n:'With "2>&1 >> file", stderr is first bound to the previous target of stdout (for cron, the mail to the user) and only then is stdout redirected to the file – the error messages are missing from the log.'}},
+{id:'linux-07', a:'linux', t:'sc', c:0,
+ de:{s:'Im Verzeichnis /srv/austausch (drwxrwxrwx, Besitzer root) legen alle Mitarbeiter Dateien ab. Ein Mitarbeiter hat versehentlich Dateien von Kollegen gelöscht. Künftig soll jeder nur noch eigene Dateien löschen oder umbenennen können, das Ablegen soll weiterhin allen möglich sein.',
+     q:'Mit welchem Befehl setzen Sie die Anforderung um?',
+     o:['chmod 1777 /srv/austausch','chmod 2777 /srv/austausch','chmod 4777 /srv/austausch','chmod 775 /srv/austausch'],
+     e:'Das Sticky Bit (führende 1, in ls -l als „t“ bei den anderen: drwxrwxrwt) erlaubt das Löschen und Umbenennen nur dem Besitzer der Datei, dem Besitzer des Verzeichnisses und root. So ist auch /tmp eingerichtet.',
+     n:'Das SGID-Bit (2777) sorgt dafür, dass neue Dateien die Gruppe des Verzeichnisses erben – vor dem Löschen fremder Dateien schützt es nicht.'},
+ en:{s:'In the directory /srv/exchange (drwxrwxrwx, owner root) all employees store files. One employee accidentally deleted colleagues\' files. From now on everyone should only be able to delete or rename their own files, while storing files should remain possible for all.',
+     q:'Which command implements the requirement?',
+     o:['chmod 1777 /srv/exchange','chmod 2777 /srv/exchange','chmod 4777 /srv/exchange','chmod 775 /srv/exchange'],
+     e:'The sticky bit (leading 1, shown in ls -l as "t" for others: drwxrwxrwt) allows deleting and renaming only for the file owner, the directory owner and root. /tmp is set up the same way.',
+     n:'The SGID bit (2777) makes new files inherit the directory\'s group – it does not protect against deleting other people\'s files.'}},
+{id:'linux-08', a:'linux', t:'sc', c:0,
+ de:{s:'Die Mitglieder der Linux-Gruppe webadmins sollen auf dem Webserver nginx neu starten dürfen, aber keine weiteren Befehle mit Root-Rechten ausführen. Sie legen dazu mit sudo visudo -f /etc/sudoers.d/webadmins eine Datei an.',
+     q:'Welcher Eintrag erfüllt die Anforderung?',
+     o:['%webadmins ALL=(root) /usr/bin/systemctl restart nginx','webadmins ALL=(root) /usr/bin/systemctl restart nginx','%webadmins ALL=(ALL:ALL) ALL','%webadmins ALL=(root) NOPASSWD: /usr/bin/systemctl'],
+     e:'Das Prozentzeichen kennzeichnet eine Gruppe. ALL steht für alle Hosts, (root) für das Zielkonto, danach folgt der erlaubte Befehl mit vollem Pfad und Argumenten. visudo prüft die Syntax vor dem Speichern, damit ein Tippfehler sudo nicht lahmlegt.',
+     n:'Ohne % liest sudo „webadmins“ als Benutzernamen – die Mitglieder der Gruppe erhielten gar kein Recht. Die Variante nur mit /usr/bin/systemctl erlaubt dagegen jeden systemctl-Befehl für jeden Dienst.'},
+ en:{s:'Members of the Linux group webadmins should be allowed to restart nginx on the web server, but not to run any other commands with root privileges. You create a file for this with sudo visudo -f /etc/sudoers.d/webadmins.',
+     q:'Which entry fulfils the requirement?',
+     o:['%webadmins ALL=(root) /usr/bin/systemctl restart nginx','webadmins ALL=(root) /usr/bin/systemctl restart nginx','%webadmins ALL=(ALL:ALL) ALL','%webadmins ALL=(root) NOPASSWD: /usr/bin/systemctl'],
+     e:'The percent sign marks a group. ALL stands for all hosts, (root) for the target account, followed by the permitted command with full path and arguments. visudo checks the syntax before saving so that a typo does not break sudo.',
+     n:'Without %, sudo reads "webadmins" as a user name – the group members would get no rights at all. The variant with only /usr/bin/systemctl, in contrast, allows every systemctl command for every service.'}},
+{id:'linux-09', a:'linux', t:'sc', c:0,
+ de:{s:'In einen Ubuntu-Server wurde eine zweite Festplatte eingebaut und mit ext4 formatiert. Die Partition soll bei jedem Start unter /srv/daten eingehängt werden – auch wenn sich durch weitere Platten die Gerätenamen verschieben (z. B. /dev/sdb1 → /dev/sdc1). blkid liefert UUID="3f2a9c1e-7b4d-4e21-9a6f-0c5d2e8b71a4".',
+     q:'Welche Zeile tragen Sie in /etc/fstab ein?',
+     o:['UUID=3f2a9c1e-7b4d-4e21-9a6f-0c5d2e8b71a4 /srv/daten ext4 defaults 0 2','/dev/sdb1 /srv/daten ext4 defaults 0 2','UUID=3f2a9c1e-7b4d-4e21-9a6f-0c5d2e8b71a4 ext4 /srv/daten defaults 0 2','/srv/daten UUID=3f2a9c1e-7b4d-4e21-9a6f-0c5d2e8b71a4 ext4 defaults 0 2'],
+     e:'Feldreihenfolge: Gerät, Einhängepunkt, Dateisystemtyp, Optionen, dump, fsck-Reihenfolge (2 für Nicht-Root-Dateisysteme). Die UUID bleibt stabil, egal in welcher Reihenfolge die Platten erkannt werden. Vor dem Neustart mit sudo mount -a testen.',
+     n:'/dev/sdb1 funktioniert zunächst, doch Gerätenamen werden beim Booten in Erkennungsreihenfolge vergeben – nach einer Änderung landet womöglich die falsche Partition unter /srv/daten oder der Start bricht ab.'},
+ en:{s:'A second disk was installed in an Ubuntu server and formatted with ext4. The partition is to be mounted at /srv/data at every boot – even if device names shift because of additional disks (e.g. /dev/sdb1 → /dev/sdc1). blkid returns UUID="3f2a9c1e-7b4d-4e21-9a6f-0c5d2e8b71a4".',
+     q:'Which line do you add to /etc/fstab?',
+     o:['UUID=3f2a9c1e-7b4d-4e21-9a6f-0c5d2e8b71a4 /srv/data ext4 defaults 0 2','/dev/sdb1 /srv/data ext4 defaults 0 2','UUID=3f2a9c1e-7b4d-4e21-9a6f-0c5d2e8b71a4 ext4 /srv/data defaults 0 2','/srv/data UUID=3f2a9c1e-7b4d-4e21-9a6f-0c5d2e8b71a4 ext4 defaults 0 2'],
+     e:'Field order: device, mount point, file system type, options, dump, fsck order (2 for non-root file systems). The UUID stays stable regardless of the order in which the disks are detected. Test with sudo mount -a before rebooting.',
+     n:'/dev/sdb1 works at first, but device names are assigned in detection order at boot – after a change the wrong partition may end up at /srv/data or the boot fails.'}},
+{id:'linux-10', a:'linux', t:'sc', c:0,
+ de:{s:'Die Entwicklerin anna ist Mitglied der Gruppen anna, sudo und devops. Sie soll zusätzlich in die Gruppe docker aufgenommen werden, ohne andere Mitgliedschaften zu verlieren.',
+     q:'Welcher Befehl ist richtig?',
+     o:['sudo usermod -aG docker anna','sudo usermod -G docker anna','sudo useradd -G docker anna','sudo chgrp docker anna'],
+     e:'-G legt die Zusatzgruppen fest, -a (append) hängt die neue Gruppe an die vorhandenen an. Die Mitgliedschaft wirkt erst nach einer neuen Anmeldung (prüfen mit id anna). Hinweis: Mitglieder der Gruppe docker haben faktisch Root-Rechte.',
+     n:'usermod -G docker ohne -a ersetzt die Liste der Zusatzgruppen – anna verlöre sudo und devops und damit ihre Administrationsrechte.'},
+ en:{s:'The developer anna is a member of the groups anna, sudo and devops. She is to be added to the group docker as well without losing any other memberships.',
+     q:'Which command is correct?',
+     o:['sudo usermod -aG docker anna','sudo usermod -G docker anna','sudo useradd -G docker anna','sudo chgrp docker anna'],
+     e:'-G sets the supplementary groups, -a (append) adds the new group to the existing ones. The membership only takes effect after a new logon (check with id anna). Note: members of the docker group effectively have root privileges.',
+     n:'usermod -G docker without -a replaces the list of supplementary groups – anna would lose sudo and devops and thus her administrative rights.'}},
+{id:'linux-11', a:'linux', t:'mc', c:[0,2,3],
+ de:{s:'Der Server srv-web01 soll per SSH nur aus dem Verwaltungsnetz über die Schnittstelle 10.0.99.21 administriert werden. Anmelden dürfen sich nur Mitglieder der Gruppe ssh-admins, die Schlüsselanmeldung ist bereits eingerichtet. Ein Kollege legt Ihnen seinen Entwurf für /etc/ssh/sshd_config.d/10-haertung.conf vor.',
+     q:'Welche der geplanten Einträge dienen der Härtung? (Mehrere Antworten)',
+     o:['ListenAddress 10.0.99.21','PermitRootLogin yes','AllowGroups ssh-admins','MaxAuthTries 3','X11Forwarding yes'],
+     e:'ListenAddress bindet sshd nur an die Verwaltungsschnittstelle, AllowGroups beschränkt die Anmeldung auf ssh-admins und MaxAuthTries begrenzt die Anmeldeversuche je Verbindung. Nach Änderungen die Syntax mit sudo sshd -t prüfen und SSH neu starten – dabei eine bestehende Sitzung offen lassen.',
+     n:'PermitRootLogin yes wirkt harmlos, weil ohnehin Schlüssel nötig sind. Richtig ist PermitRootLogin no: Anmeldungen bleiben einer Person zuordenbar (danach sudo), und ein gestohlener Root-Schlüssel reicht nicht für die Vollübernahme.'},
+ en:{s:'The server srv-web01 is to be administered via SSH only from the management network through the interface 10.0.99.21. Only members of the group ssh-admins may log on; key authentication is already set up. A colleague shows you his draft for /etc/ssh/sshd_config.d/10-hardening.conf.',
+     q:'Which of the planned entries serve hardening? (Multiple answers)',
+     o:['ListenAddress 10.0.99.21','PermitRootLogin yes','AllowGroups ssh-admins','MaxAuthTries 3','X11Forwarding yes'],
+     e:'ListenAddress binds sshd to the management interface only, AllowGroups restricts logon to ssh-admins and MaxAuthTries limits the logon attempts per connection. After changes, check the syntax with sudo sshd -t and restart SSH – keeping an existing session open.',
+     n:'PermitRootLogin yes looks harmless because keys are required anyway. Correct is PermitRootLogin no: logons remain attributable to a person (then sudo), and a stolen root key is not enough for a full takeover.'}},
+{id:'linux-12', a:'linux', t:'mc', c:[0,2,3],
+ de:{s:'Ein Kollege fragt, warum sich der Dienstbenutzer backupsvc nicht interaktiv anmelden kann. Sie sehen sich die Kontoeinträge an.',
+     code:'$ sudo grep backupsvc /etc/passwd /etc/shadow\n/etc/passwd:backupsvc:x:998:998:Backup-Dienst:/var/lib/backupsvc:/usr/sbin/nologin\n/etc/shadow:backupsvc:!:19980:0:99999:7:::',
+     q:'Welche Aussagen treffen zu? (Mehrere Antworten)',
+     o:['Das „x“ in /etc/passwd bedeutet, dass der Kennworthash in /etc/shadow steht','Die UID 998 weist das Konto als Administrator mit Root-Rechten aus','Die Shell /usr/sbin/nologin verhindert eine interaktive Anmeldung','Das „!“ in /etc/shadow bedeutet, dass die Anmeldung per Kennwort gesperrt ist','Das Kennwort läuft nach 7 Tagen ab'],
+     e:'passwd: Name:Platzhalter:UID:GID:Kommentar:Home:Shell. UIDs unter 1000 sind unter Debian/Ubuntu Systemkonten, Root-Rechte hat nur UID 0. In shadow folgen auf das Kennwortfeld (hier „!“ = gesperrt) die letzte Änderung (Tage seit 1.1.1970), Mindest- und Höchstalter und die Warnfrist.',
+     n:'Die 7 ist die Warnfrist: So viele Tage vor Ablauf wird der Benutzer gewarnt. Das Höchstalter steht davor und ist mit 99999 praktisch unbegrenzt.'},
+ en:{s:'A colleague asks why the service user backupsvc cannot log on interactively. You look at the account entries.',
+     code:'$ sudo grep backupsvc /etc/passwd /etc/shadow\n/etc/passwd:backupsvc:x:998:998:Backup service:/var/lib/backupsvc:/usr/sbin/nologin\n/etc/shadow:backupsvc:!:19980:0:99999:7:::',
+     q:'Which statements are true? (Multiple answers)',
+     o:['The "x" in /etc/passwd means that the password hash is stored in /etc/shadow','UID 998 identifies the account as an administrator with root privileges','The shell /usr/sbin/nologin prevents an interactive logon','The "!" in /etc/shadow means that password logon is locked','The password expires after 7 days'],
+     e:'passwd: name:placeholder:UID:GID:comment:home:shell. UIDs below 1000 are system accounts on Debian/Ubuntu; only UID 0 has root privileges. In shadow the password field (here "!" = locked) is followed by the last change (days since 1 Jan 1970), minimum and maximum age and the warning period.',
+     n:'The 7 is the warning period: the user is warned this many days before expiry. The maximum age comes before it and is practically unlimited at 99999.'}},
+{id:'linux-13', a:'linux', t:'mc', c:[0,2,3],
+ de:{s:'Der Webserver nginx war heute Nacht zwischen 02:00 und 03:00 Uhr nicht erreichbar, inzwischen läuft er wieder. Die Teamleitung möchte die Ursache wissen.',
+     q:'Mit welchen Befehlen finden Sie Hinweise auf die Ursache? (Mehrere Antworten)',
+     o:['journalctl -u nginx --since "02:00" --until "03:00"','journalctl -f','sudo tail -n 100 /var/log/nginx/error.log','journalctl -k -p err --since today','sudo journalctl --vacuum-time=1d'],
+     e:'journalctl -u filtert das Journal nach Unit und Zeitraum, das nginx-Fehlerlog enthält anwendungsspezifische Meldungen, und -k -p err zeigt Kernelfehler, etwa Eingriffe des OOM-Killers oder Plattenfehler.',
+     n:'journalctl -f folgt nur neuen Einträgen live – für einen vergangenen Vorfall hilft es nicht. --vacuum-time=1d löscht sogar Journaldaten, die älter als einen Tag sind.'},
+ en:{s:'The nginx web server was unreachable last night between 02:00 and 03:00; it is running again now. The team lead wants to know the cause.',
+     q:'Which commands help you find clues to the cause? (Multiple answers)',
+     o:['journalctl -u nginx --since "02:00" --until "03:00"','journalctl -f','sudo tail -n 100 /var/log/nginx/error.log','journalctl -k -p err --since today','sudo journalctl --vacuum-time=1d'],
+     e:'journalctl -u filters the journal by unit and time range, the nginx error log contains application-specific messages, and -k -p err shows kernel errors such as OOM killer actions or disk errors.',
+     n:'journalctl -f only follows new entries live – it does not help with a past incident. --vacuum-time=1d even deletes journal data older than one day.'}},
+{id:'linux-14', a:'linux', t:'match',
+ de:{s:'Auf einem Debian-12-Server stehen mehrere Prüfaufgaben an. Ein Auszubildender fragt, welcher Befehl wofür gedacht ist.',
+     q:'Ordnen Sie jedem Befehl seine Wirkung zu.',
+     p:[['ss -tlnp','Lauschende TCP-Ports mit zugehörigem Prozess anzeigen'],['ip route','Routingtabelle und Standardgateway anzeigen'],['find /var/log -name "*.gz" -mtime +30','Komprimierte Logdateien suchen, die älter als 30 Tage sind'],['cut -d: -f1 /etc/passwd','Nur die Benutzernamen aus der Kontodatei ausgeben'],['echo $?','Exit-Code des zuletzt ausgeführten Befehls anzeigen'],['kill -15 4711','Prozess 4711 auffordern, sich geordnet zu beenden (SIGTERM)']],
+     e:'ss ersetzt netstat, ip ersetzt ifconfig und route. Exit-Code 0 bedeutet Erfolg, jeder andere Wert einen Fehler. SIGTERM (15) lässt dem Prozess Zeit zum Aufräumen, erst wenn das nicht hilft, folgt SIGKILL (9).',
+     n:'ss -tlnp und ip route werden oft verwechselt: ss zeigt Sockets und Verbindungen auf dem Host, ip route den Weg der Pakete ins Netz.'},
+ en:{s:'Several checks are due on a Debian 12 server. An apprentice asks what each command is for.',
+     q:'Match each command to its effect.',
+     p:[['ss -tlnp','Show listening TCP ports with the associated process'],['ip route','Show the routing table and default gateway'],['find /var/log -name "*.gz" -mtime +30','Find compressed log files older than 30 days'],['cut -d: -f1 /etc/passwd','Output only the user names from the account file'],['echo $?','Show the exit code of the last command'],['kill -15 4711','Ask process 4711 to terminate gracefully (SIGTERM)']],
+     e:'ss replaces netstat, ip replaces ifconfig and route. Exit code 0 means success, any other value an error. SIGTERM (15) gives the process time to clean up; only if that fails does SIGKILL (9) follow.',
+     n:'ss -tlnp and ip route are often confused: ss shows sockets and connections on the host, ip route the path packets take into the network.'}},
+{id:'linux-15', a:'linux', t:'match',
+ de:{s:'Auf dem Server srv-app01 sollen mehrere wiederkehrende Aufgaben in der crontab von root eingerichtet werden (Felder: Minute, Stunde, Tag, Monat, Wochentag).',
+     q:'Ordnen Sie jedem Zeitausdruck die passende Ausführungszeit zu.',
+     p:[['0 2 * * *','Täglich um 02:00 Uhr'],['*/15 * * * *','Alle 15 Minuten'],['30 6 * * 1-5','Montag bis Freitag um 06:30 Uhr'],['0 0 1 * *','Am 1. jedes Monats um 00:00 Uhr'],['0 22 * * 0','Sonntags um 22:00 Uhr'],['15 14 * * *','Täglich um 14:15 Uhr']],
+     e:'Die fünf Felder sind Minute, Stunde, Tag des Monats, Monat und Wochentag (0 oder 7 = Sonntag). */15 bedeutet „jeder 15. Wert“, 1-5 einen Bereich. Bearbeitet wird mit crontab -e. systemd-Timer sind die Alternative mit Protokoll im Journal und Persistent=true für verpasste Läufe.',
+     n:'Häufiger Fehler: Minute und Stunde zu vertauschen – „15 14“ bedeutet 14:15 Uhr, nicht 15:14 Uhr.'},
+ en:{s:'Several recurring tasks are to be set up in root\'s crontab on the server srv-app01 (fields: minute, hour, day, month, weekday).',
+     q:'Match each time expression to the correct execution time.',
+     p:[['0 2 * * *','Daily at 02:00'],['*/15 * * * *','Every 15 minutes'],['30 6 * * 1-5','Monday to Friday at 06:30'],['0 0 1 * *','On the 1st of every month at 00:00'],['0 22 * * 0','Sundays at 22:00'],['15 14 * * *','Daily at 14:15']],
+     e:'The five fields are minute, hour, day of month, month and weekday (0 or 7 = Sunday). */15 means "every 15th value", 1-5 a range. Edit with crontab -e. systemd timers are the alternative, with logging in the journal and Persistent=true for missed runs.',
+     n:'Common mistake: swapping minute and hour – "15 14" means 14:15, not 15:14.'}},
+{id:'linux-16', a:'linux', t:'order',
+ de:{s:'Auf dem produktiven Ubuntu-24.04-Server srv-db02 (virtuelle Maschine) sollen im Wartungsfenster am Samstag die ausstehenden Paketaktualisierungen eingespielt werden.',
+     q:'Bringen Sie die Schritte in die richtige Reihenfolge.',
+     o:['Snapshot bzw. Sicherung der VM erstellen','Paketlisten mit sudo apt update aktualisieren','Anstehende Updates mit apt list --upgradable prüfen','Updates mit sudo apt upgrade installieren','Prüfen, ob /var/run/reboot-required existiert, und ggf. neu starten','Mit systemctl --failed und Funktionstests prüfen, ob alle Dienste laufen'],
+     e:'Zuerst wird ein Rückfallpunkt geschaffen. apt update lädt nur die Paketlisten der Repositorys, erst apt upgrade installiert. Nach Kernel- oder Bibliotheksupdates ist ein Neustart nötig, danach wird der Betrieb geprüft.',
+     n:'Häufig wird apt upgrade ohne vorheriges apt update ausgeführt – dann kennt apt die neuen Versionen nicht und installiert nichts oder einen veralteten Stand.'},
+ en:{s:'On the production Ubuntu 24.04 server srv-db02 (virtual machine), the pending package updates are to be installed during the maintenance window on Saturday.',
+     q:'Put the steps in the correct order.',
+     o:['Create a snapshot or backup of the VM','Refresh the package lists with sudo apt update','Review pending updates with apt list --upgradable','Install the updates with sudo apt upgrade','Check whether /var/run/reboot-required exists and reboot if necessary','Check with systemctl --failed and functional tests that all services are running'],
+     e:'First a fallback point is created. apt update only downloads the package lists of the repositories; apt upgrade does the installing. Kernel or library updates require a reboot, after which operation is verified.',
+     n:'apt upgrade is often run without a prior apt update – then apt does not know the new versions and installs nothing or an outdated state.'}},
+{id:'linux-17', a:'linux', t:'order',
+ de:{s:'Die selbst entwickelte Anwendung „lagerapi“ (/opt/lagerapi/lagerapi) soll auf einem Debian-12-Server als Dienst laufen, nach einem Absturz automatisch neu starten und ohne Root-Rechte arbeiten. Die Unit-Datei ist bereits entworfen.',
+     code:'[Unit]\nDescription=Lager-API\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nUser=lagerapi\nExecStart=/opt/lagerapi/lagerapi\nRestart=on-failure\n\n[Install]\nWantedBy=multi-user.target',
+     q:'Bringen Sie die Schritte in die richtige Reihenfolge.',
+     o:['Systembenutzer anlegen: sudo useradd -r -s /usr/sbin/nologin lagerapi','Unit-Datei als /etc/systemd/system/lagerapi.service speichern','Konfiguration neu einlesen: sudo systemctl daemon-reload','Dienst aktivieren und sofort starten: sudo systemctl enable --now lagerapi','Mit systemctl status lagerapi und journalctl -u lagerapi prüfen'],
+     e:'Der Benutzer muss existieren, bevor der Dienst unter ihm startet. Nach dem Anlegen oder Ändern einer Unit liest daemon-reload die Konfiguration ein, enable --now aktiviert den Dienst für den Systemstart und startet ihn sofort. Restart=on-failure sorgt für den Neustart nach Abstürzen.',
+     n:'Wer daemon-reload auslässt, riskiert, dass systemd mit einem veralteten Stand der Unit arbeitet – nach Änderungen warnt systemctl ausdrücklich, dass sich die Datei auf dem Datenträger geändert hat.'},
+ en:{s:'The in-house application "stockapi" (/opt/stockapi/stockapi) is to run as a service on a Debian 12 server, restart automatically after a crash and work without root privileges. The unit file has already been drafted.',
+     code:'[Unit]\nDescription=Stock API\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nUser=stockapi\nExecStart=/opt/stockapi/stockapi\nRestart=on-failure\n\n[Install]\nWantedBy=multi-user.target',
+     q:'Put the steps in the correct order.',
+     o:['Create a system user: sudo useradd -r -s /usr/sbin/nologin stockapi','Save the unit file as /etc/systemd/system/stockapi.service','Reload the configuration: sudo systemctl daemon-reload','Enable and start the service immediately: sudo systemctl enable --now stockapi','Check with systemctl status stockapi and journalctl -u stockapi'],
+     e:'The user must exist before the service starts under it. After creating or changing a unit, daemon-reload reads the configuration, enable --now enables the service at boot and starts it immediately. Restart=on-failure restarts it after crashes.',
+     n:'Skipping daemon-reload risks systemd working with an outdated version of the unit – after changes, systemctl explicitly warns that the file has changed on disk.'}},
+{id:'linux-18', a:'linux', t:'open',
+ de:{s:'Nach einem nächtlichen Update startet der Datenbankdienst PostgreSQL auf dem Ubuntu-Server srv-db02 nicht mehr, die Lagerverwaltung steht still. Im Fachgespräch fragt der Prüfer: „Wie gehen Sie systematisch vor?“',
+     q:'Beschreiben Sie Ihr Vorgehen bei Fehlersuche und Behebung.',
+     m:'• Lage erfassen: Störung als Incident dokumentieren, Betroffene informieren.\n• systemctl status für die Instanz (z. B. postgresql@16-main) prüfen: Zustand, Exit-Code, letzte Logzeilen.\n• journalctl -u postgresql@16-main -b und das Log unter /var/log/postgresql auswerten.\n• Typische Ursachen prüfen: voller Datenträger (df -h), Rechte auf das Datenverzeichnis, Port bereits belegt (ss -tlnp), fehlerhafte Konfiguration nach dem Update.\n• Änderungen nachvollziehen: /var/log/apt/history.log zeigt, welche Pakete aktualisiert wurden.\n• Beheben, Dienst starten, Funktion testen; notfalls Rollback per Snapshot oder vorheriger Paketversion.\n• Ursache und Lösung dokumentieren, künftige Updates erst in einer Testumgebung prüfen.',
+     k:['Incident dokumentieren, Betroffene informieren','systemctl status auswerten','journalctl -u und Anwendungslog','Speicherplatz, Rechte, Port, Konfiguration prüfen','apt-Historie auswerten','Rollback-Möglichkeit','Dokumentation / Lessons learned']},
+ en:{s:'After a nightly update the PostgreSQL database service on the Ubuntu server srv-db02 no longer starts, and warehouse management has come to a standstill. In the expert interview the examiner asks: "How do you proceed systematically?"',
+     q:'Describe your approach to troubleshooting and resolving the problem.',
+     m:'• Assess the situation: record the outage as an incident, inform those affected.\n• Check systemctl status for the instance (e.g. postgresql@16-main): state, exit code, last log lines.\n• Evaluate journalctl -u postgresql@16-main -b and the log under /var/log/postgresql.\n• Check typical causes: full disk (df -h), permissions on the data directory, port already in use (ss -tlnp), faulty configuration after the update.\n• Trace changes: /var/log/apt/history.log shows which packages were updated.\n• Fix, start the service, test functionality; if necessary roll back via snapshot or the previous package version.\n• Document cause and solution; test future updates in a test environment first.',
+     k:['Record incident, inform those affected','Evaluate systemctl status','journalctl -u and application log','Check disk space, permissions, port, configuration','Evaluate apt history','Rollback option','Documentation / lessons learned']}},
+{id:'linux-19', a:'linux', gen:'linuxUmask'},
+{id:'linux-20', a:'linux', gen:'linuxChmodSym'}
 );
 
 /* ===== BEREICH:speicher – Speicher & Virtualisierung (2. Lehrjahr) ===== */

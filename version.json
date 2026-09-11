@@ -1,17 +1,17 @@
 {
-  "version": "0.1.9",
+  "version": "0.2.0",
   "date": "2026-09-11",
   "file": "index.html",
   "notes": {
     "de": [
-      "Active Directory & Rechte auf 20 Fragen erweitert",
-      "Neue Themen: Kopieren vs. Verschieben und NTFS-Rechte, Loopback-Verarbeitung, DNS beim Domänenbeitritt, Gruppenbereiche, explizites Zulassen vs. geerbtes Verweigern, GPO-Fehlersuche, Fine-Grained Password Policies, Entra Connect, AD-Struktur, FSMO-Rollen, erster Domänencontroller, GPO-Rollout, Delegierung",
-      "Neue Rechenaufgaben mit Zufallswerten: Kontosperrung aus Anmeldeprotokoll, Gruppen und Mitgliedschaften nach AGDLP"
+      "Linux-Administration auf 20 Fragen erweitert",
+      "Neue Themen: Umleitungen in crontab, Sticky Bit, sudoers, /etc/fstab mit UUID, usermod -aG, SSH-Härtung, /etc/passwd und /etc/shadow, journalctl, Shell-Werkzeuge, cron-Ausdrücke, apt-Updates im Wartungsfenster, eigener systemd-Dienst, Fehlersuche nach Update",
+      "Neue Rechenaufgaben mit Zufallswerten: umask zu Rechten, symbolisches chmod zu Oktalwert"
     ],
     "en": [
-      "Active Directory & permissions extended to 20 questions",
-      "New topics: copying vs moving and NTFS permissions, loopback processing, DNS for domain join, group scopes, explicit allow vs inherited deny, GPO troubleshooting, fine-grained password policies, Entra Connect, AD structure, FSMO roles, first domain controller, GPO rollout, delegation",
-      "New random calculations: account lockout from a logon log, groups and memberships per AGDLP"
+      "Linux administration extended to 20 questions",
+      "New topics: redirection in crontab, sticky bit, sudoers, /etc/fstab with UUID, usermod -aG, SSH hardening, /etc/passwd and /etc/shadow, journalctl, shell tools, cron expressions, apt updates in a maintenance window, custom systemd service, troubleshooting after an update",
+      "New random calculations: umask to permissions, symbolic chmod to octal"
     ]
   }
 }
