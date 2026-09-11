@@ -10,6 +10,18 @@ All changes to Patchfeld. Version scheme: every digit runs from 0 to 9 –
 
 <!-- releases -->
 
+## 0.0.3 – 2026-09-11
+
+- Betriebssysteme auf 20 Fragen erweitert
+- Neue Themen: fTPM/PTT, Windows-11-Anforderungen, UAC und Admin-Konten, Lizenzarten, Dienst-Starttypen, LTS-Distributionen, Registry, Wiederherstellungsoptionen, Remote-Administration, Bootkette, Patchmanagement mit Update-Ringen, Dual Boot mit BitLocker
+- Neue Rechenaufgabe mit Zufallswerten: Partitionsgrößen in GiB; MBR-Grenze bei 512- und 4K-Sektoren
+
+**English**
+
+- Operating systems extended to 20 questions
+- New topics: fTPM/PTT, Windows 11 requirements, UAC and admin accounts, licence types, service startup types, LTS distributions, registry, recovery options, remote administration, boot chain, patch management with update rings, dual boot with BitLocker
+- New random calculation: partition sizes in GiB; MBR limit with 512-byte and 4K sectors
+
 ## 0.0.2 – 2026-09-11
 
 - IT-Systeme & Hardware auf 20 Fragen erweitert
