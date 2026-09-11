@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Patchfeld</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<meta name="app-version" content="0.0.4">
+<meta name="app-version" content="0.0.5">
 <meta name="theme-color" content="#1b1f24">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -311,8 +311,11 @@ dialog::backdrop{background:rgba(10,12,14,.55)}
 /* =====================================================================
    PATCHFELD – Kern: Version, Bereiche, Hilfsfunktionen, Generatoren
    ===================================================================== */
-const APP_VERSION = '0.0.4';
+const APP_VERSION = '0.0.5';
 const CHANGELOG = [
+  {v:'0.0.5', d:'2026-09-11',
+   de:['IT-Service-Management auf 20 Fragen erweitert','Neue Themen: Prioritätsmatrix, SLA/OLA/UC, Emergency Change mit ECAB, CMDB und CIs, Change- und Problem-Prozess, Eskalationsarten, Service Desk als SPOC, Syslog-Schweregrade, SNMP, Alarmmüdigkeit, Wissensdatenbank, Monitoring mit und ohne Agent','Neue Rechenaufgabe mit Zufallswerten: MTTR/MTBF bzw. Erstlösungsquote und SLA-Erfüllung'],
+   en:['IT service management extended to 20 questions','New topics: priority matrix, SLA/OLA/UC, emergency change with ECAB, CMDB and CIs, change and problem process, escalation types, service desk as SPOC, syslog severities, SNMP, alert fatigue, knowledge base, agent-based vs agentless monitoring','New random calculation: MTTR/MTBF or first contact resolution and SLA compliance']},
   {v:'0.0.4', d:'2026-09-11',
    de:['Arbeitsschutz & Support auf 20 Fragen erweitert','Neue Themen: fünf Sicherheitsregeln der Elektrotechnik, DGUV V3, Sicherheitszeichen, Brandklassen, Heben im Rack, ESD-Maßnahmen, ElektroG und Datenlöschung, Vier-Ohren-Modell, Beschwerdegespräch, aktives Zuhören, Erste Hilfe, Unterweisung nach § 12 ArbSchG','Neue Rechenaufgabe mit Zufallswerten: Arbeitszeit und gesetzliche Pausen (ArbZG/JArbSchG)'],
    en:['Safety & support extended to 20 questions','New topics: five electrical safety rules, DGUV V3 testing, safety signs, fire classes, lifting in racks, ESD measures, ElektroG and data deletion, four-sides model, complaint handling, active listening, first aid, safety instruction per § 12 ArbSchG','New random calculation: working time and statutory breaks (ArbZG/JArbSchG)']},
@@ -1848,6 +1851,205 @@ Q.push(
      o:['Warning from 80 %, critical from 90 % – with automatic notification or ticket','Alarm only at 100 % usage to avoid false alarms','Check disk usage manually in Explorer every morning','Only monitor CPU load, since it reflects disk usage'],
      e:'Staged thresholds give time to react before the service fails. Automatic ticket creation ensures the warning is not overlooked.',
      n:'An alarm at 100 % avoids false alarms but comes exactly when the outage has already happened.'}}
+);
+
+/* ----- BEREICH:itsm – Erweiterung ----- */
+/* ITSM-Kennzahlen: MTTR/MTBF oder Erstlösungs- und SLA-Erfüllungsquote */
+GEN.itsmKpi = function(L){
+  if (Math.random() < 0.5){
+    const days = pick([30,60,90]), k = rnd(2,5);
+    const dur = Array.from({length:k}, () => pick([0.5,1,1.5,2,2.5,3,4,5,6]));
+    const down = dur.reduce((a,b)=>a+b,0), tot = days*24;
+    const mttr = r2(down/k), mtbf = r2((tot-down)/k), av = (tot-down)/tot*100;
+    const i = rnd(0,3);
+    const sys = tx(L,['der zentrale Fileserver','die Firewall am Hauptstandort','der Datenbankserver des ERP-Systems','der Core-Switch im Serverraum'],['the central file server','the firewall at headquarters','the ERP database server','the core switch in the server room'])[i];
+    return { t:'in',
+      s: tx(L, `Für den Service-Level-Report werten Sie die Störungen der letzten ${days} Tage aus. In diesem Zeitraum (24/7-Betrieb) fiel ${sys} ${k}-mal aus. Die Dauer bis zur Wiederherstellung entnehmen Sie der Tabelle.`,
+               `For the service level report you evaluate the incidents of the last ${days} days. In this period (24/7 operation) ${sys} failed ${k} times. The time to restore service is shown in the table.`),
+      tb: {h: tx(L,['Ausfall','Dauer bis zur Wiederherstellung'],['Outage','Time to restore service']), r: dur.map((d,j)=>[String(j+1), fmt(d,1,L)+' h'])},
+      q: tx(L, 'Berechnen Sie die MTTR (mittlere Wiederherstellungszeit) und die MTBF (mittlere störungsfreie Betriebszeit zwischen zwei Ausfällen) in Stunden. Runden Sie auf zwei Nachkommastellen.',
+               'Calculate the MTTR (mean time to restore service) and the MTBF (mean fault-free operating time between two failures) in hours. Round to two decimal places.'),
+      f: [ {l:'MTTR', v:mttr, tol:0.011, u:'h'}, {l:'MTBF', v:mtbf, tol:0.011, u:'h'} ],
+      e: tx(L, `Betrachtungszeitraum: ${days} × 24 = ${fmt(tot,0,L)} h. Ausfallzeit: ${dur.map(d=>fmt(d,1,L)).join(' + ')} = ${fmt(down,1,L)} h. MTTR = ${fmt(down,1,L)} h ÷ ${k} = ${fmt(mttr,2,L)} h. MTBF = (${fmt(tot,0,L)} − ${fmt(down,1,L)}) h ÷ ${k} = ${fmt(mtbf,2,L)} h. Daraus folgt eine Verfügbarkeit von MTBF ÷ (MTBF + MTTR) ≈ ${fmt(av,2,L)} %.`,
+               `Observation period: ${days} × 24 = ${fmt(tot,0,L)} h. Downtime: ${dur.map(d=>fmt(d,1,L)).join(' + ')} = ${fmt(down,1,L)} h. MTTR = ${fmt(down,1,L)} h ÷ ${k} = ${fmt(mttr,2,L)} h. MTBF = (${fmt(tot,0,L)} − ${fmt(down,1,L)}) h ÷ ${k} = ${fmt(mtbf,2,L)} h. This gives an availability of MTBF ÷ (MTBF + MTTR) ≈ ${fmt(av,2,L)} %.`),
+      n: tx(L, 'Häufiger Fehler: für die MTBF den gesamten Zeitraum ohne Abzug der Ausfallzeiten durch die Anzahl der Ausfälle zu teilen – die MTBF zählt nur die störungsfreie Betriebszeit.',
+               'Common mistake: dividing the whole period by the number of failures without subtracting the downtime – the MTBF only counts fault-free operating time.')
+    };
+  }
+  const T = rnd(420,960), X = Math.round(T*rnd(15,30)/100), Y = Math.round(T*rnd(5,12)/100), B = rnd(Math.round(T*0.02), Math.round(T*0.09));
+  const first = T-X-Y, fcr = Math.round(first/T*1000)/10, sla = Math.round((T-B)/T*1000)/10, goal = pick([90,95]);
+  return { t:'in',
+    s: tx(L, `Für das monatliche Service-Review mit der Geschäftsleitung werten Sie die Incidents des Service Desks aus. Im SLA ist eine Erfüllungsquote der Lösungszeiten von mindestens ${goal} % vereinbart.`,
+             `For the monthly service review with management you evaluate the service desk incidents. The SLA requires a resolution-time compliance rate of at least ${goal} %.`),
+    tb: {h: tx(L,['Kennzahl im Monat','Anzahl'],['Monthly figure','Count']), r: [
+      [tx(L,'Incidents gesamt','Total incidents'), fmt(T,0,L)],
+      [tx(L,'davon an den 2nd Level weitergeleitet','of which forwarded to 2nd level'), fmt(X,0,L)],
+      [tx(L,'davon vom Service Desk gelöst, aber erst nach Rückruf','of which resolved by the service desk, but only after a call-back'), fmt(Y,0,L)],
+      [tx(L,'Incidents mit überschrittener Lösungszeit','Incidents with resolution time exceeded'), fmt(B,0,L)] ]},
+    q: tx(L, 'Berechnen Sie die Erstlösungsquote (First Contact Resolution Rate) und die SLA-Erfüllungsquote in Prozent. Runden Sie auf eine Nachkommastelle.',
+             'Calculate the first contact resolution rate and the SLA compliance rate in percent. Round to one decimal place.'),
+    f: [ {l:tx(L,'Erstlösungsquote','First contact resolution rate'), v:fcr, tol:0.11, u:'%'}, {l:tx(L,'SLA-Erfüllungsquote','SLA compliance rate'), v:sla, tol:0.11, u:'%'} ],
+    e: tx(L, `Beim ersten Kontakt gelöst: ${fmt(T,0,L)} − ${fmt(X,0,L)} − ${fmt(Y,0,L)} = ${fmt(first,0,L)}. Erstlösungsquote: ${fmt(first,0,L)} ÷ ${fmt(T,0,L)} × 100 = ${fmt(fcr,1,L)} %. SLA-Erfüllung: (${fmt(T,0,L)} − ${fmt(B,0,L)}) ÷ ${fmt(T,0,L)} × 100 = ${fmt(sla,1,L)} % – das Ziel von ${goal} % ist ${sla>=goal?'erreicht':'verfehlt'}.`,
+             `Resolved at first contact: ${fmt(T,0,L)} − ${fmt(X,0,L)} − ${fmt(Y,0,L)} = ${fmt(first,0,L)}. First contact resolution rate: ${fmt(first,0,L)} ÷ ${fmt(T,0,L)} × 100 = ${fmt(fcr,1,L)} %. SLA compliance: (${fmt(T,0,L)} − ${fmt(B,0,L)}) ÷ ${fmt(T,0,L)} × 100 = ${fmt(sla,1,L)} % – the target of ${goal} % is ${sla>=goal?'met':'missed'}.`),
+    n: tx(L, 'Naheliegend, aber falsch: alle vom Service Desk gelösten Incidents als Erstlösung zu zählen – wer erst nach einem Rückruf gelöst wurde, wurde nicht beim ersten Kontakt gelöst.',
+             'Tempting but wrong: counting every incident resolved by the service desk as a first contact resolution – those resolved only after a call-back were not resolved at first contact.')
+  };
+};
+
+Q.push(
+{id:'itsm-06', a:'itsm', t:'sc', c:0,
+ de:{s:'Ihr Service Desk priorisiert Incidents nach der unten stehenden Matrix. Auswirkung: hoch = ganzes Unternehmen oder Kunden betroffen, mittel = eine Abteilung, niedrig = ein Anwender. Dringlichkeit: hoch = Arbeit nicht möglich, mittel = Arbeit eingeschränkt oder Workaround vorhanden, niedrig = kaum Einschränkung. Um 8:30 Uhr fällt für die gesamte Vertriebsabteilung die CRM-Anwendung aus; Angebote lassen sich deutlich langsamer über die Weboberfläche erstellen. Der Vertriebsleiter ruft verärgert an und verlangt „höchste Priorität“.',
+     tb:{h:['Auswirkung \\ Dringlichkeit','hoch','mittel','niedrig'], r:[['hoch','P1','P2','P3'],['mittel','P2','P3','P4'],['niedrig','P3','P4','P5']]},
+     q:'Welche Priorität erhält der Incident?',
+     o:['P3 – Auswirkung mittel, Dringlichkeit mittel','P1 – weil der Vertriebsleiter die höchste Priorität verlangt','P2 – Auswirkung hoch, Dringlichkeit mittel','P4 – Auswirkung niedrig, Dringlichkeit mittel, weil ein Workaround existiert'],
+     e:'Betroffen ist eine Abteilung (Auswirkung mittel), und dank des Workarounds ist die Arbeit eingeschränkt, aber möglich (Dringlichkeit mittel). Die Matrix ergibt P3.',
+     n:'Die Priorität richtet sich nach Auswirkung und Dringlichkeit, nicht nach Position oder Tonfall des Anrufers. Sonderregeln für bestimmte Personen müssten vorab im SLA vereinbart sein.'},
+ en:{s:'Your service desk prioritises incidents using the matrix below. Impact: high = entire company or customers affected, medium = one department, low = one user. Urgency: high = work impossible, medium = work restricted or workaround available, low = hardly any restriction. At 8:30 the CRM application fails for the entire sales department; quotes can be created much more slowly via the web interface. The head of sales calls angrily and demands "top priority".',
+     tb:{h:['Impact \\ Urgency','high','medium','low'], r:[['high','P1','P2','P3'],['medium','P2','P3','P4'],['low','P3','P4','P5']]},
+     q:'Which priority does the incident receive?',
+     o:['P3 – impact medium, urgency medium','P1 – because the head of sales demands top priority','P2 – impact high, urgency medium','P4 – impact low, urgency medium, because a workaround exists'],
+     e:'One department is affected (impact medium), and thanks to the workaround work is restricted but possible (urgency medium). The matrix gives P3.',
+     n:'Priority depends on impact and urgency, not on the caller\'s position or tone. Special rules for certain persons would have to be agreed in the SLA in advance.'}},
+{id:'itsm-07', a:'itsm', gen:'itsmKpi'},
+{id:'itsm-08', a:'itsm', t:'match',
+ de:{s:'Ihr Systemhaus betreut eine Steuerkanzlei. Den Service Desk stellt Ihr Haus selbst, das Netzwerkteam ist eine interne Abteilung, die Server stehen bei einem externen Rechenzentrumsbetreiber.',
+     q:'Ordnen Sie jedem Begriff die passende Vereinbarung bzw. das passende Dokument zu.',
+     p:[['SLA (Service Level Agreement)','Vereinbarung zwischen Systemhaus und Steuerkanzlei über Servicezeiten, Reaktions- und Lösungszeiten'],['OLA (Operational Level Agreement)','Interne Vereinbarung zwischen Service Desk und Netzwerkteam des Systemhauses'],['UC (Underpinning Contract)','Vertrag des Systemhauses mit dem externen Rechenzentrumsbetreiber'],['Servicekatalog','Übersicht aller angebotenen Services mit Beschreibung und Bestellweg'],['Service-Level-Report','Regelmäßiger Nachweis der erreichten Werte im Vergleich zu den vereinbarten Zielen']],
+     e:'OLAs und UCs müssen zum SLA passen: Verspricht das SLA 4 Stunden Lösungszeit, dürfen interne Teams und externe Lieferanten zusammen nicht länger brauchen.',
+     n:'OLA und UC werden oft verwechselt: Das OLA gilt innerhalb derselben Organisation, der UC ist ein rechtlich bindender Vertrag mit einem externen Lieferanten.'},
+ en:{s:'Your IT service company supports a tax consultancy. Your company provides the service desk itself, the network team is an internal department, and the servers are hosted by an external data centre operator.',
+     q:'Match each term to the appropriate agreement or document.',
+     p:[['SLA (service level agreement)','Agreement between the IT service company and the tax consultancy on service hours, response and resolution times'],['OLA (operational level agreement)','Internal agreement between the service desk and the network team of the IT service company'],['UC (underpinning contract)','Contract between the IT service company and the external data centre operator'],['Service catalogue','Overview of all services offered with description and ordering process'],['Service level report','Regular evidence of the values achieved compared with the agreed targets']],
+     e:'OLAs and UCs must fit the SLA: if the SLA promises a 4-hour resolution time, internal teams and external suppliers together must not take longer.',
+     n:'OLA and UC are often confused: the OLA applies within the same organisation, the UC is a legally binding contract with an external supplier.'}},
+{id:'itsm-09', a:'itsm', t:'sc', c:0,
+ de:{s:'Das BSI warnt vor einer aktiv ausgenutzten Sicherheitslücke (CVSS 9,8) im VPN-Gateway Ihres Unternehmens. Der Hersteller hat einen Hotfix veröffentlicht. Die nächste reguläre CAB-Sitzung findet in sechs Tagen statt.',
+     q:'Wie wird die Installation des Hotfixes im Change Enablement behandelt?',
+     o:['Als Emergency Change: schnelle Bewertung und Genehmigung durch die Emergency Change Authority (ECAB), Dokumentation bei Bedarf nachträglich vervollständigen','Als Standard Change, weil Sicherheitsupdates Routine und vorab genehmigt sind','Als Normal Change mit RFC, der in der nächsten regulären CAB-Sitzung entschieden wird','Gar nicht als Change, sondern als Workaround im Incident Management ohne Genehmigung'],
+     e:'Eine aktiv ausgenutzte Lücke erfordert sofortiges Handeln – sechs Tage Warten wären ein untragbares Risiko. Der Emergency Change wird verkürzt, aber kontrolliert bewertet und genehmigt.',
+     n:'Standard Changes sind vorab genehmigte, risikoarme Routineänderungen mit bekanntem Ablauf, etwa der monatliche Client-Patchday. Ein ungeplanter Hotfix am zentralen VPN-Gateway ist das nicht.'},
+ en:{s:'The German Federal Office for Information Security (BSI) warns of an actively exploited vulnerability (CVSS 9.8) in your company\'s VPN gateway. The vendor has released a hotfix. The next regular CAB meeting takes place in six days.',
+     q:'How is the installation of the hotfix handled in change enablement?',
+     o:['As an emergency change: rapid assessment and authorisation by the emergency change authority (ECAB), documentation completed afterwards if necessary','As a standard change, because security updates are routine and pre-authorised','As a normal change with an RFC decided at the next regular CAB meeting','Not as a change at all, but as a workaround in incident management without authorisation'],
+     e:'An actively exploited vulnerability requires immediate action – waiting six days would be an unacceptable risk. The emergency change is assessed and authorised in a shortened but controlled way.',
+     n:'Standard changes are pre-authorised, low-risk routine changes with a known procedure, such as the monthly client patch day. An unplanned hotfix on the central VPN gateway is not.'}},
+{id:'itsm-10', a:'itsm', t:'mc', c:[0,1,2],
+ de:{s:'Ihr Unternehmen baut mit i-doit eine CMDB auf, um bei Changes und Störungen Abhängigkeiten erkennen zu können.',
+     q:'Welche Objekte sollten als Configuration Items (CIs) gepflegt werden? (Mehrere Antworten)',
+     o:['Der ESXi-Host mit Seriennummer, Standort und Firmwarestand','Die ERP-Anwendung einschließlich ihrer Abhängigkeit zum Datenbankserver','Der Wartungsvertrag mit dem Hardwarehersteller','Jeder einzelne Incident-Datensatz aus dem Ticketsystem','Druckerpapier und Tonerkartuschen im Lager','Die privaten Smartphones der Mitarbeitenden ohne dienstliche Nutzung'],
+     e:'Ein CI ist jede Komponente, die verwaltet werden muss, um einen IT-Service zu erbringen – Hardware, Software, Services und auch Dokumente wie Verträge. Entscheidend sind die Beziehungen zwischen den CIs.',
+     n:'Incident-Datensätze werden mit CIs verknüpft (z. B. „Störung an Server X“), sind aber selbst keine CIs, sondern Prozessdatensätze im Ticketsystem.'},
+ en:{s:'Your company is building a CMDB with i-doit so that dependencies can be identified for changes and incidents.',
+     q:'Which objects should be maintained as configuration items (CIs)? (Multiple answers)',
+     o:['The ESXi host with serial number, location and firmware version','The ERP application including its dependency on the database server','The maintenance contract with the hardware manufacturer','Every single incident record from the ticket system','Printer paper and toner cartridges in the store room','Employees\' private smartphones without business use'],
+     e:'A CI is any component that needs to be managed in order to deliver an IT service – hardware, software, services and also documents such as contracts. The relationships between CIs are what matters.',
+     n:'Incident records are linked to CIs (e.g. "incident on server X") but are not CIs themselves; they are process records in the ticket system.'}},
+{id:'itsm-11', a:'itsm', t:'order',
+ de:{s:'Der zentrale Mailserver soll auf eine neue Hauptversion aktualisiert werden. Das Update ist kein vorab genehmigter Standard Change und wird daher als Normal Change behandelt.',
+     q:'Bringen Sie die Schritte des Change Enablements in die richtige Reihenfolge.',
+     o:['RFC mit Begründung, Rückfallplan und Wunschtermin einreichen','RFC auf Vollständigkeit prüfen und im Change-Log erfassen','Auswirkung und Risiko bewerten, betroffene CIs aus der CMDB ermitteln','Genehmigung durch die Change Authority bzw. das CAB','Umsetzung im freigegebenen Wartungsfenster und Ergebnis testen','Post Implementation Review durchführen, CMDB aktualisieren und Change schließen'],
+     e:'Ohne vollständigen RFC kann nicht bewertet werden, ohne Bewertung nicht sachgerecht genehmigt. Nach der Umsetzung sichert das Review die Qualität, die aktualisierte CMDB bildet den neuen Stand ab.',
+     n:'Oft wird direkt nach der Bewertung umgesetzt und die Genehmigung „nachgeholt“ – das ist nur beim Emergency Change vorgesehen und auch dort nicht ohne Freigabe.'},
+ en:{s:'The central mail server is to be upgraded to a new major version. The update is not a pre-authorised standard change and is therefore handled as a normal change.',
+     q:'Put the change enablement steps in the correct order.',
+     o:['Submit the RFC with justification, backout plan and requested date','Check the RFC for completeness and record it in the change log','Assess impact and risk, identify affected CIs from the CMDB','Authorisation by the change authority or the CAB','Implement in the approved maintenance window and test the result','Carry out a post-implementation review, update the CMDB and close the change'],
+     e:'Without a complete RFC there can be no assessment, and without assessment no sound authorisation. After implementation the review ensures quality, and the updated CMDB reflects the new state.',
+     n:'Implementation often follows directly after assessment with authorisation "caught up" later – this is only intended for emergency changes, and even there not without approval.'}},
+{id:'itsm-12', a:'itsm', t:'order',
+ de:{s:'Seit einem Firmware-Update frieren an mehreren Standorten Thin Clients sporadisch ein. Der Service Desk hat bereits 23 gleichartige Incidents erfasst. Sie übernehmen die Bearbeitung im Problem Management.',
+     q:'Bringen Sie die Schritte in die richtige Reihenfolge.',
+     o:['Häufung gleichartiger Incidents durch Trendanalyse erkennen (Problemidentifikation)','Problem-Datensatz anlegen, mit den Incidents verknüpfen und priorisieren','Ursachenanalyse durchführen, z. B. mit 5-Why-Methode oder Ishikawa-Diagramm','Known Error mit Workaround in der Known-Error-Datenbank dokumentieren','Dauerhafte Lösung über einen Change (RFC) umsetzen','Wirksamkeit prüfen und Problem schließen'],
+     e:'ITIL 4 gliedert das Problem Management in Problemidentifikation, Problem Control (Analyse, Workaround) und Error Control (dauerhafte Behebung). Die Lösung selbst wird über das Change Enablement eingebracht.',
+     n:'Häufig wird die Lösung ohne Change direkt eingespielt – bei 23 betroffenen Standorten fehlt dann die Risikobewertung, und ein fehlerhafter Fix trifft alle gleichzeitig.'},
+ en:{s:'Since a firmware update, thin clients at several sites freeze sporadically. The service desk has already logged 23 similar incidents. You take over in problem management.',
+     q:'Put the steps in the correct order.',
+     o:['Detect the accumulation of similar incidents through trend analysis (problem identification)','Create a problem record, link it to the incidents and prioritise it','Carry out a root cause analysis, e.g. with the 5 whys method or an Ishikawa diagram','Document the known error with workaround in the known error database','Implement a permanent solution via a change (RFC)','Check effectiveness and close the problem'],
+     e:'ITIL 4 divides problem management into problem identification, problem control (analysis, workaround) and error control (permanent resolution). The fix itself is introduced via change enablement.',
+     n:'The fix is often rolled out directly without a change – with 23 affected sites there is then no risk assessment, and a faulty fix hits all of them at once.'}},
+{id:'itsm-13', a:'itsm', t:'sc', c:0,
+ de:{s:'Für ein P2-Ticket (Warenwirtschaft einer Filiale gestört) sind 8 Stunden Lösungszeit vereinbart. Nach 6 Stunden ist der zuständige 2nd-Level-Techniker durch einen Großeinsatz blockiert und niemand sonst im Team hat Zeit. Der Service-Desk-Mitarbeiter informiert daraufhin die Teamleitung, die einen Techniker aus einem anderen Projekt abzieht.',
+     q:'Um welche Art der Eskalation handelt es sich?',
+     o:['Hierarchische Eskalation','Funktionale Eskalation','Übergabe an das Problem Management','Emergency Change'],
+     e:'Bei der hierarchischen Eskalation wird die Führungsebene eingebunden, weil Befugnisse oder Ressourcen fehlen – hier droht eine SLA-Verletzung, und nur die Teamleitung kann Personal umverteilen.',
+     n:'Funktionale Eskalation bedeutet die Weitergabe an eine Stelle mit mehr Fachwissen, z. B. vom 1st an den 2nd Level. Hier fehlt aber kein Know-how, sondern Kapazität.'},
+ en:{s:'A resolution time of 8 hours is agreed for a P2 ticket (merchandise management system of a branch disrupted). After 6 hours the responsible 2nd-level technician is tied up by a major incident and nobody else in the team has time. The service desk agent then informs the team lead, who pulls a technician off another project.',
+     q:'Which type of escalation is this?',
+     o:['Hierarchical escalation','Functional escalation','Handover to problem management','Emergency change'],
+     e:'In hierarchical escalation the management level is involved because authority or resources are lacking – here an SLA breach is imminent and only the team lead can reassign staff.',
+     n:'Functional escalation means passing the ticket to a unit with more expertise, e.g. from 1st to 2nd level. Here no know-how is missing, but capacity.'}},
+{id:'itsm-14', a:'itsm', t:'sc', c:0,
+ de:{s:'In einem Unternehmen mit 250 Mitarbeitenden rufen Anwender bei Problemen direkt die Administratoren auf dem Handy an. Diese werden ständig unterbrochen, Anfragen werden nicht erfasst, und im Urlaub eines Admins weiß niemand, was offen ist.',
+     q:'Welche Maßnahme schlagen Sie der IT-Leitung vor?',
+     o:['Einen Service Desk als Single Point of Contact einrichten, der alle Anfragen erfasst, selbst löst oder gezielt an den 2nd bzw. 3rd Level weiterleitet','Für jedes Spezialistenteam eine eigene E-Mail-Adresse einrichten, an die sich Anwender je nach Problem direkt wenden','Jedem Administrator einen festen Kreis von Anwendern zuordnen, die nur ihn anrufen dürfen','Die Hotline des Herstellers (3rd Level) als erste Anlaufstelle für alle Anwender bekanntgeben'],
+     e:'Der Single Point of Contact bündelt alle Anfragen, sorgt für lückenlose Erfassung und Priorisierung und entlastet die Spezialisten. Wissen und offene Vorgänge liegen im Ticketsystem statt in einzelnen Köpfen.',
+     n:'Team-Postfächer wirken strukturiert, setzen aber voraus, dass Anwender die Ursache selbst einschätzen können – bei „Outlook startet nicht“ ist unklar, ob Client-, Server- oder Netzwerkteam zuständig ist.'},
+ en:{s:'In a company with 250 employees, users with problems call the administrators directly on their mobiles. The admins are constantly interrupted, requests are not recorded, and when an admin is on holiday nobody knows what is outstanding.',
+     q:'Which measure do you propose to IT management?',
+     o:['Set up a service desk as single point of contact that records all requests, resolves them itself or forwards them specifically to 2nd or 3rd level','Set up a separate e-mail address for each specialist team, which users contact directly depending on the problem','Assign each administrator a fixed group of users who may only call him','Announce the vendor hotline (3rd level) as the first point of contact for all users'],
+     e:'The single point of contact bundles all requests, ensures complete recording and prioritisation, and relieves the specialists. Knowledge and open cases are kept in the ticket system instead of in individual heads.',
+     n:'Team mailboxes seem structured but assume that users can assess the cause themselves – with "Outlook does not start" it is unclear whether the client, server or network team is responsible.'}},
+{id:'itsm-15', a:'itsm', t:'match',
+ de:{s:'Die Switches und Firewalls Ihres Unternehmens senden ihre Logmeldungen an einen zentralen Syslog-Server (z. B. Graylog). Sie legen fest, ab welchem Schweregrad Meldungen weitergeleitet werden.',
+     q:'Ordnen Sie jedem Syslog-Schweregrad die passende Bezeichnung zu.',
+     p:[['0','Emergency – System ist unbenutzbar'],['1','Alert – sofortiges Eingreifen erforderlich'],['2','Critical – kritischer Zustand, z. B. Hardwaredefekt'],['3','Error – Fehlerzustand'],['4','Warning – Warnung, z. B. Schwellwert erreicht'],['7','Debug – Detailmeldungen zur Fehlersuche']],
+     e:'Je kleiner die Zahl, desto schwerwiegender die Meldung. Mit „logging trap warnings“ (Stufe 4) werden auf einem Cisco-Switch die Stufen 0 bis 4 gesendet; 5 (Notice) und 6 (Informational) liegen dazwischen.',
+     n:'Viele vermuten, eine höhere Zahl bedeute einen schwereren Fehler. Wer „Stufe 7“ für kritisch hält, flutet den Syslog-Server mit Debug-Meldungen.'},
+ en:{s:'Your company\'s switches and firewalls send their log messages to a central syslog server (e.g. Graylog). You define from which severity level messages are forwarded.',
+     q:'Match each syslog severity level to the correct name.',
+     p:[['0','Emergency – system is unusable'],['1','Alert – immediate action required'],['2','Critical – critical condition, e.g. hardware failure'],['3','Error – error condition'],['4','Warning – warning, e.g. threshold reached'],['7','Debug – detailed messages for troubleshooting']],
+     e:'The lower the number, the more severe the message. With "logging trap warnings" (level 4) a Cisco switch sends levels 0 to 4; 5 (notice) and 6 (informational) lie in between.',
+     n:'Many assume a higher number means a more serious error. Anyone who takes "level 7" as critical floods the syslog server with debug messages.'}},
+{id:'itsm-16', a:'itsm', t:'mc', c:[0,1,2],
+ de:{s:'Sie binden die Switches und die USV eines Kunden per SNMP an das Monitoring (z. B. Zabbix) an. Ein Kollege hat dazu einige Notizen gemacht.',
+     q:'Welche Aussagen sind richtig? (Mehrere Antworten)',
+     o:['Der Monitoring-Server fragt Werte wie die Interface-Auslastung zyklisch per GET-Request auf UDP-Port 161 ab','Bei einem Ereignis wie „Link down“ sendet der Agent unaufgefordert einen Trap an UDP-Port 162 des Managers','SNMPv3 bietet Authentifizierung und Verschlüsselung und ist SNMPv2c vorzuziehen','Die Community „public“ wird bei SNMPv2c verschlüsselt übertragen und ist daher unbedenklich','Traps werden per TCP übertragen, ihre Zustellung ist dadurch garantiert','Mit SNMP lassen sich Werte nur lesen, eine Konfiguration per SET ist nicht möglich'],
+     e:'Polling (GET) liefert regelmäßige Messwerte, Traps melden Ereignisse sofort. SNMPv3 schützt Zugangsdaten und Inhalte, bei v1/v2c geht der Community-String im Klartext übers Netz.',
+     n:'Traps laufen über UDP und sind daher nicht garantiert zugestellt – geht ein Trap verloren, merkt es niemand. Deshalb kombiniert man Traps mit Polling (oder nutzt bestätigte INFORM-Nachrichten).'},
+ en:{s:'You connect a customer\'s switches and UPS to the monitoring system (e.g. Zabbix) via SNMP. A colleague has made some notes on this.',
+     q:'Which statements are correct? (Multiple answers)',
+     o:['The monitoring server polls values such as interface utilisation cyclically with GET requests on UDP port 161','On an event such as "link down" the agent sends an unsolicited trap to UDP port 162 of the manager','SNMPv3 provides authentication and encryption and is preferable to SNMPv2c','The community "public" is transmitted encrypted in SNMPv2c and is therefore harmless','Traps are transmitted via TCP, so their delivery is guaranteed','SNMP can only read values; configuration via SET is not possible'],
+     e:'Polling (GET) provides regular measurements, traps report events immediately. SNMPv3 protects credentials and content; with v1/v2c the community string travels across the network in plain text.',
+     n:'Traps run over UDP and are therefore not guaranteed to arrive – if a trap is lost, nobody notices. That is why traps are combined with polling (or acknowledged INFORM messages are used).'}},
+{id:'itsm-17', a:'itsm', t:'mc', c:[0,1,2],
+ de:{s:'Das Monitoring Ihres Unternehmens erzeugt täglich über 1.200 Alarme, die meisten ohne Handlungsbedarf. Letzte Woche wurde deshalb die Meldung „RAID degraded“ übersehen, zwei Tage später fiel die zweite Platte aus.',
+     q:'Welche Maßnahmen verringern die Alarmflut sinnvoll? (Mehrere Antworten)',
+     o:['Schwellwerte anhand der gemessenen Normalwerte (Baseline) der einzelnen Systeme anpassen','Abhängigkeiten abbilden, sodass bei Ausfall eines Switches nur dieser alarmiert und nicht jeder Host dahinter','Einen Alarm erst auslösen, wenn der Schwellwert über mehrere Prüfzyklen überschritten ist (z. B. CPU über 90 % für 10 Minuten)','Alle Meldungen zusätzlich per SMS an alle Administratoren senden, damit nichts übersehen wird','Warnschwellen komplett entfernen und nur noch bei einem Ausfall alarmieren','Benachrichtigungen außerhalb der Servicezeit grundsätzlich unterdrücken, auch für kritische Systeme'],
+     e:'Weniger, aber aussagekräftige Alarme stellen sicher, dass kritische Meldungen wieder ernst genommen werden. Baselines, Abhängigkeiten und Mindestdauern filtern Fehlalarme und Folgealarme heraus.',
+     n:'Mehr Empfänger und mehr Kanäle verstärken die Alarmmüdigkeit nur – jeder verlässt sich darauf, dass ein anderer reagiert, und die wichtige Meldung geht erneut unter.'},
+ en:{s:'Your company\'s monitoring generates over 1,200 alerts a day, most of them requiring no action. Because of this, the "RAID degraded" message was overlooked last week, and two days later the second disk failed.',
+     q:'Which measures sensibly reduce the alert flood? (Multiple answers)',
+     o:['Adjust thresholds based on the measured normal values (baseline) of the individual systems','Map dependencies so that when a switch fails only the switch raises an alert, not every host behind it','Trigger an alert only when the threshold is exceeded over several check cycles (e.g. CPU above 90 % for 10 minutes)','Additionally send all messages by SMS to all administrators so that nothing is overlooked','Remove warning thresholds entirely and alert only when something fails','Suppress notifications outside service hours in general, even for critical systems'],
+     e:'Fewer but meaningful alerts ensure that critical messages are taken seriously again. Baselines, dependencies and minimum durations filter out false alarms and follow-up alarms.',
+     n:'More recipients and more channels only increase alert fatigue – everyone relies on someone else to react, and the important message is lost again.'}},
+{id:'itsm-18', a:'itsm', t:'sc', c:0,
+ de:{s:'Ein Techniker hat den Druckertreiber einer Anwenderin neu installiert und die Lösung im Ticket dokumentiert. Die Anwenderin ist bis Ende der Woche auf Dienstreise und kann den Erfolg nicht bestätigen.',
+     q:'Wie wird das Ticket im Lebenszyklus korrekt weiterbehandelt?',
+     o:['Status „gelöst“ setzen und die Anwenderin informieren; das Ticket wird nach ihrer Bestätigung oder nach Ablauf einer festgelegten Frist automatisch geschlossen','Das Ticket sofort endgültig schließen, da die Arbeit erledigt ist','Das Ticket im Status „in Bearbeitung“ lassen, bis sich die Anwenderin meldet','Das Ticket löschen, damit es die Statistik offener Tickets nicht verfälscht'],
+     e:'„Gelöst“ und „geschlossen“ sind getrennte Status: Die Lösungszeit endet mit „gelöst“, geschlossen wird erst nach Bestätigung oder Fristablauf (z. B. drei Arbeitstage). So kann die Anwenderin das Ticket bei Bedarf wieder öffnen.',
+     n:'Sofortiges Schließen wirkt effizient, doch tritt der Fehler erneut auf, muss ein neues Ticket angelegt werden – der Zusammenhang geht verloren und die Kennzahlen werden verfälscht.'},
+ en:{s:'A technician has reinstalled a user\'s printer driver and documented the solution in the ticket. The user is on a business trip until the end of the week and cannot confirm success.',
+     q:'How is the ticket correctly handled in its lifecycle?',
+     o:['Set the status to "resolved" and inform the user; the ticket is closed automatically after her confirmation or after a defined period has elapsed','Close the ticket for good immediately, as the work is done','Leave the ticket in the status "in progress" until the user gets in touch','Delete the ticket so that it does not distort the statistics of open tickets'],
+     e:'"Resolved" and "closed" are separate statuses: the resolution time ends with "resolved", closure only follows confirmation or expiry of a period (e.g. three working days). This allows the user to reopen the ticket if necessary.',
+     n:'Closing immediately seems efficient, but if the error recurs a new ticket must be created – the context is lost and the metrics are distorted.'}},
+{id:'itsm-19', a:'itsm', t:'open',
+ de:{s:'Der Service Desk eines Kunden erreicht nur 45 % Erstlösungsquote. Viele Anfragen wiederholen sich, das Lösungswissen steckt vor allem in den Köpfen zweier langjähriger Mitarbeiter. Im Fachgespräch sollen Sie ein Konzept für das Knowledge Management vorstellen.',
+     q:'Erläutern Sie, wie Sie eine Wissensdatenbank aufbauen und pflegen und welchen Nutzen sie für den Service Desk hat.',
+     m:'• Einheitliche Artikelstruktur: Symptom/Fehlerbild, Ursache, Lösung oder Workaround, betroffene Systeme bzw. Versionen, Schlagwörter.\n• Wissen im Arbeitsablauf erfassen: Lösung beim Ticketabschluss als Artikel anlegen oder aktualisieren (Knowledge-Centered Service) und mit dem Ticket verknüpfen.\n• Known Errors und Workarounds aus dem Problem Management übernehmen.\n• Qualitätssicherung: Freigabeprozess, Verantwortliche je Themengebiet, Überprüfungsdatum, veraltete Artikel archivieren.\n• Gute Suche im Ticketsystem, Self-Service-Portal mit FAQ für Anwender.\n• Nutzen: höhere Erstlösungsquote, kürzere MTTR, weniger Eskalationen, schnellere Einarbeitung, geringere Abhängigkeit von Einzelpersonen, gleichbleibende Lösungsqualität.\n• Erfolg messen: Erstlösungsquote, Artikelnutzung, Anteil gelöster Tickets mit Artikelverweis.',
+     k:['Einheitliche Artikelstruktur (Symptom, Ursache, Lösung)','Erfassung beim Ticketabschluss, Verknüpfung mit Tickets','Known Errors aus dem Problem Management','Freigabe, Verantwortliche, regelmäßige Aktualisierung','Self-Service-Portal für Anwender','Nutzen: höhere FCR, kürzere MTTR, weniger Abhängigkeit von Einzelnen']},
+ en:{s:'A customer\'s service desk only achieves a 45 % first contact resolution rate. Many requests recur, and the solution knowledge sits mainly in the heads of two long-standing employees. In the expert interview you are to present a knowledge management concept.',
+     q:'Explain how you would build and maintain a knowledge base and what benefits it brings to the service desk.',
+     m:'• Uniform article structure: symptom, cause, solution or workaround, affected systems or versions, keywords.\n• Capture knowledge in the workflow: create or update an article when closing a ticket (knowledge-centred service) and link it to the ticket.\n• Adopt known errors and workarounds from problem management.\n• Quality assurance: approval process, owners per subject area, review date, archive outdated articles.\n• Good search in the ticket system, self-service portal with FAQ for users.\n• Benefits: higher first contact resolution rate, shorter MTTR, fewer escalations, faster onboarding, less dependence on individuals, consistent solution quality.\n• Measure success: first contact resolution rate, article usage, share of resolved tickets with an article reference.',
+     k:['Uniform article structure (symptom, cause, solution)','Capture on ticket closure, link to tickets','Known errors from problem management','Approval, owners, regular updates','Self-service portal for users','Benefits: higher FCR, shorter MTTR, less dependence on individuals']}},
+{id:'itsm-20', a:'itsm', t:'open',
+ de:{s:'Ein mittelständischer Kunde betreibt 40 Windows-Server, 12 Linux-Server, 30 Switches, eine USV und 25 Netzwerkdrucker. Er fragt Sie, ob er ein agentenbasiertes oder ein agentenloses Monitoring einsetzen soll.',
+     q:'Stellen Sie beide Ansätze mit Vor- und Nachteilen gegenüber und geben Sie eine begründete Empfehlung.',
+     m:'• Agentenbasiert: Auf dem System läuft eine Agentensoftware (z. B. Checkmk- oder Zabbix-Agent).\n  + sehr detaillierte Daten (Dienste, Prozesse, Logdateien, eigene Prüfskripte), geringe Netzlast, Agent kann aktiv melden, auch hinter NAT/Firewall.\n  − Installations- und Updateaufwand, Ressourcenbedarf, auf Appliances wie Switches, USV oder Druckern meist nicht installierbar.\n• Agentenlos: Abfrage über Standardprotokolle wie SNMP, WMI/WinRM, SSH, ICMP oder HTTP.\n  + keine Installation, schnell eingerichtet, ideal für Netzwerkgeräte und Appliances.\n  − weniger Detailtiefe, zentral hinterlegte Zugangsdaten, zusätzliche Firewall-Freigaben, Polling erzeugt Last.\n• Empfehlung: Hybrid – Agenten auf Windows- und Linux-Servern, SNMP (möglichst v3) für Switches, USV und Drucker; Agentenkommunikation verschlüsseln, Zugangsdaten mit minimalen Rechten.',
+     k:['Agent: detaillierte Daten, aktives Melden','Agent: Installations- und Pflegeaufwand, nicht auf Appliances','Agentenlos: SNMP/WMI/SSH, keine Installation','Agentenlos: weniger Details, Zugangsdaten und Ports','Empfehlung Hybrid mit Begründung','Sicherheit: SNMPv3, Verschlüsselung, minimale Rechte']},
+ en:{s:'A medium-sized customer operates 40 Windows servers, 12 Linux servers, 30 switches, a UPS and 25 network printers. He asks you whether he should use agent-based or agentless monitoring.',
+     q:'Compare both approaches with their advantages and disadvantages and give a justified recommendation.',
+     m:'• Agent-based: agent software runs on the system (e.g. Checkmk or Zabbix agent).\n  + very detailed data (services, processes, log files, custom check scripts), low network load, the agent can report actively, even behind NAT/firewall.\n  − installation and update effort, resource consumption, usually cannot be installed on appliances such as switches, UPS or printers.\n• Agentless: queries via standard protocols such as SNMP, WMI/WinRM, SSH, ICMP or HTTP.\n  + no installation, quick to set up, ideal for network devices and appliances.\n  − less detail, centrally stored credentials, additional firewall rules, polling creates load.\n• Recommendation: hybrid – agents on Windows and Linux servers, SNMP (preferably v3) for switches, UPS and printers; encrypt agent communication, use credentials with minimal privileges.',
+     k:['Agent: detailed data, active reporting','Agent: installation and maintenance effort, not on appliances','Agentless: SNMP/WMI/SSH, no installation','Agentless: less detail, credentials and ports','Hybrid recommendation with justification','Security: SNMPv3, encryption, minimal privileges']}}
 );
 
 /* ===== BEREICH:integ – Systemintegration & Rollout (3. Lehrjahr) ===== */

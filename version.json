@@ -1,17 +1,17 @@
 {
-  "version": "0.0.4",
+  "version": "0.0.5",
   "date": "2026-09-11",
   "file": "index.html",
   "notes": {
     "de": [
-      "Arbeitsschutz & Support auf 20 Fragen erweitert",
-      "Neue Themen: fünf Sicherheitsregeln der Elektrotechnik, DGUV V3, Sicherheitszeichen, Brandklassen, Heben im Rack, ESD-Maßnahmen, ElektroG und Datenlöschung, Vier-Ohren-Modell, Beschwerdegespräch, aktives Zuhören, Erste Hilfe, Unterweisung nach § 12 ArbSchG",
-      "Neue Rechenaufgabe mit Zufallswerten: Arbeitszeit und gesetzliche Pausen (ArbZG/JArbSchG)"
+      "IT-Service-Management auf 20 Fragen erweitert",
+      "Neue Themen: Prioritätsmatrix, SLA/OLA/UC, Emergency Change mit ECAB, CMDB und CIs, Change- und Problem-Prozess, Eskalationsarten, Service Desk als SPOC, Syslog-Schweregrade, SNMP, Alarmmüdigkeit, Wissensdatenbank, Monitoring mit und ohne Agent",
+      "Neue Rechenaufgabe mit Zufallswerten: MTTR/MTBF bzw. Erstlösungsquote und SLA-Erfüllung"
     ],
     "en": [
-      "Safety & support extended to 20 questions",
-      "New topics: five electrical safety rules, DGUV V3 testing, safety signs, fire classes, lifting in racks, ESD measures, ElektroG and data deletion, four-sides model, complaint handling, active listening, first aid, safety instruction per § 12 ArbSchG",
-      "New random calculation: working time and statutory breaks (ArbZG/JArbSchG)"
+      "IT service management extended to 20 questions",
+      "New topics: priority matrix, SLA/OLA/UC, emergency change with ECAB, CMDB and CIs, change and problem process, escalation types, service desk as SPOC, syslog severities, SNMP, alert fatigue, knowledge base, agent-based vs agentless monitoring",
+      "New random calculation: MTTR/MTBF or first contact resolution and SLA compliance"
     ]
   }
 }

@@ -10,6 +10,18 @@ All changes to Patchfeld. Version scheme: every digit runs from 0 to 9 –
 
 <!-- releases -->
 
+## 0.0.5 – 2026-09-11
+
+- IT-Service-Management auf 20 Fragen erweitert
+- Neue Themen: Prioritätsmatrix, SLA/OLA/UC, Emergency Change mit ECAB, CMDB und CIs, Change- und Problem-Prozess, Eskalationsarten, Service Desk als SPOC, Syslog-Schweregrade, SNMP, Alarmmüdigkeit, Wissensdatenbank, Monitoring mit und ohne Agent
+- Neue Rechenaufgabe mit Zufallswerten: MTTR/MTBF bzw. Erstlösungsquote und SLA-Erfüllung
+
+**English**
+
+- IT service management extended to 20 questions
+- New topics: priority matrix, SLA/OLA/UC, emergency change with ECAB, CMDB and CIs, change and problem process, escalation types, service desk as SPOC, syslog severities, SNMP, alert fatigue, knowledge base, agent-based vs agentless monitoring
+- New random calculation: MTTR/MTBF or first contact resolution and SLA compliance
+
 ## 0.0.4 – 2026-09-11
 
 - Arbeitsschutz & Support auf 20 Fragen erweitert
