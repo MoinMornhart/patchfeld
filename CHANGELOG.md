@@ -10,6 +10,18 @@ All changes to Patchfeld. Version scheme: every digit runs from 0 to 9 –
 
 <!-- releases -->
 
+## 0.0.6 – 2026-09-11
+
+- Netzwerkgrundlagen auf 20 Fragen erweitert
+- Neue Themen: Cat 6A und Leitungslängen, MAC-Tabelle, Broadcast- und Kollisionsdomänen, IPv6 Link-local und SLAAC, RFC-1918-Adressen, Schleifen und STP, Schirmungsarten, strukturierte Verkabelung nach EN 50173, T568B-Belegung, Kapselung
+- Neue Rechenaufgaben mit Zufallswerten: benötigte Hosts zu Präfix und Maske, IPv6-Kurzschreibweise; PoE-Budget
+
+**English**
+
+- Network fundamentals extended to 20 questions
+- New topics: Cat 6A and link lengths, MAC table, broadcast and collision domains, IPv6 link-local and SLAAC, RFC 1918 addresses, loops and STP, shielding types, structured cabling per EN 50173, T568B pin-out, encapsulation
+- New random calculations: required hosts to prefix and mask, IPv6 short notation; PoE budget
+
 ## 0.0.5 – 2026-09-11
 
 - IT-Service-Management auf 20 Fragen erweitert

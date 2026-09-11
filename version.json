@@ -1,17 +1,17 @@
 {
-  "version": "0.0.5",
+  "version": "0.0.6",
   "date": "2026-09-11",
   "file": "index.html",
   "notes": {
     "de": [
-      "IT-Service-Management auf 20 Fragen erweitert",
-      "Neue Themen: Prioritätsmatrix, SLA/OLA/UC, Emergency Change mit ECAB, CMDB und CIs, Change- und Problem-Prozess, Eskalationsarten, Service Desk als SPOC, Syslog-Schweregrade, SNMP, Alarmmüdigkeit, Wissensdatenbank, Monitoring mit und ohne Agent",
-      "Neue Rechenaufgabe mit Zufallswerten: MTTR/MTBF bzw. Erstlösungsquote und SLA-Erfüllung"
+      "Netzwerkgrundlagen auf 20 Fragen erweitert",
+      "Neue Themen: Cat 6A und Leitungslängen, MAC-Tabelle, Broadcast- und Kollisionsdomänen, IPv6 Link-local und SLAAC, RFC-1918-Adressen, Schleifen und STP, Schirmungsarten, strukturierte Verkabelung nach EN 50173, T568B-Belegung, Kapselung",
+      "Neue Rechenaufgaben mit Zufallswerten: benötigte Hosts zu Präfix und Maske, IPv6-Kurzschreibweise; PoE-Budget"
     ],
     "en": [
-      "IT service management extended to 20 questions",
-      "New topics: priority matrix, SLA/OLA/UC, emergency change with ECAB, CMDB and CIs, change and problem process, escalation types, service desk as SPOC, syslog severities, SNMP, alert fatigue, knowledge base, agent-based vs agentless monitoring",
-      "New random calculation: MTTR/MTBF or first contact resolution and SLA compliance"
+      "Network fundamentals extended to 20 questions",
+      "New topics: Cat 6A and link lengths, MAC table, broadcast and collision domains, IPv6 link-local and SLAAC, RFC 1918 addresses, loops and STP, shielding types, structured cabling per EN 50173, T568B pin-out, encapsulation",
+      "New random calculations: required hosts to prefix and mask, IPv6 short notation; PoE budget"
     ]
   }
 }

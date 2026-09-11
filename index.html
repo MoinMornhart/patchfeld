@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Patchfeld</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<meta name="app-version" content="0.0.5">
+<meta name="app-version" content="0.0.6">
 <meta name="theme-color" content="#1b1f24">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -311,8 +311,11 @@ dialog::backdrop{background:rgba(10,12,14,.55)}
 /* =====================================================================
    PATCHFELD – Kern: Version, Bereiche, Hilfsfunktionen, Generatoren
    ===================================================================== */
-const APP_VERSION = '0.0.5';
+const APP_VERSION = '0.0.6';
 const CHANGELOG = [
+  {v:'0.0.6', d:'2026-09-11',
+   de:['Netzwerkgrundlagen auf 20 Fragen erweitert','Neue Themen: Cat 6A und Leitungslängen, MAC-Tabelle, Broadcast- und Kollisionsdomänen, IPv6 Link-local und SLAAC, RFC-1918-Adressen, Schleifen und STP, Schirmungsarten, strukturierte Verkabelung nach EN 50173, T568B-Belegung, Kapselung','Neue Rechenaufgaben mit Zufallswerten: benötigte Hosts zu Präfix und Maske, IPv6-Kurzschreibweise; PoE-Budget'],
+   en:['Network fundamentals extended to 20 questions','New topics: Cat 6A and link lengths, MAC table, broadcast and collision domains, IPv6 link-local and SLAAC, RFC 1918 addresses, loops and STP, shielding types, structured cabling per EN 50173, T568B pin-out, encapsulation','New random calculations: required hosts to prefix and mask, IPv6 short notation; PoE budget']},
   {v:'0.0.5', d:'2026-09-11',
    de:['IT-Service-Management auf 20 Fragen erweitert','Neue Themen: Prioritätsmatrix, SLA/OLA/UC, Emergency Change mit ECAB, CMDB und CIs, Change- und Problem-Prozess, Eskalationsarten, Service Desk als SPOC, Syslog-Schweregrade, SNMP, Alarmmüdigkeit, Wissensdatenbank, Monitoring mit und ohne Agent','Neue Rechenaufgabe mit Zufallswerten: MTTR/MTBF bzw. Erstlösungsquote und SLA-Erfüllung'],
    en:['IT service management extended to 20 questions','New topics: priority matrix, SLA/OLA/UC, emergency change with ECAB, CMDB and CIs, change and problem process, escalation types, service desk as SPOC, syslog severities, SNMP, alert fatigue, knowledge base, agent-based vs agentless monitoring','New random calculation: MTTR/MTBF or first contact resolution and SLA compliance']},
@@ -1136,6 +1139,214 @@ Q.push(
      o:['PC 1 compares the destination IP with its own subnet mask: same network','PC 1 looks up the MAC address in its ARP cache – no entry','PC 1 sends an ARP request as a broadcast','PC 2 answers with an ARP reply (unicast) containing its MAC address','PC 1 stores the entry and sends the frame to PC 2\'s MAC'],
      e:'The mask decides whether to deliver directly or route via the gateway. For direct delivery PC 1 needs the MAC address, which it asks for via ARP broadcast.',
      n:'People often assume the switch answers the ARP request – it only forwards the broadcast; PC 2 must reply itself.'}}
+);
+
+/* ----- BEREICH:net – Erweiterung ----- */
+/* Subnetting: benötigte Hosts → kleinstes Präfix, Maske, nutzbare Hosts */
+GEN.netHostsPrefix = function(L){
+  let need;
+  if (Math.random() < 0.4){ const k = rnd(3, 11); need = 2**k - rnd(0, 1); }
+  else need = pick([rnd(5, 60), rnd(61, 500), rnd(501, 4000)]);
+  let h = 2; while (2**h - 2 < need) h++;
+  const p = 32 - h, m = maskOf(p), hosts = 2**h - 2, prev = 2**(h-1) - 2;
+  const d = pick([['die Vertriebsabteilung','the sales department'],['die Produktionshalle','the production hall'],['Lager und Logistik','warehouse and logistics'],['die Entwicklungsabteilung','the R&D department'],['das Gäste-WLAN','the guest Wi-Fi'],['die Videoüberwachung','video surveillance'],['die Verwaltung','the administration']]);
+  const oi = Math.floor(p / 8);
+  const mexpl = p % 8 === 0 ? '' : tx(L,
+    ` Im ${oi+1}. Oktett stehen ${p % 8} Einsen: 256 − 2^${8 - p % 8} = ${256 - 2**(8 - p % 8)}.`,
+    ` Octet ${oi+1} holds ${p % 8} one bits: 256 − 2^${8 - p % 8} = ${256 - 2**(8 - p % 8)}.`);
+  return { t:'in',
+    s: tx(L, `Für ${d[0]} wird ein eigenes IPv4-Subnetz geplant. Benötigt werden ${fmt(need,0,L)} Hostadressen – Endgeräte, Drucker und die Gateway-Adresse des Routers sind eingerechnet. Um Adressraum zu sparen, soll das Subnetz so klein wie möglich sein.`,
+             `A separate IPv4 subnet is being planned for ${d[1]}. ${fmt(need,0,L)} host addresses are required – end devices, printers and the router's gateway address are included. To save address space, the subnet should be as small as possible.`),
+    q: tx(L, 'Geben Sie die Präfixlänge, die Subnetzmaske in Punktdezimalschreibweise und die Anzahl nutzbarer Hostadressen an.',
+             'State the prefix length, the subnet mask in dotted decimal notation and the number of usable host addresses.'),
+    f: [ {l:tx(L,'Präfixlänge','Prefix length'), v:String(p), u:'/'}, {l:tx(L,'Subnetzmaske','Subnet mask'), v:ip2s(m)}, {l:tx(L,'Nutzbare Hosts','Usable hosts'), v:hosts, tol:0} ],
+    e: tx(L, `Gesucht ist das kleinste h mit 2^h − 2 ≥ ${fmt(need,0,L)}: 2^${h-1} − 2 = ${fmt(prev,0,L)} reicht nicht, 2^${h} − 2 = ${fmt(hosts,0,L)} reicht. Präfix: 32 − ${h} = /${p}.${mexpl} Maske: ${ip2s(m)}.`,
+             `You need the smallest h with 2^h − 2 ≥ ${fmt(need,0,L)}: 2^${h-1} − 2 = ${fmt(prev,0,L)} is not enough, 2^${h} − 2 = ${fmt(hosts,0,L)} is. Prefix: 32 − ${h} = /${p}.${mexpl} Mask: ${ip2s(m)}.`),
+    n: tx(L, 'Häufiger Fehler: nur 2^h ≥ Bedarf zu prüfen und Netz- und Broadcastadresse zu vergessen – bei z. B. 64 benötigten Hosts reicht ein /26 (62 Hosts) nicht, erst ein /25.',
+             'Common mistake: only checking 2^h ≥ demand and forgetting the network and broadcast addresses – e.g. for 64 required hosts a /26 (62 hosts) is not enough, only a /25 is.')
+  };
+};
+
+/* IPv6: volle Schreibweise → kürzeste Schreibweise nach RFC 5952 und /64-Präfix */
+GEN.netIpv6Short = function(L){
+  const val = () => { const r = Math.random(); return r < 0.4 ? 0 : r < 0.7 ? rnd(1, 0xff) : r < 0.85 ? rnd(0x100, 0xfff) : rnd(0x1000, 0xffff); };
+  let g;
+  do { g = [0x2001, 0x0db8, pick([0, rnd(1, 0xff), rnd(0x100, 0xffff)]), pick([0, rnd(1, 0xff), rnd(0x100, 0xfff), rnd(0x1000, 0xffff)]), val(), val(), val(), val()]; }
+  while (g.slice(4).every(v => v === 0) || g.filter(v => v === 0).length < 2);
+  const run = a => { let bs = -1, bl = 0; for (let i = 0; i < 8;){ if (a[i] === 0){ let j = i; while (j < 8 && a[j] === 0) j++; if (j - i > bl){ bl = j - i; bs = i; } i = j; } else i++; } return [bs, bl]; };
+  const short = a => { const [bs, bl] = run(a), hx = a.map(v => v.toString(16)); return bl < 2 ? hx.join(':') : hx.slice(0, bs).join(':') + '::' + hx.slice(bs + bl).join(':'); };
+  const up = Math.random() < 0.5;
+  const full = g.map(v => { const s = v.toString(16).padStart(4, '0'); return up ? s.toUpperCase() : s; }).join(':');
+  const pg = g.slice(0, 4).concat([0, 0, 0, 0]);
+  const ans = short(g), pre = short(pg), [bs, bl] = run(g);
+  const runs = []; for (let i = 0; i < 8;){ if (g[i] === 0){ let j = i; while (j < 8 && g[j] === 0) j++; runs.push([i, j - i]); i = j; } else i++; }
+  const tie = runs.filter(r => r[1] === bl).length > 1 && bl >= 2;
+  const singles = bl < 2 ? runs.length : runs.filter(r => r[1] === 1).length;
+  const step2 = bl < 2
+    ? tx(L, ' Es gibt keine Folge von mindestens zwei Nullblöcken, daher wird :: nicht verwendet; einzelne Nullblöcke werden zu 0.', ' There is no run of at least two zero groups, so :: is not used; single zero groups become 0.')
+    : tx(L, ` Die längste Folge von Nullblöcken (Block ${bs+1} bis ${bs+bl}, ${bl} Blöcke) wird durch :: ersetzt${tie ? ' – bei gleich langen Folgen die erste' : ''}${singles && runs.length > 1 ? '; weitere Nullblöcke werden nur zu 0 verkürzt' : ''}.`,
+            ` The longest run of zero groups (group ${bs+1} to ${bs+bl}, ${bl} groups) is replaced by ::${tie ? ' – with runs of equal length, the first one' : ''}${singles && runs.length > 1 ? '; other zero groups are only shortened to 0' : ''}.`);
+  return { t:'in',
+    s: tx(L, `Ihr Betrieb hat vom Provider ein IPv6-Präfix erhalten. In der Dokumentation des neuen Webservers steht seine Adresse in voller Schreibweise:\n${full}/64\nFür den DNS-Eintrag und die Firewall-Regel soll die Adresse einheitlich in der kürzesten Schreibweise nach RFC 5952 erfasst werden.`,
+             `Your company has received an IPv6 prefix from its provider. The documentation of the new web server lists its address in full notation:\n${full}/64\nFor the DNS record and the firewall rule, the address is to be entered consistently in the shortest notation according to RFC 5952.`),
+    q: tx(L, 'Geben Sie die Adresse in kürzester Schreibweise an sowie das /64-Präfix (Netzanteil) ebenfalls in kürzester Schreibweise, jeweils ohne Präfixlänge.',
+             'State the address in its shortest notation and the /64 prefix (network part), also in shortest notation, each without the prefix length.'),
+    f: [ {l:tx(L,'Kurzschreibweise Adresse','Address, shortest notation'), v:ans}, {l:tx(L,'/64-Präfix','/64 prefix'), v:pre} ],
+    e: tx(L, `Schritt 1: führende Nullen je Block entfernen → ${g.map(v => v.toString(16)).join(':')}.${step2} Ergebnis: ${ans}. Das /64-Präfix sind die ersten vier Blöcke, der Rest (Interface-ID) ist 0 → ${pre}.`,
+             `Step 1: remove leading zeros in each group → ${g.map(v => v.toString(16)).join(':')}.${step2} Result: ${ans}. The /64 prefix is the first four groups; the rest (interface ID) is 0 → ${pre}.`),
+    n: tx(L, 'Häufige Fehler: :: mehrfach verwenden (z. B. 2001:db8::1::5 ist mehrdeutig und ungültig) oder nachgestellte statt führende Nullen streichen (00a0 wird zu a0, nicht zu a).',
+             'Common mistakes: using :: more than once (e.g. 2001:db8::1::5 is ambiguous and invalid) or dropping trailing instead of leading zeros (00a0 becomes a0, not a).')
+  };
+};
+
+Q.push(
+{id:'net-06', a:'net', gen:'netHostsPrefix'},
+{id:'net-07', a:'net', gen:'netIpv6Short'},
+{id:'net-08', a:'net', t:'in', f:[{v:138, tol:0, u:'W'},{v:8, tol:0}],
+ de:{s:'Ein 48-Port-PoE+-Switch hat ein PoE-Gesamtbudget von 370 W. Angeschlossen sind bereits 16 IP-Telefone (PoE-Klasse 2, 7,0 W je Port) und 4 WLAN-Access-Points (PoE-Klasse 4, 30,0 W je Port). Die Werte gelten jeweils als reservierte Leistung am Switch-Port (PSE).',
+     q:'Wie viel PoE-Budget ist noch frei, und wie viele IP-Kameras der PoE-Klasse 3 (15,4 W je Port) können zusätzlich versorgt werden?',
+     l:['Freies PoE-Budget','Zusätzliche Kameras'],
+     e:'Belegt: 16 × 7,0 W = 112 W und 4 × 30,0 W = 120 W, zusammen 232 W. Frei: 370 W − 232 W = 138 W. 138 W ÷ 15,4 W = 8,96 → es passen nur 8 ganze Kameras.',
+     n:'Falsch ist, 8,96 auf 9 aufzurunden – die neunte Kamera würde das Budget überschreiten und der Switch würde sie nicht versorgen. Ebenso falsch: mit der Leistung am Endgerät (z. B. 12,95 W bei Klasse 3) statt mit der reservierten Leistung am Switch-Port zu rechnen.'},
+ en:{s:'A 48-port PoE+ switch has a total PoE budget of 370 W. Already connected are 16 IP phones (PoE class 2, 7.0 W per port) and 4 Wi-Fi access points (PoE class 4, 30.0 W per port). All values are the power reserved at the switch port (PSE).',
+     q:'How much PoE budget is still available, and how many additional IP cameras of PoE class 3 (15.4 W per port) can be powered?',
+     l:['Available PoE budget','Additional cameras'],
+     e:'In use: 16 × 7.0 W = 112 W and 4 × 30.0 W = 120 W, 232 W in total. Available: 370 W − 232 W = 138 W. 138 W ÷ 15.4 W = 8.96 → only 8 whole cameras fit.',
+     n:'Rounding 8.96 up to 9 is wrong – the ninth camera would exceed the budget and the switch would not power it. Also wrong: calculating with the power at the device (e.g. 12.95 W for class 3) instead of the power reserved at the switch port.'}},
+{id:'net-09', a:'net', t:'sc', c:0,
+ de:{s:'Ein Steuerbüro zieht in neue Räume. Die Datendosen sollen über Installationsstrecken von bis zu 85 m an die Etagenverteiler angebunden werden. Der Kunde möchte, dass die Arbeitsplätze mindestens die nächsten 15 Jahre auch 10 Gbit/s über Kupfer (10GBASE-T) nutzen können.',
+     q:'Welche Kabelkategorie empfehlen Sie für die Etagenverkabelung?',
+     o:['Cat. 6A (Klasse EA), 10GBASE-T über den vollen 100-m-Channel','Cat. 6 (Klasse E), da sie 10 Gbit/s ebenfalls unterstützt','Cat. 8.1, da sie die höchste Datenrate bietet','Cat. 5e, da 10 Gbit/s nur im Rechenzentrum benötigt wird'],
+     e:'Cat. 6A ist bis 500 MHz spezifiziert und überträgt 10GBASE-T über den vollen Channel von 100 m. Damit ist sie der Standard für zukunftssichere Etagenverkabelung, auch für PoE-Access-Points mit Multigigabit.',
+     n:'Cat. 6 schafft 10GBASE-T nur über kurze Strecken (typisch bis ca. 55 m) und nicht zuverlässig bei 85 m. Cat. 8 ist für 25/40GBASE-T im Rechenzentrum auf maximal 30 m ausgelegt und für die Etage ungeeignet.'},
+ en:{s:'A tax consultancy is moving into new offices. The wall outlets are to be connected to the floor distributors via permanent links of up to 85 m. The customer wants the workstations to be able to use 10 Gbit/s over copper (10GBASE-T) for at least the next 15 years.',
+     q:'Which cable category do you recommend for the horizontal cabling?',
+     o:['Cat 6A (class EA), 10GBASE-T over the full 100 m channel','Cat 6 (class E), as it also supports 10 Gbit/s','Cat 8.1, as it offers the highest data rate','Cat 5e, as 10 Gbit/s is only needed in the data centre'],
+     e:'Cat 6A is specified up to 500 MHz and carries 10GBASE-T over the full 100 m channel. This makes it the standard for future-proof horizontal cabling, also for multi-gigabit PoE access points.',
+     n:'Cat 6 only manages 10GBASE-T over short distances (typically up to about 55 m) and not reliably at 85 m. Cat 8 is designed for 25/40GBASE-T in the data centre with a maximum of 30 m and is unsuitable for floor cabling.'}},
+{id:'net-10', a:'net', t:'sc', c:0,
+ de:{s:'Nach einem Neustart des Switches schneidet eine Kollegin mit Wireshark an Port 7 mit. Obwohl nur PC A (Port 2) mit dem Server (Port 5) kommuniziert, sieht sie für einige Sekunden auch Unicast-Frames dieser Verbindung. Danach tauchen sie an Port 7 nicht mehr auf.',
+     q:'Wie erklären Sie dieses Verhalten?',
+     o:['Die MAC-Adresstabelle war nach dem Neustart leer; Frames an unbekannte Ziel-MACs werden an alle Ports außer dem Eingangsport geflutet, bis der Switch die Quell-MACs gelernt hat','Der Switch arbeitet nach einem Neustart zunächst als Router und leitet Pakete anhand der IP-Adresse an alle Netze weiter','Port 7 ist als Trunk konfiguriert und empfängt daher grundsätzlich den gesamten Datenverkehr','Der Switch lernt Ziel-MAC-Adressen aus den Frames und muss dafür jeden Frame zunächst an alle Ports senden'],
+     e:'Ein Switch lernt die Quell-MAC-Adresse jedes eingehenden Frames zusammen mit dem Port. Kennt er die Ziel-MAC noch nicht, flutet er den Frame (Unknown Unicast Flooding). Sobald beide Seiten gesendet haben, stehen beide MACs in der Tabelle und der Verkehr wird nur noch gezielt weitergeleitet.',
+     n:'Verlockend, aber falsch: Der Switch lernt nicht die Ziel-, sondern die Quelladressen. Nur solange die Ziel-MAC unbekannt ist, wird geflutet – nicht grundsätzlich jeder Frame.'},
+ en:{s:'After a switch reboot, a colleague captures traffic with Wireshark on port 7. Although only PC A (port 2) is communicating with the server (port 5), for a few seconds she also sees unicast frames of this connection. After that they no longer appear on port 7.',
+     q:'How do you explain this behaviour?',
+     o:['The MAC address table was empty after the reboot; frames to unknown destination MACs are flooded to all ports except the ingress port until the switch has learned the source MACs','After a reboot the switch initially works as a router and forwards packets to all networks based on the IP address','Port 7 is configured as a trunk and therefore always receives all traffic','The switch learns destination MAC addresses from the frames and has to send every frame to all ports first to do so'],
+     e:'A switch learns the source MAC address of every incoming frame together with the port. If it does not yet know the destination MAC, it floods the frame (unknown unicast flooding). Once both sides have sent, both MACs are in the table and traffic is only forwarded to the correct port.',
+     n:'Tempting but wrong: the switch learns source addresses, not destination addresses. It only floods while the destination MAC is unknown – not every frame on principle.'}},
+{id:'net-11', a:'net', t:'sc', c:0,
+ de:{s:'Sie dokumentieren das Netz einer Arztpraxis. Router R verbindet zwei Bereiche; ein alter Hub am Empfang wurde noch nicht ausgetauscht. Alle Verbindungen sind im Plan dargestellt.',
+     code:'Router R\n ├─ Gi0/0 ── Switch S1 ── PC1, PC2, PC3, PC4\n └─ Gi0/1 ── Switch S2 ── PC5, PC6\n                     └── Hub H ── PC7, PC8, PC9',
+     q:'Wie viele Broadcast-Domänen und wie viele Kollisionsdomänen gibt es?',
+     o:['2 Broadcast-Domänen und 9 Kollisionsdomänen','1 Broadcast-Domäne und 9 Kollisionsdomänen','2 Broadcast-Domänen und 12 Kollisionsdomänen','2 Broadcast-Domänen und 2 Kollisionsdomänen'],
+     e:'Jedes Router-Interface begrenzt eine Broadcast-Domäne → 2. Jeder Switch- bzw. Router-Port bildet eine eigene Kollisionsdomäne: R–S1, 4 × S1–PC, R–S2, 2 × S2–PC und S2–Hub = 9. Der Hub mit PC7–PC9 ist zusammen nur eine Kollisionsdomäne.',
+     n:'Wer jeden Hub-Port einzeln zählt, kommt auf 12 – ein Hub leitet aber alle Signale an alle Ports weiter, sodass alle daran angeschlossenen Geräte eine gemeinsame Kollisionsdomäne teilen.'},
+ en:{s:'You are documenting the network of a medical practice. Router R connects two areas; an old hub at reception has not yet been replaced. All links are shown in the diagram.',
+     code:'Router R\n ├─ Gi0/0 ── Switch S1 ── PC1, PC2, PC3, PC4\n └─ Gi0/1 ── Switch S2 ── PC5, PC6\n                     └── Hub H ── PC7, PC8, PC9',
+     q:'How many broadcast domains and how many collision domains are there?',
+     o:['2 broadcast domains and 9 collision domains','1 broadcast domain and 9 collision domains','2 broadcast domains and 12 collision domains','2 broadcast domains and 2 collision domains'],
+     e:'Each router interface bounds a broadcast domain → 2. Every switch or router port forms its own collision domain: R–S1, 4 × S1–PC, R–S2, 2 × S2–PC and S2–hub = 9. The hub with PC7–PC9 is only one collision domain in total.',
+     n:'Counting every hub port separately gives 12 – but a hub repeats all signals to all ports, so all devices attached to it share one collision domain.'}},
+{id:'net-12', a:'net', t:'sc', c:0,
+ de:{s:'Im Rahmen der Dual-Stack-Einführung soll der Router im Netz der Buchhaltung das Präfix 2001:db8:10:20::/64 per SLAAC verteilen. Ein Buchhaltungs-PC erreicht IPv4-Ziele problemlos, IPv6-Ziele außerhalb des eigenen Segments aber nicht. ipconfig zeigt:',
+     code:'Ethernet-Adapter Ethernet:\n   Verbindungslokale IPv6-Adresse  . : fe80::8d4c:2a17:63b1:e0f5%12\n   IPv4-Adresse  . . . . . . . . . . : 10.10.20.57\n   Subnetzmaske  . . . . . . . . . . : 255.255.255.0\n   Standardgateway . . . . . . . . . : 10.10.20.1',
+     q:'Wie bewerten Sie die angezeigte IPv6-Adresse?',
+     o:['Es ist eine Link-Local-Adresse, die jeder IPv6-Host automatisch bildet und die nur im lokalen Segment gilt; da eine globale Adresse fehlt, kommen offenbar keine Router Advertisements mit dem Präfix an','Es ist eine Global-Unicast-Adresse; die Ursache muss ein fehlender AAAA-Eintrag im DNS sein','Es ist eine Unique Local Address (ULA), die im Firmennetz geroutet, aber nicht ins Internet weitergeleitet wird','Es ist eine APIPA-ähnliche Notadresse, die nur entsteht, wenn kein DHCP-Server erreichbar ist'],
+     e:'Adressen aus fe80::/10 sind Link-Local-Adressen; sie werden immer automatisch gebildet und von Routern nicht weitergeleitet (die Zonen-ID %12 kennzeichnet das Interface). Für SLAAC muss der Router Router Advertisements mit dem /64-Präfix senden – fehlt eine Adresse aus 2001:db8:10:20::/64, ist dort die Ursache zu suchen.',
+     n:'Der Vergleich mit APIPA liegt nahe, trifft aber nicht zu: Eine Link-Local-Adresse hat jeder IPv6-Host immer – auch zusätzlich zu seinen globalen Adressen. Sie ist kein Fehlerzeichen, das Fehlen der globalen Adresse ist es.'},
+ en:{s:'As part of the dual-stack rollout, the router in the accounting network is to distribute the prefix 2001:db8:10:20::/64 via SLAAC. An accounting PC reaches IPv4 destinations without problems but cannot reach IPv6 destinations outside its own segment. ipconfig shows:',
+     code:'Ethernet adapter Ethernet:\n   Link-local IPv6 Address . . . . . : fe80::8d4c:2a17:63b1:e0f5%12\n   IPv4 Address. . . . . . . . . . . : 10.10.20.57\n   Subnet Mask . . . . . . . . . . . : 255.255.255.0\n   Default Gateway . . . . . . . . . : 10.10.20.1',
+     q:'How do you assess the IPv6 address shown?',
+     o:['It is a link-local address that every IPv6 host creates automatically and that is only valid in the local segment; since there is no global address, router advertisements with the prefix are apparently not arriving','It is a global unicast address; the cause must be a missing AAAA record in DNS','It is a unique local address (ULA) that is routed within the company network but not forwarded to the internet','It is an APIPA-like fallback address that only appears when no DHCP server can be reached'],
+     e:'Addresses from fe80::/10 are link-local addresses; they are always created automatically and are not forwarded by routers (the zone ID %12 identifies the interface). For SLAAC the router must send router advertisements with the /64 prefix – if there is no address from 2001:db8:10:20::/64, that is where to look for the cause.',
+     n:'The comparison with APIPA is tempting but does not apply: every IPv6 host always has a link-local address – also in addition to its global addresses. It is not a sign of an error; the missing global address is.'}},
+{id:'net-13', a:'net', t:'mc', c:[0,1,2],
+ de:{s:'Auf der Firewall eines Online-Händlers soll am WAN-Interface eine Anti-Spoofing-Regel eingerichtet werden: Pakete aus dem Internet mit privaten Quelladressen nach RFC 1918 werden verworfen.',
+     q:'Welche der folgenden Quelladressen werden von dieser Regel erfasst?',
+     o:['172.20.14.3','10.255.200.1','192.168.178.20','172.32.0.10','169.254.33.7','100.64.12.5'],
+     e:'RFC 1918 definiert genau drei private Bereiche: 10.0.0.0/8, 172.16.0.0/12 (172.16.0.0–172.31.255.255) und 192.168.0.0/16. Die drei richtigen Adressen liegen darin.',
+     n:'172.32.0.10 wirkt privat, liegt aber außerhalb von 172.16.0.0/12 und ist öffentlich. 169.254.0.0/16 (Link-Local/APIPA) und 100.64.0.0/10 (Carrier-Grade-NAT, RFC 6598) sind zwar ebenfalls nicht im Internet routbar und sollten zusätzlich gefiltert werden, gehören aber nicht zu RFC 1918.'},
+ en:{s:"On an online retailer's firewall, an anti-spoofing rule is to be set up on the WAN interface: packets from the internet with private source addresses according to RFC 1918 are dropped.",
+     q:'Which of the following source addresses are covered by this rule?',
+     o:['172.20.14.3','10.255.200.1','192.168.178.20','172.32.0.10','169.254.33.7','100.64.12.5'],
+     e:'RFC 1918 defines exactly three private ranges: 10.0.0.0/8, 172.16.0.0/12 (172.16.0.0–172.31.255.255) and 192.168.0.0/16. The three correct addresses fall within them.',
+     n:'172.32.0.10 looks private but lies outside 172.16.0.0/12 and is public. 169.254.0.0/16 (link-local/APIPA) and 100.64.0.0/10 (carrier-grade NAT, RFC 6598) are also not routable on the internet and should be filtered as well, but they are not part of RFC 1918.'}},
+{id:'net-14', a:'net', t:'mc', c:[0,1],
+ de:{s:'Ein Büro am Ende einer Lagerhalle soll eine Datendose erhalten. Die geplante Kabeltrasse vom Etagenverteiler bis zur Dose ist 104 m lang; vorgesehen ist Cat. 6A. Die Verkabelung soll normgerecht nach DIN EN 50173 ausgeführt werden.',
+     q:'Welche Maßnahmen führen zu einer normgerechten Lösung?',
+     o:['Einen zusätzlichen Verteiler mit Switch näher am Büro einrichten und ihn per LWL an den bestehenden Etagenverteiler anbinden','Die Trasse so umplanen, dass die fest verlegte Strecke höchstens 90 m und der gesamte Channel mit Patchkabeln höchstens 100 m lang ist','Statt Cat. 6A ein Cat.-7-Kabel verlegen, weil dieses bis 150 m zugelassen ist','Sehr kurze Patchkabel verwenden, damit der Channel insgesamt unter 110 m bleibt','Zwei Kabelstücke in der Zwischendecke mit einer passiven RJ45-Kupplung verbinden','Den Switch-Port fest auf 100 Mbit/s einstellen, weil die Längengrenze dann nicht gilt'],
+     e:'Für Twisted-Pair-Kupfer gilt: Permanent Link (fest verlegt) höchstens 90 m, Channel inklusive Patch- und Geräteanschlusskabel höchstens 100 m. Größere Distanzen überbrückt man mit einem weiteren Verteiler, der per LWL angebunden wird, oder mit einer kürzeren Trasse.',
+     n:'Die 100-m-Grenze gilt unabhängig von Kategorie und Geschwindigkeit – auch Cat. 7 und 100BASE-TX sind auf 100 m spezifiziert. Eine passive Kupplung verlängert die Strecke nur und fügt eine weitere Steckverbindung hinzu.'},
+ en:{s:'An office at the end of a warehouse is to receive a network outlet. The planned cable route from the floor distributor to the outlet is 104 m long; Cat 6A is intended. The cabling is to comply with EN 50173.',
+     q:'Which measures lead to a standard-compliant solution?',
+     o:['Set up an additional distributor with a switch closer to the office and connect it to the existing floor distributor via fibre','Re-plan the route so that the permanently installed link is at most 90 m and the entire channel including patch cords is at most 100 m','Install Cat 7 instead of Cat 6A because it is approved up to 150 m','Use very short patch cords so that the channel stays below 110 m in total','Join two cable segments in the ceiling void with a passive RJ45 coupler','Fix the switch port at 100 Mbit/s because the length limit does not apply then'],
+     e:'For twisted-pair copper: permanent link (fixed installation) at most 90 m, channel including patch and equipment cords at most 100 m. Longer distances are bridged with an additional distributor connected via fibre, or with a shorter route.',
+     n:'The 100 m limit applies regardless of category and speed – Cat 7 and 100BASE-TX are also specified for 100 m. A passive coupler only extends the link and adds another connection point.'}},
+{id:'net-15', a:'net', t:'mc', c:[0,1,2],
+ de:{s:'In einem Besprechungsraum steckt ein Mitarbeiter ein Patchkabel mit beiden Enden in zwei Datendosen, die auf denselben Access-Switch aufgelegt sind. Kurz darauf bricht das Netz der gesamten Etage zusammen, die Port-LEDs des Switches blinken ununterbrochen. Spanning Tree ist auf dem Switch deaktiviert.',
+     q:'Welche Aussagen zu diesem Vorfall treffen zu?',
+     o:['Es entsteht ein Broadcast-Sturm, weil Ethernet-Frames keine Lebensdauer (TTL) haben und in der Schleife endlos kreisen','Die MAC-Adresstabelle wird instabil, weil dieselben Quell-MACs abwechselnd an verschiedenen Ports gelernt werden','Mit aktiviertem (Rapid) Spanning Tree hätte der Switch die Schleife erkannt und einen der beiden Ports blockiert','Die Störung betrifft nur die beiden beteiligten Ports, weil der Switch Frames gezielt weiterleitet','Die Schleife löst sich nach wenigen Sekunden von selbst auf, weil die IP-TTL die Frames verwirft','Vollduplex-Betrieb der Ports verhindert, dass solche Schleifen Auswirkungen haben'],
+     e:'Broadcasts wie ARP-Anfragen werden an alle Ports geflutet, kommen über die Schleife zurück und vervielfachen sich. Da Ethernet keine TTL kennt, kreisen sie endlos und die MAC-Tabelle springt ständig. STP bzw. RSTP (IEEE 802.1D/802.1w) erkennt die Schleife über BPDUs und blockiert einen Port; BPDU Guard an Access-Ports schaltet solche Ports zusätzlich ab.',
+     n:'Die IP-TTL greift nicht: Sie liegt auf Schicht 3 und wird nur von Routern verringert. Ein Switch leitet Frames auf Schicht 2 weiter, ohne die TTL zu verändern.'},
+ en:{s:"In a meeting room, an employee plugs both ends of a patch cable into two wall outlets that are patched to the same access switch. Shortly afterwards the network of the entire floor collapses and the switch's port LEDs flash continuously. Spanning tree is disabled on the switch.",
+     q:'Which statements about this incident are correct?',
+     o:['A broadcast storm occurs because Ethernet frames have no time to live (TTL) and circulate endlessly in the loop','The MAC address table becomes unstable because the same source MACs are learned alternately on different ports','With (Rapid) Spanning Tree enabled, the switch would have detected the loop and blocked one of the two ports','The disruption only affects the two ports involved because the switch forwards frames selectively','The loop resolves itself after a few seconds because the IP TTL discards the frames','Full-duplex operation of the ports prevents such loops from having any effect'],
+     e:'Broadcasts such as ARP requests are flooded to all ports, come back through the loop and multiply. Since Ethernet has no TTL, they circulate endlessly and the MAC table keeps changing. STP or RSTP (IEEE 802.1D/802.1w) detects the loop via BPDUs and blocks a port; BPDU guard on access ports additionally shuts down such ports.',
+     n:'The IP TTL does not help: it is on layer 3 and is only decremented by routers. A switch forwards frames on layer 2 without changing the TTL.'}},
+{id:'net-16', a:'net', t:'match',
+ de:{s:'Für die Verkabelung einer Produktionshalle mit vielen Frequenzumrichtern vergleichen Sie Datenblätter mehrerer Kabelhersteller. Die Kabel sind nach ISO/IEC 11801 bezeichnet.',
+     q:'Ordnen Sie jeder Kabelbezeichnung den passenden Aufbau zu.',
+     p:[['U/UTP','Kein Gesamtschirm, Adernpaare ungeschirmt'],['F/UTP','Folien-Gesamtschirm, Adernpaare ungeschirmt'],['U/FTP','Kein Gesamtschirm, jedes Adernpaar mit Folie geschirmt'],['S/FTP','Geflecht-Gesamtschirm, jedes Adernpaar zusätzlich mit Folie geschirmt'],['SF/UTP','Gesamtschirm aus Geflecht und Folie, Adernpaare ungeschirmt']],
+     e:'Vor dem Schrägstrich steht der Gesamtschirm, danach die Schirmung der Adernpaare: U = ungeschirmt, F = Folie, S = Geflecht, TP = Twisted Pair. Für stark gestörte Umgebungen wie die Produktionshalle ist S/FTP die übliche Wahl.',
+     n:'Häufig wird S mit „Folie“ gleichgesetzt – S steht für das Drahtgeflecht (Screen), F für die Folie (Foil). S/FTP hat also ein Geflecht um das ganze Kabel und Folie um jedes Paar.'},
+ en:{s:'For cabling a production hall with many frequency converters, you compare datasheets from several cable manufacturers. The cables are designated according to ISO/IEC 11801.',
+     q:'Match each cable designation to its construction.',
+     p:[['U/UTP','No overall shield, pairs unshielded'],['F/UTP','Overall foil shield, pairs unshielded'],['U/FTP','No overall shield, each pair foil-shielded'],['S/FTP','Overall braided shield, each pair additionally foil-shielded'],['SF/UTP','Overall shield of braid and foil, pairs unshielded']],
+     e:'The part before the slash is the overall shield, the part after it the shielding of the pairs: U = unshielded, F = foil, S = braid, TP = twisted pair. For environments with heavy interference such as the production hall, S/FTP is the usual choice.',
+     n:'S is often taken to mean foil – S stands for the braided screen, F for foil. S/FTP therefore has a braid around the whole cable and foil around each pair.'}},
+{id:'net-17', a:'net', t:'match',
+ de:{s:'Ein Unternehmen mit Verwaltungsgebäude und einer 400 m entfernten Lagerhalle lässt seine Verkabelung nach DIN EN 50173 neu planen. Sie ordnen die Strecken im Leistungsverzeichnis den Bereichen der strukturierten Verkabelung zu.',
+     q:'Ordnen Sie jede Strecke dem richtigen Verkabelungsbereich zu.',
+     p:[['LWL-Verbindung vom Standortverteiler im Verwaltungsgebäude zum Gebäudeverteiler der Lagerhalle','Primärbereich (Campus-/Standortverkabelung)'],['Steigleitung vom Gebäudeverteiler im Keller zum Etagenverteiler im 2. OG','Sekundärbereich (Gebäude-/Steigbereichsverkabelung)'],['Installationskabel vom Etagenverteiler zur Datendose in Büro 2.14','Tertiärbereich (Etagen-/horizontale Verkabelung)'],['Patchkabel von der Datendose zur Dockingstation','Arbeitsplatzbereich (Geräteanschlusskabel)']],
+     e:'Primär verbindet Gebäude eines Standorts (meist LWL, bei großen Distanzen Singlemode), sekundär verbindet Gebäudeverteiler und Etagenverteiler innerhalb eines Gebäudes, tertiär reicht vom Etagenverteiler bis zur Anschlussdose (Kupfer, fest verlegt max. 90 m). Das Anschlusskabel am Arbeitsplatz ist nicht Teil der festen Installation.',
+     n:'Oft wird die Steigleitung dem Tertiärbereich zugeordnet, weil sie im Gebäude liegt – sie verbindet aber Verteiler untereinander und gehört damit zum Sekundärbereich.'},
+ en:{s:'A company with an administration building and a warehouse 400 m away is having its cabling re-planned according to EN 50173. You assign the links in the bill of quantities to the areas of structured cabling.',
+     q:'Match each link to the correct cabling area.',
+     p:[['Fibre link from the campus distributor in the administration building to the building distributor of the warehouse','Primary area (campus backbone cabling)'],['Riser cable from the building distributor in the basement to the floor distributor on the 2nd floor','Secondary area (building backbone cabling)'],['Installation cable from the floor distributor to the outlet in office 2.14','Tertiary area (floor/horizontal cabling)'],['Patch cord from the outlet to the docking station','Work area (equipment cords)']],
+     e:'Primary connects the buildings of a site (usually fibre, single-mode for long distances), secondary connects the building distributor and floor distributors within a building, tertiary runs from the floor distributor to the outlet (copper, permanent link max. 90 m). The equipment cord at the workstation is not part of the fixed installation.',
+     n:'The riser cable is often assigned to the tertiary area because it lies within the building – but it connects distributors with each other and therefore belongs to the secondary area.'}},
+{id:'net-18', a:'net', t:'order',
+ de:{s:'Beim Umbau eines Büros müssen Sie mehrere Keystone-Module neu auflegen. Laut Hausstandard des Kunden wird durchgängig nach T568B beschaltet.',
+     q:'Bringen Sie die Aderfarben in die Reihenfolge der Kontakte 1 bis 8.',
+     o:['Weiß-Orange','Orange','Weiß-Grün','Blau','Weiß-Blau','Grün','Weiß-Braun','Braun'],
+     e:'T568B: Paar Orange auf 1/2, Paar Grün auf 3/6, Paar Blau auf 4/5, Paar Braun auf 7/8. Das grüne Paar ist bewusst auf 3 und 6 aufgeteilt. T568A vertauscht lediglich das orange und das grüne Paar.',
+     n:'Häufiger Fehler: Grün direkt nach Weiß-Grün auf Kontakt 4 aufzulegen. Dann liegen 3 und 6 nicht auf einem verdrillten Paar – der Link fällt bei der Messung durch (Split Pair) und läuft ggf. nur instabil.'},
+ en:{s:"During an office refit you have to terminate several keystone jacks again. According to the customer's house standard, T568B is used throughout.",
+     q:'Put the wire colours in the order of contacts 1 to 8.',
+     o:['White-orange','Orange','White-green','Blue','White-blue','Green','White-brown','Brown'],
+     e:'T568B: orange pair on 1/2, green pair on 3/6, blue pair on 4/5, brown pair on 7/8. The green pair is deliberately split across 3 and 6. T568A merely swaps the orange and green pairs.',
+     n:'Common mistake: placing green directly after white-green on contact 4. Then 3 and 6 are not on one twisted pair – the link fails certification (split pair) and may only run unreliably.'}},
+{id:'net-19', a:'net', t:'order',
+ de:{s:'Eine Auszubildende fragt Sie, was im Client passiert, wenn der Browser eine HTTPS-Anfrage an den Webserver eines Lieferanten im Internet sendet. Sie erklären ihr die Datenkapselung auf der Senderseite.',
+     q:'Bringen Sie die Schritte der Kapselung in die richtige Reihenfolge.',
+     o:['Die Anwendung erzeugt die Nutzdaten (HTTP-Anfrage, durch TLS verschlüsselt)','TCP ergänzt einen Header mit Quell- und Zielport 443 – es entsteht ein Segment','IP ergänzt einen Header mit Quell- und Ziel-IP-Adresse – es entsteht ein Paket','Ethernet ergänzt Quell- und Ziel-MAC-Adresse sowie eine Prüfsumme (FCS) – es entsteht ein Frame','Die Netzwerkkarte überträgt den Frame als Bitfolge über das Medium'],
+     e:'Jede Schicht setzt ihren Header vor die Daten der darüberliegenden Schicht: Daten → Segment (Schicht 4) → Paket (Schicht 3) → Frame (Schicht 2) → Bits (Schicht 1). Beim Empfänger wird in umgekehrter Reihenfolge entkapselt.',
+     n:'Häufig wird angenommen, im Frame stehe die MAC-Adresse des Webservers. Da der Server in einem anderen Netz liegt, ist die Ziel-MAC die des Standardgateways; nur die Ziel-IP bleibt bis zum Server gleich.'},
+ en:{s:'A trainee asks you what happens in the client when the browser sends an HTTPS request to a supplier\'s web server on the internet. You explain encapsulation on the sender side.',
+     q:'Put the encapsulation steps in the correct order.',
+     o:['The application creates the payload (HTTP request, encrypted by TLS)','TCP adds a header with source and destination port 443 – a segment is created','IP adds a header with source and destination IP address – a packet is created','Ethernet adds source and destination MAC address and a checksum (FCS) – a frame is created','The network card transmits the frame as a bit stream over the medium'],
+     e:'Each layer puts its header in front of the data of the layer above: data → segment (layer 4) → packet (layer 3) → frame (layer 2) → bits (layer 1). The receiver decapsulates in reverse order.',
+     n:'People often assume the frame contains the MAC address of the web server. Since the server is in a different network, the destination MAC is that of the default gateway; only the destination IP stays the same all the way to the server.'}},
+{id:'net-20', a:'net', t:'open',
+ de:{s:'Fachgespräch: Ihr Ausbildungsbetrieb führt IPv6 ein. Die Clients sollen ihre Adressen per SLAAC beziehen, einen DHCPv6-Server für Adressen gibt es nicht. Der Prüfungsausschuss fragt nach.',
+     q:'Erläutern Sie, wie ein Client per SLAAC zu einer global gültigen IPv6-Adresse kommt, und welche IPv6-Adressen er danach typischerweise besitzt.',
+     m:'• Der Client bildet beim Start eine Link-Local-Adresse aus fe80::/10 (Präfix fe80::/64 + Interface-ID) und prüft per Duplicate Address Detection (Neighbor Solicitation), ob sie frei ist.\n• Er sendet eine Router Solicitation an die Multicast-Adresse ff02::2 (alle Router).\n• Der Router antwortet mit einem Router Advertisement: /64-Präfix (z. B. 2001:db8:10:20::/64), Flags (A-Flag für Autokonfiguration, M/O-Flags für DHCPv6) und ggf. DNS-Server (RDNSS).\n• Der Client hängt eine 64-Bit-Interface-ID an das Präfix – heute meist zufällig/stabil statt EUI-64 aus der MAC (Datenschutz) – und führt erneut DAD durch.\n• Standardgateway ist die Link-Local-Adresse des Routers aus dem RA.\n• Ergebnis: Link-Local-Adresse, eine stabile globale Unicast-Adresse und in der Regel zusätzlich temporäre Privacy-Adressen für ausgehende Verbindungen.',
+     k:['Link-Local-Adresse fe80:: und DAD','Router Solicitation / Router Advertisement mit /64-Präfix','Interface-ID (Privacy/stabil statt EUI-64) an Präfix anhängen','Gateway = Link-Local-Adresse des Routers','DNS über RDNSS oder zustandsloses DHCPv6','Link-Local + globale + temporäre Adressen']},
+ en:{s:'Expert interview: your training company is introducing IPv6. The clients are to obtain their addresses via SLAAC; there is no DHCPv6 server for addresses. The examination board asks you about it.',
+     q:'Explain how a client obtains a globally valid IPv6 address via SLAAC and which IPv6 addresses it typically has afterwards.',
+     m:'• At startup the client forms a link-local address from fe80::/10 (prefix fe80::/64 + interface ID) and uses Duplicate Address Detection (neighbor solicitation) to check that it is unique.\n• It sends a router solicitation to the multicast address ff02::2 (all routers).\n• The router replies with a router advertisement: /64 prefix (e.g. 2001:db8:10:20::/64), flags (A flag for autoconfiguration, M/O flags for DHCPv6) and possibly DNS servers (RDNSS).\n• The client appends a 64-bit interface ID to the prefix – nowadays usually random/stable instead of EUI-64 from the MAC (privacy) – and runs DAD again.\n• The default gateway is the router\'s link-local address from the RA.\n• Result: link-local address, a stable global unicast address and usually additional temporary privacy addresses for outgoing connections.',
+     k:['Link-local address fe80:: and DAD','Router solicitation / router advertisement with /64 prefix','Append interface ID (privacy/stable instead of EUI-64) to prefix','Gateway = link-local address of the router','DNS via RDNSS or stateless DHCPv6','Link-local + global + temporary addresses']}}
 );
 
 /* ===== BEREICH:kfm – Kaufmännische Grundlagen (1. Lehrjahr) ===== */
