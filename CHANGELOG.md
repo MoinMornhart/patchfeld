@@ -10,6 +10,18 @@ All changes to Patchfeld. Version scheme: every digit runs from 0 to 9 –
 
 <!-- releases -->
 
+## 0.1.4 – 2026-09-11
+
+- Systemintegration & Rollout auf 20 Fragen erweitert
+- Neue Themen: Parallelbetrieb, Windows Autopilot/Intune, Testarten, sichere Löschung von NVMe-SSDs, Softwareverteilung in Ringen, Übergabe an den Betrieb, WSUS-Update-Ringe, Dokumentationsarten, Außerbetriebnahme nach DIN 66399, Lizenzen beim PC-Tausch, Anwenderkommunikation, Inbetriebnahme-Checkliste, Big Bang vs. stufenweise Umstellung
+- Neue Rechenaufgabe mit Zufallswerten: Rollout-Aufwand und -Dauer
+
+**English**
+
+- System integration & rollout extended to 20 questions
+- New topics: parallel operation, Windows Autopilot/Intune, test types, secure erasure of NVMe SSDs, ring-based software distribution, handover to operations, WSUS update rings, documentation types, decommissioning per DIN 66399, licences when replacing PCs, user communication, commissioning checklist, big bang vs phased switchover
+- New random calculation: rollout effort and duration
+
 ## 0.1.3 – 2026-09-11
 
 - Projektmanagement & Wirtschaftlichkeit auf 20 Fragen erweitert

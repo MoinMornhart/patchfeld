@@ -1,17 +1,17 @@
 {
-  "version": "0.1.3",
+  "version": "0.1.4",
   "date": "2026-09-11",
   "file": "index.html",
   "notes": {
     "de": [
-      "Projektmanagement & Wirtschaftlichkeit auf 20 Fragen erweitert",
-      "Neue Themen: Projektmerkmale, magisches Dreieck, Stakeholder-Analyse, Kanban vs. Scrum, Risikobewertung, Ablauf der Nutzwertanalyse, TCO, Kostenvergleichsrechnung, Planungswerkzeuge, Soll-Ist-Vergleich mit Fertigstellungsgrad, Projektabschluss, Gesamt- vs. freier Puffer, Risikoanalyse einer Migration",
-      "Neue Rechenaufgaben mit Zufallswerten: Amortisationsdauer, Netzplan mit SAZ, Gesamtpuffer und freiem Puffer"
+      "Systemintegration & Rollout auf 20 Fragen erweitert",
+      "Neue Themen: Parallelbetrieb, Windows Autopilot/Intune, Testarten, sichere Löschung von NVMe-SSDs, Softwareverteilung in Ringen, Übergabe an den Betrieb, WSUS-Update-Ringe, Dokumentationsarten, Außerbetriebnahme nach DIN 66399, Lizenzen beim PC-Tausch, Anwenderkommunikation, Inbetriebnahme-Checkliste, Big Bang vs. stufenweise Umstellung",
+      "Neue Rechenaufgabe mit Zufallswerten: Rollout-Aufwand und -Dauer"
     ],
     "en": [
-      "Project management & economics extended to 20 questions",
-      "New topics: project characteristics, magic triangle, stakeholder analysis, Kanban vs Scrum, risk assessment, steps of a weighted scoring model, TCO, cost comparison, planning tools, plan vs actual with completion rate, project closure, total vs free float, risk analysis of a migration",
-      "New random calculations: payback period, network plan with latest start, total and free float"
+      "System integration & rollout extended to 20 questions",
+      "New topics: parallel operation, Windows Autopilot/Intune, test types, secure erasure of NVMe SSDs, ring-based software distribution, handover to operations, WSUS update rings, documentation types, decommissioning per DIN 66399, licences when replacing PCs, user communication, commissioning checklist, big bang vs phased switchover",
+      "New random calculation: rollout effort and duration"
     ]
   }
 }
