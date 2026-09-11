@@ -1,0 +1,34 @@
+#!/bin/sh
+# Patchfeld commit-msg hook
+# Jede Commit-Nachricht muss mit der aktuellen Version beginnen, z. B. "v0.1.3: …",
+# damit in der Git-Historie immer sichtbar ist, welches Update ein Commit enthält.
+# Die Version muss mit version.json und APP_VERSION in index.html übereinstimmen.
+
+MSG_FILE="$1"
+FIRST=$(head -n 1 "$MSG_FILE")
+
+case "$FIRST" in
+  Merge*|Revert*|fixup!*|squash!*) exit 0 ;;
+esac
+
+ROOT=$(git rev-parse --show-toplevel)
+VJ=$(sed -n 's/.*"version": *"\([0-9.]*\)".*/\1/p' "$ROOT/version.json" | head -n 1)
+VH=$(sed -n "s/.*const APP_VERSION = '\([0-9.]*\)'.*/\1/p" "$ROOT/index.html" | head -n 1)
+
+if ! echo "$FIRST" | grep -Eq '^v[0-9]\.[0-9]\.[0-9]: .+'; then
+  echo "✗ Commit-Nachricht muss mit der Version beginnen, z. B.: v$VJ: Kurzbeschreibung" >&2
+  echo "  Tipp: node tools/release.js --de \"…\" --en \"…\" --commit" >&2
+  exit 1
+fi
+
+V=$(echo "$FIRST" | sed -E 's/^v([0-9]\.[0-9]\.[0-9]):.*/\1/')
+if [ "$V" != "$VJ" ] || [ "$V" != "$VH" ]; then
+  echo "✗ Version im Commit (v$V) passt nicht zu version.json (v$VJ) bzw. index.html (v$VH)." >&2
+  exit 1
+fi
+
+if ! grep -q "^## $V " "$ROOT/CHANGELOG.md"; then
+  echo "✗ CHANGELOG.md enthält keinen Abschnitt für $V." >&2
+  exit 1
+fi
+exit 0

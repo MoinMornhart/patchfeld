@@ -1,0 +1,9 @@
+{
+  "version": "0.0.1",
+  "date": "2026-09-11",
+  "file": "index.html",
+  "notes": {
+    "de": ["Grundgerüst mit allen Lernmechaniken und 5 Beispielfragen je Bereich"],
+    "en": ["Base app with all learning mechanics and 5 sample questions per topic"]
+  }
+}

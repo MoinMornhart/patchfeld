@@ -1,0 +1,14 @@
+{
+  "name": "Patchfeld – FISI-Lerntrainer",
+  "short_name": "Patchfeld",
+  "description": "Lern-App für die Ausbildung Fachinformatiker/-in Systemintegration – vom 1. Lehrjahr bis zur AP 2.",
+  "lang": "de",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0e1114",
+  "theme_color": "#1b1f24",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
