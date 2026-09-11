@@ -1,17 +1,17 @@
 {
-  "version": "0.0.3",
+  "version": "0.0.4",
   "date": "2026-09-11",
   "file": "index.html",
   "notes": {
     "de": [
-      "Betriebssysteme auf 20 Fragen erweitert",
-      "Neue Themen: fTPM/PTT, Windows-11-Anforderungen, UAC und Admin-Konten, Lizenzarten, Dienst-Starttypen, LTS-Distributionen, Registry, Wiederherstellungsoptionen, Remote-Administration, Bootkette, Patchmanagement mit Update-Ringen, Dual Boot mit BitLocker",
-      "Neue Rechenaufgabe mit Zufallswerten: Partitionsgrößen in GiB; MBR-Grenze bei 512- und 4K-Sektoren"
+      "Arbeitsschutz & Support auf 20 Fragen erweitert",
+      "Neue Themen: fünf Sicherheitsregeln der Elektrotechnik, DGUV V3, Sicherheitszeichen, Brandklassen, Heben im Rack, ESD-Maßnahmen, ElektroG und Datenlöschung, Vier-Ohren-Modell, Beschwerdegespräch, aktives Zuhören, Erste Hilfe, Unterweisung nach § 12 ArbSchG",
+      "Neue Rechenaufgabe mit Zufallswerten: Arbeitszeit und gesetzliche Pausen (ArbZG/JArbSchG)"
     ],
     "en": [
-      "Operating systems extended to 20 questions",
-      "New topics: fTPM/PTT, Windows 11 requirements, UAC and admin accounts, licence types, service startup types, LTS distributions, registry, recovery options, remote administration, boot chain, patch management with update rings, dual boot with BitLocker",
-      "New random calculation: partition sizes in GiB; MBR limit with 512-byte and 4K sectors"
+      "Safety & support extended to 20 questions",
+      "New topics: five electrical safety rules, DGUV V3 testing, safety signs, fire classes, lifting in racks, ESD measures, ElektroG and data deletion, four-sides model, complaint handling, active listening, first aid, safety instruction per § 12 ArbSchG",
+      "New random calculation: working time and statutory breaks (ArbZG/JArbSchG)"
     ]
   }
 }

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Patchfeld</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<meta name="app-version" content="0.0.3">
+<meta name="app-version" content="0.0.4">
 <meta name="theme-color" content="#1b1f24">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -311,8 +311,11 @@ dialog::backdrop{background:rgba(10,12,14,.55)}
 /* =====================================================================
    PATCHFELD – Kern: Version, Bereiche, Hilfsfunktionen, Generatoren
    ===================================================================== */
-const APP_VERSION = '0.0.3';
+const APP_VERSION = '0.0.4';
 const CHANGELOG = [
+  {v:'0.0.4', d:'2026-09-11',
+   de:['Arbeitsschutz & Support auf 20 Fragen erweitert','Neue Themen: fünf Sicherheitsregeln der Elektrotechnik, DGUV V3, Sicherheitszeichen, Brandklassen, Heben im Rack, ESD-Maßnahmen, ElektroG und Datenlöschung, Vier-Ohren-Modell, Beschwerdegespräch, aktives Zuhören, Erste Hilfe, Unterweisung nach § 12 ArbSchG','Neue Rechenaufgabe mit Zufallswerten: Arbeitszeit und gesetzliche Pausen (ArbZG/JArbSchG)'],
+   en:['Safety & support extended to 20 questions','New topics: five electrical safety rules, DGUV V3 testing, safety signs, fire classes, lifting in racks, ESD measures, ElektroG and data deletion, four-sides model, complaint handling, active listening, first aid, safety instruction per § 12 ArbSchG','New random calculation: working time and statutory breaks (ArbZG/JArbSchG)']},
   {v:'0.0.3', d:'2026-09-11',
    de:['Betriebssysteme auf 20 Fragen erweitert','Neue Themen: fTPM/PTT, Windows-11-Anforderungen, UAC und Admin-Konten, Lizenzarten, Dienst-Starttypen, LTS-Distributionen, Registry, Wiederherstellungsoptionen, Remote-Administration, Bootkette, Patchmanagement mit Update-Ringen, Dual Boot mit BitLocker','Neue Rechenaufgabe mit Zufallswerten: Partitionsgrößen in GiB; MBR-Grenze bei 512- und 4K-Sektoren'],
    en:['Operating systems extended to 20 questions','New topics: fTPM/PTT, Windows 11 requirements, UAC and admin accounts, licence types, service startup types, LTS distributions, registry, recovery options, remote administration, boot chain, patch management with update rings, dual boot with BitLocker','New random calculation: partition sizes in GiB; MBR limit with 512-byte and 4K sectors']},
@@ -1227,6 +1230,189 @@ Q.push(
      m:'Open questions (wh-questions) allow detailed answers and help to understand the problem – e.g. "What exactly happens when you start the program?"\nClosed questions only allow yes/no or a short choice and narrow things down – e.g. "Is the network LED on the PC lit?"\nIn support you usually start open and then narrow down with closed questions.',
      k:['Open = wh-questions, detailed answer','Closed = yes/no, targeted narrowing','A fitting example for both','First open, then closed']}}
 );
+/* ----- BEREICH:ergo – Erweiterung ----- */
+/* Pausen nach ArbZG bzw. JArbSchG */
+GEN.ergoPause = function(L){
+  const youth = Math.random() < 0.35;
+  const W = youth ? 15*rnd(16,32) : 15*rnd(20,40);   /* reine Arbeitszeit in min: Jugendliche 4–8 h, Erwachsene 5–10 h */
+  const P = pick([30,45,60]), beg = 15*rnd(28,36), end = beg + W + P;
+  const hm = m => `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;
+  const req = youth ? (W>360?60:W>270?30:0) : (W>540?45:W>360?30:0);
+  const who = youth ? tx(L,'eine 17-jährige Auszubildende','a 17-year-old apprentice') : tx(L,'ein Systemadministrator','a system administrator');
+  const rule = youth ? tx(L,'§ 11 JArbSchG (Jugendliche): mehr als 4,5 bis 6 h → 30 min, mehr als 6 h → 60 min','Section 11 JArbSchG (young workers): more than 4.5 up to 6 h → 30 min, more than 6 h → 60 min')
+                     : tx(L,'§ 4 ArbZG: mehr als 6 bis 9 h → 30 min, mehr als 9 h → 45 min','Section 4 ArbZG: more than 6 up to 9 h → 30 min, more than 9 h → 45 min');
+  const reqTxt = req===0 ? tx(L,'0 min (noch keine Pause vorgeschrieben)','0 min (no break required yet)') : `${req} min`;
+  const verdict = P >= req ? tx(L,'Die gebuchte Pause reicht aus.','The booked break is sufficient.')
+                           : tx(L,`Die gebuchte Pause reicht nicht aus – es fehlen ${req-P} Minuten.`,`The booked break is not sufficient – ${req-P} minutes are missing.`);
+  return { t:'in',
+    s: tx(L, `Bei der Kontrolle der Zeiterfassung fällt Ihnen folgender Eintrag auf: ${who} kam um ${hm(beg)} Uhr, ging um ${hm(end)} Uhr und hat insgesamt ${P} Minuten Ruhepause gebucht.`,
+             `While checking the time records you notice the following entry: ${who} arrived at ${hm(beg)}, left at ${hm(end)} and booked a total of ${P} minutes of rest breaks.`),
+    q: tx(L, 'Berechnen Sie die tatsächliche Arbeitszeit in Stunden (zwei Nachkommastellen) und die für diese Arbeitszeit gesetzlich vorgeschriebene Mindestpause in Minuten.',
+             'Calculate the actual working time in hours (two decimal places) and the statutory minimum break in minutes for this working time.'),
+    f: [ {l:tx(L,'Arbeitszeit','Working time'), v:r2(W/60), tol:0.011, u:'h'}, {l:tx(L,'Mindestpause','Minimum break'), v:req, tol:0, u:'min'} ],
+    e: tx(L, `Anwesenheit ${hm(beg)}–${hm(end)} = ${end-beg} min, abzüglich ${P} min Pause = ${W} min = ${fmt(W/60,2,L)} h. Ruhepausen zählen nicht zur Arbeitszeit. ${rule} → ${reqTxt}. ${verdict}`,
+             `Presence ${hm(beg)}–${hm(end)} = ${end-beg} min, minus ${P} min break = ${W} min = ${fmt(W/60,2,L)} h. Rest breaks do not count as working time. ${rule} → ${reqTxt}. ${verdict}`),
+    n: youth ? tx(L, 'Häufiger Fehler: bei Jugendlichen die Grenzen des ArbZG (30 min erst ab mehr als 6 h) anzuwenden – das JArbSchG verlangt schon ab mehr als 4,5 h 30 min und ab mehr als 6 h 60 min.',
+                     'Common mistake: applying the ArbZG limits (30 min only above 6 h) to young workers – the JArbSchG already requires 30 min above 4.5 h and 60 min above 6 h.')
+             : tx(L, 'Häufiger Fehler: die Anwesenheitszeit (Kommen bis Gehen) als Arbeitszeit zu nehmen – die Grenzen von 6 h und 9 h gelten für die reine Arbeitszeit ohne Pausen.',
+                     'Common mistake: taking the presence time (arrival to departure) as working time – the 6 h and 9 h limits apply to the pure working time without breaks.')
+  };
+};
+
+Q.push(
+{id:'ergo-06', a:'ergo', t:'order',
+ de:{s:'Für den neuen Serverraum wird die Unterverteilung erweitert. Sie begleiten die beauftragte Elektrofachkraft, die vor Beginn der Arbeiten die fünf Sicherheitsregeln nach DIN VDE 0105-100 anwendet.',
+     q:'Bringen Sie die fünf Sicherheitsregeln in die vorgeschriebene Reihenfolge.',
+     o:['Freischalten (allpolig vom Netz trennen)','Gegen Wiedereinschalten sichern (z. B. Sperrelement, Warnschild)','Spannungsfreiheit allpolig feststellen','Erden und kurzschließen','Benachbarte, unter Spannung stehende Teile abdecken oder abschranken'],
+     e:'Erst wird getrennt und gegen Wiedereinschalten gesichert, dann wird geprüft, ob wirklich keine Spannung anliegt. Erst danach darf geerdet und kurzgeschlossen werden; zuletzt schützt man vor noch aktiven Nachbarteilen.',
+     n:'Häufig wird „Spannungsfreiheit feststellen“ vor dem Sichern genannt – ohne Sicherung kann aber jemand zwischen Prüfen und Arbeiten wieder einschalten. Erden vor dem Prüfen würde bei noch anliegender Spannung einen Kurzschluss auslösen.'},
+ en:{s:'The sub-distribution board is being extended for the new server room. You accompany the commissioned qualified electrician, who applies the five safety rules according to DIN VDE 0105-100 before starting work.',
+     q:'Put the five safety rules in the prescribed order.',
+     o:['Disconnect completely (isolate all poles from the supply)','Secure against reconnection (e.g. lock-out device, warning sign)','Verify the absence of voltage on all poles','Earth and short-circuit','Cover or fence off adjacent live parts'],
+     e:'First isolate and secure against reconnection, then check that there really is no voltage. Only then may earthing and short-circuiting be done; finally, protect against adjacent parts that are still live.',
+     n:'"Verify absence of voltage" is often placed before securing – but without securing someone could switch on again between testing and working. Earthing before testing would cause a short circuit if voltage were still present.'}},
+{id:'ergo-07', a:'ergo', t:'sc', c:0,
+ de:{s:'Die Büroleitung Ihres Betriebs (60 Büroarbeitsplätze mit Notebook-Netzteilen, Monitoren und Mehrfachsteckdosen) fragt Sie nach der Prüfung ortsveränderlicher elektrischer Betriebsmittel gemäß DGUV Vorschrift 3. Ein Kollege behauptet, das müsse jedes Jahr der TÜV machen.',
+     q:'Welche Aussage ist richtig?',
+     o:['Prüfen darf eine Elektrofachkraft oder eine elektrotechnisch unterwiesene Person mit geeignetem Mess- und Prüfgerät; die Frist legt der Arbeitgeber per Gefährdungsbeurteilung fest – in Büros bei geringer Fehlerquote bis zu 24 Monate','Die Prüfung muss jährlich durch einen TÜV-Sachverständigen erfolgen, sonst erlischt der Versicherungsschutz','Eine Sichtprüfung durch die Benutzer vor jeder Verwendung ersetzt die wiederkehrende Prüfung vollständig','Geräte mit CE-Kennzeichnung sind von der wiederkehrenden Prüfung ausgenommen'],
+     e:'Die DGUV Vorschrift 3 verlangt Prüfungen durch eine Elektrofachkraft bzw. unter deren Leitung und Aufsicht. Der Richtwert für ortsveränderliche Geräte liegt bei 6 Monaten, bei einer Fehlerquote unter 2 % darf die Frist in Büros auf höchstens 2 Jahre verlängert werden.',
+     n:'Die Sichtprüfung vor Benutzung ist sinnvoll und gefordert, erkennt aber keine Isolationsfehler oder einen unterbrochenen Schutzleiter – dafür sind Messungen mit einem Prüfgerät nötig.'},
+ en:{s:'The office manager of your company (60 office workstations with notebook power supplies, monitors and power strips) asks you about testing portable electrical equipment according to DGUV Regulation 3 (DGUV Vorschrift 3). A colleague claims this must be done every year by TÜV.',
+     q:'Which statement is correct?',
+     o:['A qualified electrician or an electrotechnically instructed person with a suitable measuring and test device may test; the employer sets the interval by risk assessment – in offices with a low failure rate up to 24 months','Testing must be done annually by a TÜV expert, otherwise insurance cover lapses','A visual check by the users before each use completely replaces the recurring test','Devices with CE marking are exempt from recurring tests'],
+     e:'DGUV Regulation 3 requires tests by a qualified electrician or under their direction and supervision. The guideline value for portable equipment is 6 months; with a failure rate below 2 % the interval in offices may be extended to at most 2 years.',
+     n:'The visual check before use is sensible and required, but it cannot detect insulation faults or a broken protective earth conductor – that requires measurements with a test device.'}},
+{id:'ergo-08', a:'ergo', t:'match',
+ de:{s:'Der neue Serverraum Ihres Betriebs soll nach ASR A1.3 (Sicherheits- und Gesundheitsschutzkennzeichnung) beschildert werden.',
+     q:'Ordnen Sie jedem Schild die richtige Zeichenart mit Form und Farbe zu.',
+     p:[['Zutritt für Unbefugte verboten','Verbotszeichen – rund, roter Rand mit Querbalken, weißer Grund'],['Warnung vor elektrischer Spannung','Warnzeichen – dreieckig, gelber Grund, schwarzer Rand'],['Vor Wartung oder Reparatur freischalten','Gebotszeichen – rund, blauer Grund, weißes Symbol'],['Notausgang','Rettungszeichen – rechteckig, grüner Grund, weißes Symbol'],['Feuerlöscher','Brandschutzzeichen – rechteckig, roter Grund, weißes Symbol']],
+     e:'Form und Farbe verraten die Bedeutung auch ohne Text: Kreis = Verbot oder Gebot, Dreieck = Warnung, Rechteck = Rettung (grün) oder Brandschutz (rot).',
+     n:'Rot wird oft pauschal als „Verbot“ gelesen – das rechteckige rote Schild ist aber ein Brandschutzzeichen und kennzeichnet z. B. den Standort eines Feuerlöschers.'},
+ en:{s:'The new server room of your company is to be signposted according to ASR A1.3 (safety and health signs).',
+     q:'Match each sign to the correct sign type with shape and colour.',
+     p:[['No access for unauthorised persons','Prohibition sign – round, red border with diagonal bar, white background'],['Warning: electrical voltage','Warning sign – triangular, yellow background, black border'],['Disconnect before maintenance or repair','Mandatory sign – round, blue background, white symbol'],['Emergency exit','Escape sign – rectangular, green background, white symbol'],['Fire extinguisher','Fire protection sign – rectangular, red background, white symbol']],
+     e:'Shape and colour convey the meaning even without text: circle = prohibition or mandatory action, triangle = warning, rectangle = escape/rescue (green) or fire protection (red).',
+     n:'Red is often read as "prohibition" across the board – but the rectangular red sign is a fire protection sign, marking e.g. the location of a fire extinguisher.'}},
+{id:'ergo-09', a:'ergo', t:'match',
+ de:{s:'Sie werden zur Brandschutzhelferin bzw. zum Brandschutzhelfer ausgebildet und sollen die Brandrisiken am Standort den Brandklassen nach DIN EN 2 zuordnen.',
+     q:'Ordnen Sie jedem Brandrisiko die passende Brandklasse zu.',
+     p:[['Kartonagen und Verpackungsmaterial im Hardwarelager','Brandklasse A – feste, glutbildende Stoffe'],['Isopropanol-Reinigungsflüssigkeit in der Werkstatt','Brandklasse B – flüssige oder flüssig werdende Stoffe'],['Propangasflasche für die Heizung auf der Baustelle','Brandklasse C – Gase'],['Magnesiumspäne beim Bearbeiten von Gehäuseteilen','Brandklasse D – Metalle'],['Frittierfett in der Kantinenküche','Brandklasse F – Speiseöle und -fette']],
+     e:'Die Brandklasse bestimmt das Löschmittel: Auf Feuerlöschern ist angegeben, für welche Klassen sie zugelassen sind. Metallbrände und Fettbrände brauchen Speziallöscher.',
+     n:'Eine Brandklasse E gibt es seit 1978 nicht mehr – elektrische Anlagen werden über die Angabe „bis 1000 V“ auf dem Löscher abgedeckt. Fettbrände gehören nicht zu B, sondern zur eigenen Klasse F, weil Wasser dort eine Fettexplosion auslöst.'},
+ en:{s:'You are being trained as a fire safety assistant (Brandschutzhelfer) and are to assign the fire risks on site to the fire classes according to DIN EN 2.',
+     q:'Match each fire risk to the appropriate fire class.',
+     p:[['Cardboard and packaging in the hardware store room','Class A – solid, ember-forming materials'],['Isopropyl alcohol cleaning fluid in the workshop','Class B – liquids or liquefying materials'],['Propane cylinder for heating on the construction site','Class C – gases'],['Magnesium chips from machining housing parts','Class D – metals'],['Deep-frying fat in the canteen kitchen','Class F – cooking oils and fats']],
+     e:'The fire class determines the extinguishing agent: extinguishers state which classes they are approved for. Metal fires and fat fires need special extinguishers.',
+     n:'There has been no class E since 1978 – electrical installations are covered by the "up to 1000 V" marking on the extinguisher. Fat fires do not belong to B but to their own class F, because water causes a fat explosion.'}},
+{id:'ergo-10', a:'ergo', t:'sc', c:0,
+ de:{s:'Sie sollen in ein 42-HE-Rack beim Kunden einen USV-Batterieeinschub mit 32 kg einbauen. Im Rack sind bereits Server im mittleren Bereich montiert, die unteren Höheneinheiten sind frei.',
+     q:'Wie gehen Sie vor?',
+     o:['Den Einschub im unteren Bereich des Racks einbauen und ihn zu zweit mit geradem Rücken aus den Knien heben','Den Einschub allein einbauen, weil die Lastenhandhabungsverordnung Hilfsmittel erst ab 40 kg vorschreibt','Den Einschub ganz oben einbauen, damit die Batterien vor Wasser am Boden geschützt sind','Den Einschub auf Augenhöhe einbauen, damit die Status-LEDs gut sichtbar sind, und die Kippsicherung erst danach montieren'],
+     e:'Schwere Geräte gehören nach unten: Der niedrige Schwerpunkt verhindert das Kippen des Racks, und in Bodennähe muss die Last nicht über Brusthöhe gehoben werden. Zu zweit und rückengerecht zu heben schützt die Wirbelsäule.',
+     n:'Die Lastenhandhabungsverordnung nennt keine feste Kilogrammgrenze – der Arbeitgeber muss die Gefährdung beurteilen. Eine 32-kg-Last mit gestreckten Armen ins Rack zu heben ist allein nicht rückengerecht möglich.'},
+ en:{s:'You are to install a 32 kg UPS battery module in a 42U rack at a customer site. Servers are already mounted in the middle section of the rack; the lower rack units are free.',
+     q:'How do you proceed?',
+     o:['Install the module in the lower part of the rack and lift it with two people, back straight, from the knees','Install the module alone, because the Manual Handling Ordinance (LasthandhabV) only requires aids from 40 kg','Install the module at the very top so that the batteries are protected from water on the floor','Install the module at eye level so the status LEDs are easy to see, and fit the anti-tip protection afterwards'],
+     e:'Heavy devices belong at the bottom: the low centre of gravity prevents the rack from tipping, and near the floor the load does not have to be lifted above chest height. Lifting in pairs with correct posture protects the spine.',
+     n:'The Manual Handling Ordinance does not specify a fixed weight limit – the employer must assess the risk. Lifting a 32 kg load into a rack with outstretched arms cannot be done safely by one person.'}},
+{id:'ergo-11', a:'ergo', t:'mc', c:[0,1,2],
+ de:{s:'In der Werkstatt Ihres Systemhauses werden defekte Mainboards und RAM-Module getauscht und zur Reparatur an den Hersteller zurückgeschickt. Sie sollen den ESD-Schutz am Arbeitsplatz überprüfen.',
+     q:'Welche Maßnahmen sind richtig? (Mehrere Antworten)',
+     o:['Das ESD-Armband mit integriertem Schutzwiderstand (ca. 1 MΩ) am Erdungspunkt der ableitfähigen Arbeitsunterlage anschließen','Baugruppen nur an den Kanten anfassen, nicht an Kontakten und Bauteilen','Ausgebaute Baugruppen für den Versand in metallisierte ESD-Schirmbeutel verpacken','Das Armband zur besseren Ableitung ohne Widerstand direkt mit dem Schutzleiter verbinden','Baugruppen für den Versand in normale Luftpolsterfolie wickeln, weil sie gut polstert','Bei trockener Heizungsluft im Winter die ESD-Maßnahmen lockern, weil dann weniger Feuchtigkeit Ladung überträgt'],
+     e:'Armband, ableitfähige Unterlage und Schirmbeutel verhindern, dass sich Ladungen über empfindliche Bauteile entladen. Das Anfassen an den Kanten vermeidet direkten Kontakt mit Leiterbahnen und Pins.',
+     n:'Ein Armband ohne Widerstand leitet zwar schneller ab, bei Berührung eines spannungsführenden Teils fließt aber ein lebensgefährlicher Strom über den Körper – der Widerstand von etwa 1 MΩ begrenzt ihn. Trockene Luft erhöht die Aufladung sogar.'},
+ en:{s:'In your IT service company\'s workshop, faulty mainboards and RAM modules are replaced and returned to the manufacturer for repair. You are to check the ESD protection at the workstation.',
+     q:'Which measures are correct? (Multiple answers)',
+     o:['Connect the ESD wrist strap with integrated protective resistor (approx. 1 MΩ) to the earthing point of the dissipative work mat','Handle assemblies only by the edges, not by contacts and components','Pack removed assemblies for shipping in metallised ESD shielding bags','Connect the wrist strap directly to the protective earth without a resistor for better discharge','Wrap assemblies in ordinary bubble wrap for shipping because it cushions well','Relax the ESD measures in dry heated air in winter because less moisture transfers charge'],
+     e:'Wrist strap, dissipative mat and shielding bag prevent charges from discharging through sensitive components. Holding boards by the edges avoids direct contact with traces and pins.',
+     n:'A strap without a resistor does discharge faster, but if a live part is touched a life-threatening current flows through the body – the resistor of about 1 MΩ limits it. Dry air actually increases charging.'}},
+{id:'ergo-12', a:'ergo', gen:'ergoPause'},
+{id:'ergo-13', a:'ergo', t:'mc', c:[0,1,2],
+ de:{s:'Ihr Betrieb tauscht 40 alte Büro-PCs und Notebooks aus. Die Altgeräte enthalten HDDs und SSDs mit Kunden- und Personaldaten. Sie sollen die Entsorgung organisieren.',
+     q:'Welche Vorgehensweisen sind richtig? (Mehrere Antworten)',
+     o:['Datenträger mit einem geeigneten Verfahren löschen (bei SSDs z. B. Secure Erase/Sanitize) oder nach DIN 66399 vernichten lassen und die Löschung protokollieren','Die Altgeräte über den Hersteller-Rücknahmeweg oder einen zertifizierten Entsorgungsfachbetrieb nach ElektroG entsorgen und den Nachweis aufbewahren','Entnehmbare Akkus vor der Abgabe zerstörungsfrei ausbauen und getrennt entsorgen','Die Datenträger per Schnellformatierung löschen, da die Daten danach im Explorer nicht mehr sichtbar sind','Mäuse, Tastaturen und Headsets über den Restmüll entsorgen, weil das ElektroG nur für Geräte über 25 cm Kantenlänge gilt'],
+     e:'Als Endnutzer ist der Betrieb nach ElektroG selbst für das Löschen personenbezogener Daten verantwortlich, nach DSGVO muss die Löschung nachweisbar sein. Elektroaltgeräte gehören nie in den Restmüll, Batterien und Akkus werden vorher getrennt.',
+     n:'Die 25-cm-Grenze betrifft nur die Rücknahmepflicht des Handels (kleine Geräte ohne Neukauf abgeben) – für alle Elektrogeräte gilt das Verbot der Restmüllentsorgung (durchgestrichene Mülltonne). Schnellformatieren löscht nur die Verwaltungsstrukturen, die Daten bleiben wiederherstellbar.'},
+ en:{s:'Your company is replacing 40 old office PCs and notebooks. The old devices contain HDDs and SSDs with customer and personnel data. You are to organise the disposal.',
+     q:'Which procedures are correct? (Multiple answers)',
+     o:['Erase the drives with a suitable method (for SSDs e.g. Secure Erase/Sanitize) or have them destroyed according to DIN 66399, and document the erasure','Dispose of the old devices via the manufacturer\'s take-back scheme or a certified waste management company under the Electrical and Electronic Equipment Act (ElektroG) and keep the proof','Remove removable batteries non-destructively before handover and dispose of them separately','Erase the drives by quick format, as the data is then no longer visible in Explorer','Dispose of mice, keyboards and headsets with residual waste, because the ElektroG only applies to devices over 25 cm edge length'],
+     e:'As end user, the company itself is responsible under the ElektroG for deleting personal data; under the GDPR the erasure must be verifiable. Waste electrical equipment never goes into residual waste; batteries are separated beforehand.',
+     n:'The 25 cm limit only concerns the retailers\' take-back obligation (small devices returned without a new purchase) – the ban on residual-waste disposal (crossed-out wheelie bin) applies to all electrical devices. A quick format only deletes the file system structures; the data remains recoverable.'}},
+{id:'ergo-14', a:'ergo', t:'sc', c:0,
+ de:{s:'Ein Mitarbeiter der Buchhaltung ruft bei der Hotline an und sagt mit gereizter Stimme: „Das ist jetzt schon das dritte Mal diese Woche, dass der Drucker streikt.“ Ihre Ausbilderin erklärt Ihnen dazu das Vier-Seiten-Modell nach Schulz von Thun.',
+     q:'Welche Deutung entspricht der Appellseite dieser Nachricht?',
+     o:['„Kümmern Sie sich endlich dauerhaft um den Drucker!“','„Der Drucker ist in dieser Woche dreimal ausgefallen.“','„Ich bin genervt und fühle mich mit dem Problem allein gelassen.“','„Ihr in der IT bekommt das einfach nicht in den Griff.“'],
+     e:'Der Appell ist das, wozu der Sender den Empfänger veranlassen will – hier eine nachhaltige Lösung. Wer den Appell erkennt, kann gezielt reagieren, z. B. mit einer Ursachenanalyse statt eines weiteren Neustarts.',
+     n:'„Ich bin genervt“ ist die Selbstoffenbarung: Der Sender gibt etwas über sich preis. „Ihr bekommt das nicht in den Griff“ ist die Beziehungsseite, die reine Anzahl der Ausfälle der Sachinhalt.'},
+ en:{s:'An accounting employee calls the hotline and says in an irritated voice: "This is already the third time this week that the printer has stopped working." Your trainer uses this to explain Schulz von Thun\'s four-sides model to you.',
+     q:'Which interpretation corresponds to the appeal side of this message?',
+     o:['"Finally take care of the printer for good!"','"The printer has failed three times this week."','"I am annoyed and feel left alone with the problem."','"You in IT just can\'t get this under control."'],
+     e:'The appeal is what the sender wants the receiver to do – here, a lasting solution. Recognising the appeal allows a targeted reaction, e.g. a root cause analysis instead of yet another restart.',
+     n:'"I am annoyed" is the self-revelation side: the sender reveals something about himself. "You can\'t get this under control" is the relationship side, the mere number of failures is the factual content.'}},
+{id:'ergo-15', a:'ergo', t:'order',
+ de:{s:'Eine Kundin beschwert sich telefonisch: Der Techniker Ihres Systemhauses hat gestern ihren neuen Arbeitsplatz eingerichtet, heute funktioniert der Scan-to-Mail-Versand nicht und sie hat einen wichtigen Termin verpasst.',
+     q:'Bringen Sie die Schritte des Reklamationsgesprächs in eine sinnvolle Reihenfolge.',
+     o:['Die Kundin ausreden lassen und aktiv zuhören','Verständnis zeigen und die Unannehmlichkeiten bedauern, ohne vorschnell Schuld einzugestehen','Den Sachverhalt mit gezielten Fragen klären und zusammenfassen','Eine Lösung oder Alternativen anbieten und mit der Kundin vereinbaren','Die Vereinbarung umsetzen bzw. veranlassen und im Ticket dokumentieren','Nachfassen und prüfen, ob die Kundin zufrieden ist'],
+     e:'Erst die Emotion, dann die Sache: Wer sich gehört fühlt, ist für eine sachliche Klärung offen. Eine Lösung ist erst nach der Klärung des Sachverhalts belastbar, das Nachfassen sichert die Kundenbindung.',
+     n:'Häufig wird sofort eine Lösung angeboten – ohne geklärten Sachverhalt passt sie oft nicht, und die Kundin fühlt sich nicht ernst genommen.'},
+ en:{s:'A customer complains by phone: yesterday a technician from your IT service company set up her new workstation; today scan-to-mail does not work and she missed an important appointment.',
+     q:'Put the steps of the complaint conversation in a sensible order.',
+     o:['Let the customer finish speaking and listen actively','Show understanding and express regret for the inconvenience without prematurely admitting fault','Clarify the facts with targeted questions and summarise them','Offer a solution or alternatives and agree on it with the customer','Implement or initiate the agreed action and document it in the ticket','Follow up and check whether the customer is satisfied'],
+     e:'Emotion first, then facts: someone who feels heard is open to an objective clarification. A solution is only reliable once the facts are clear; following up secures customer loyalty.',
+     n:'Often a solution is offered immediately – without clarified facts it often does not fit, and the customer does not feel taken seriously.'}},
+{id:'ergo-16', a:'ergo', t:'sc', c:0,
+ de:{s:'Eine Anwenderin aus dem Vertrieb konnte keine E-Mails mehr empfangen. Sie haben die Ursache behoben und schreiben ihr die Abschlussnachricht zum Ticket.',
+     q:'Welche Formulierung ist am besten geeignet?',
+     o:['„Ihr Postfach hatte die Speichergrenze von 50 GB erreicht. Wir haben ältere E-Mails in Ihr Online-Archiv verschoben, der Empfang funktioniert wieder. Bitte prüfen Sie kurz, ob neue E-Mails ankommen. Bei Problemen antworten Sie einfach auf diese Nachricht – das Ticket bleibt noch drei Arbeitstage offen.“','„Fixed. Quota exceeded, OST neu erstellt, Auto-Archiv per GPO aktiviert.“','„Das Problem lag wie so oft an Ihrem übervollen Postfach. Bitte löschen Sie künftig regelmäßig alte E-Mails, damit das nicht wieder passiert.“','„Ticket geschlossen.“'],
+     e:'Eine gute Abschlussnachricht nennt Ursache und Maßnahme in verständlicher Sprache, bittet um Bestätigung und zeigt den weiteren Weg auf. So kann die Anwenderin die Lösung prüfen und fühlt sich ernst genommen.',
+     n:'Die Kurznotiz mit Fachbegriffen ist für die Technikdokumentation brauchbar, für eine Anwenderin aber unverständlich. Der Hinweis „wie so oft“ enthält einen Vorwurf und belastet die Kundenbeziehung.'},
+ en:{s:'A user from the sales department could no longer receive e-mails. You have fixed the cause and are writing her the closing message for the ticket.',
+     q:'Which wording is most suitable?',
+     o:['"Your mailbox had reached its storage limit of 50 GB. We have moved older e-mails to your online archive and receiving works again. Please check briefly whether new e-mails arrive. If there are problems, simply reply to this message – the ticket will remain open for another three working days."','"Fixed. Quota exceeded, OST rebuilt, auto-archive enabled via GPO."','"As so often, the problem was your overfull mailbox. Please delete old e-mails regularly in future so that this does not happen again."','"Ticket closed."'],
+     e:'A good closing message states cause and action in understandable language, asks for confirmation and shows the next steps. This lets the user verify the solution and makes her feel taken seriously.',
+     n:'The short note full of technical terms is useful for technical documentation but incomprehensible to a user. The remark "as so often" contains a reproach and strains the customer relationship.'}},
+{id:'ergo-17', a:'ergo', t:'mc', c:[0,1,2],
+ de:{s:'Ein Anwender schildert am Telefon ausführlich und etwas durcheinander, dass sich „das Programm mit den Rechnungen“ seit gestern „komisch“ verhält. Sie wollen aktiv zuhören.',
+     q:'Welche Verhaltensweisen gehören zum aktiven Zuhören? (Mehrere Antworten)',
+     o:['Das Gehörte in eigenen Worten wiedergeben („Wenn ich Sie richtig verstehe, …“)','Aufmerksamkeit durch kurze Rückmeldungen signalisieren („Ja“, „Verstehe“)','Unklare Punkte gezielt nachfragen und am Ende zusammenfassen','Den Anwender unterbrechen, sobald ein bekanntes Stichwort fällt, und sofort die Standardlösung nennen','Nebenbei andere Tickets bearbeiten, um die Gesprächszeit zu nutzen','Mit eigenen ähnlichen Erlebnissen antworten, um Nähe herzustellen'],
+     e:'Paraphrasieren, Rückmelden und Nachfragen zeigen dem Anwender, dass er verstanden wird, und decken Missverständnisse früh auf. Am Telefon ersetzen kurze verbale Signale Blickkontakt und Nicken.',
+     n:'Das schnelle Nennen der Standardlösung wirkt effizient, doch „komisch“ kann vieles bedeuten – ohne vollständiges Zuhören wird oft das falsche Problem gelöst.'},
+ en:{s:'A user describes on the phone at length and somewhat confusedly that "the invoicing program" has been behaving "strangely" since yesterday. You want to listen actively.',
+     q:'Which behaviours are part of active listening? (Multiple answers)',
+     o:['Rephrase what you heard in your own words ("If I understand you correctly, …")','Signal attention with short verbal feedback ("Yes", "I see")','Ask targeted questions about unclear points and summarise at the end','Interrupt the user as soon as a familiar keyword comes up and state the standard solution immediately','Work on other tickets on the side to make use of the call time','Respond with your own similar experiences to build rapport'],
+     e:'Paraphrasing, feedback and follow-up questions show the user that he is understood and reveal misunderstandings early. On the phone, short verbal signals replace eye contact and nodding.',
+     n:'Quickly naming the standard solution seems efficient, but "strangely" can mean many things – without listening fully, the wrong problem is often solved.'}},
+{id:'ergo-18', a:'ergo', t:'open',
+ de:{s:'An einem Vormittag haben Sie an der Hotline zwei schwierige Gespräche: Ein Anwender stellt sich als „selbst Admin“ vor und verlangt, ohne Ihre Fragen sofort zum 2nd Level durchgestellt zu werden. Eine ältere Mitarbeiterin ist sehr unsicher und entschuldigt sich ständig, weil sie „bestimmt etwas kaputt gemacht“ habe.',
+     q:'Beschreiben Sie, wie Sie Ihre Gesprächsführung an diese beiden Kundentypen anpassen.',
+     m:'• Besserwisser/Experte: Fachkompetenz anerkennen, sachlich und ruhig bleiben, keinen Machtkampf führen.\n• Fachsprache ist erlaubt; notwendige Prüfschritte kurz begründen („Damit der 2nd Level nicht erneut nachfragen muss …“) und seine Vorarbeit nutzen.\n• Trotzdem strukturiert erfassen: Fehlerbild, Umfang, bereits durchgeführte Schritte.\n• Unsichere Kundin: Geduld zeigen, beruhigen und entlasten („Das kommt häufig vor, dafür sind wir da“).\n• Einfache Sprache ohne Fachjargon, Schritt für Schritt anleiten, nach jedem Schritt rückversichern, ggf. Fernwartung anbieten.\n• Allgemein: Kundentyp früh erkennen, Ton anpassen, das Ziel (vollständige Aufnahme und Lösung) bleibt gleich.',
+     k:['Experten: Kompetenz anerkennen, sachlich bleiben, Prüfschritte begründen','Keine Machtkämpfe, trotzdem strukturiert erfassen','Unsichere: Geduld, beruhigen, keine Schuldzuweisung','Einfache Sprache, Schritt-für-Schritt-Anleitung, Rückversicherung','Kommunikation an den Kundentyp anpassen, Ziel bleibt gleich']},
+ en:{s:'One morning you have two difficult calls on the hotline: one user introduces himself as "an admin myself" and demands to be put through to 2nd level at once without answering your questions. An older employee is very unsure and keeps apologising because she has "surely broken something".',
+     q:'Describe how you adapt your conversation to these two customer types.',
+     m:'• Know-it-all/expert: acknowledge his expertise, stay factual and calm, avoid a power struggle.\n• Technical language is fine; briefly justify necessary checks ("So that 2nd level does not have to ask again …") and use his preliminary work.\n• Still record in a structured way: symptoms, scope, steps already taken.\n• Unsure customer: be patient, reassure and relieve her ("That happens often, that\'s what we are here for").\n• Plain language without jargon, guide step by step, check back after each step, offer remote support if needed.\n• In general: recognise the customer type early, adapt the tone – the goal (complete intake and solution) stays the same.',
+     k:['Experts: acknowledge competence, stay factual, justify checks','No power struggle, but still structured intake','Unsure customers: patience, reassurance, no blame','Plain language, step-by-step guidance, checking back','Adapt communication to the customer type, goal stays the same']}},
+{id:'ergo-19', a:'ergo', t:'sc', c:0,
+ de:{s:'Ein Kollege greift im Lager an ein Verlängerungskabel mit beschädigter Isolierung, zuckt zusammen und lässt los. Er ist ansprechbar, klagt über Kribbeln im Arm und will gleich weiterarbeiten.',
+     q:'Wie handeln Sie richtig?',
+     o:['Das Kabel vom Netz trennen, den Kollegen betreuen und – auch ohne weitere Beschwerden – ärztlich untersuchen lassen (EKG); den Unfall im Verbandbuch dokumentieren','Da er ansprechbar ist, genügt es, das Kabel zu entsorgen; ein Arzt ist nur bei sichtbaren Verbrennungen nötig','Den Kollegen sofort in die stabile Seitenlage bringen und den Notruf 112 wählen','Den Arm mit kaltem Wasser kühlen und ihn danach weiterarbeiten lassen'],
+     e:'Nach einem Stromunfall können Herzrhythmusstörungen auch zeitverzögert auftreten, daher ist immer eine ärztliche Untersuchung nötig. Die Stromquelle wird zuerst abgeschaltet, damit niemand weiter gefährdet ist; die Erste-Hilfe-Leistung wird dokumentiert.',
+     n:'Dass der Kollege ansprechbar ist und sich gut fühlt, schließt Herzrhythmusstörungen nicht aus – sie bleiben ohne EKG unbemerkt. Die stabile Seitenlage ist nur für Bewusstlose mit normaler Atmung vorgesehen.'},
+ en:{s:'A colleague in the store room grabs an extension cable with damaged insulation, flinches and lets go. He is responsive, complains of tingling in his arm and wants to carry on working straight away.',
+     q:'How do you act correctly?',
+     o:['Disconnect the cable from the mains, look after the colleague and – even without further symptoms – have him examined by a doctor (ECG); record the accident in the first-aid log (Verbandbuch)','Since he is responsive, it is enough to dispose of the cable; a doctor is only needed for visible burns','Put the colleague in the recovery position immediately and call the emergency number 112','Cool the arm with cold water and then let him carry on working'],
+     e:'After an electrical accident, cardiac arrhythmias can occur with a delay, so a medical examination is always necessary. The power source is switched off first so that nobody else is endangered; the first aid given is documented.',
+     n:'The fact that the colleague is responsive and feels fine does not rule out cardiac arrhythmias – they go unnoticed without an ECG. The recovery position is only intended for unconscious persons with normal breathing.'}},
+{id:'ergo-20', a:'ergo', t:'open',
+ de:{s:'Ab nächster Woche arbeitet eine neue 17-jährige Auszubildende in Ihrem Team mit, auch im Serverraum und bei Kundeneinsätzen. Ihr Ausbilder bittet Sie, die Unterweisung vorzubereiten.',
+     q:'Erläutern Sie, was bei der Unterweisung nach dem Arbeitsschutzgesetz zu beachten ist: Anlass, Häufigkeit, Inhalte, Verantwortung und Dokumentation.',
+     m:'• Rechtsgrundlage: § 12 ArbSchG – der Arbeitgeber muss Beschäftigte ausreichend und angemessen unterweisen, während der Arbeitszeit.\n• Anlass: vor Aufnahme der Tätigkeit (Einstellung), bei Veränderungen im Aufgabenbereich, neuen Arbeitsmitteln oder Technologien.\n• Häufigkeit: regelmäßig wiederholen, nach DGUV Vorschrift 1 mindestens jährlich; bei Jugendlichen nach § 29 JArbSchG mindestens halbjährlich.\n• Inhalte: aus der Gefährdungsbeurteilung (§ 5 ArbSchG) abgeleitet – z. B. elektrische Gefährdungen, Heben und Tragen im Rack, Brandschutz und Fluchtwege, Erste Hilfe, ESD, Bildschirmarbeit, Verhalten beim Kunden.\n• Verantwortung: Arbeitgeber bzw. beauftragte Führungskraft, unterstützt durch Fachkraft für Arbeitssicherheit; Beschäftigte haben Mitwirkungspflichten (§§ 15, 16 ArbSchG).\n• Dokumentation: schriftlich mit Datum, Inhalten, Unterweisendem und Unterschrift der Unterwiesenen.',
+     k:['§ 12 ArbSchG, während der Arbeitszeit','Vor Tätigkeitsbeginn und bei Änderungen','Mindestens jährlich, Jugendliche halbjährlich','Inhalte aus der Gefährdungsbeurteilung','Verantwortlich ist der Arbeitgeber','Schriftliche Dokumentation mit Unterschrift']},
+ en:{s:'From next week a new 17-year-old apprentice will work in your team, including in the server room and on customer assignments. Your trainer asks you to prepare the safety instruction.',
+     q:'Explain what must be observed for safety instruction under the Occupational Safety and Health Act (ArbSchG): occasion, frequency, content, responsibility and documentation.',
+     m:'• Legal basis: Section 12 ArbSchG – the employer must instruct employees sufficiently and appropriately, during working hours.\n• Occasion: before starting work (recruitment), when tasks change, when new work equipment or technologies are introduced.\n• Frequency: repeat regularly, at least annually according to DGUV Regulation 1; for young workers at least every six months under Section 29 JArbSchG.\n• Content: derived from the risk assessment (Gefährdungsbeurteilung, Section 5 ArbSchG) – e.g. electrical hazards, lifting and carrying at the rack, fire protection and escape routes, first aid, ESD, display screen work, conduct at customer sites.\n• Responsibility: the employer or an appointed manager, supported by the occupational safety specialist (Fachkraft für Arbeitssicherheit); employees have duties to cooperate (Sections 15, 16 ArbSchG).\n• Documentation: in writing with date, content, instructor and signature of the persons instructed.',
+     k:['Section 12 ArbSchG, during working hours','Before starting work and when things change','At least annually, young workers every six months','Content derived from the risk assessment','The employer is responsible','Written documentation with signature']}}
+);
+
 </script>
 
 <script>

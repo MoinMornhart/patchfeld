@@ -1,7 +1,7 @@
 /* Patchfeld Service Worker – optional, nur aktiv, wenn die App über http(s) ausgeliefert wird.
    Strategie: Netzwerk zuerst für die App-Seite und version.json (damit Updates sofort ankommen),
    bei fehlender Verbindung Antwort aus dem Cache. Schriften: Cache zuerst. */
-const CACHE = 'patchfeld-cache-v0.0.3';
+const CACHE = 'patchfeld-cache-v0.0.4';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', e => {

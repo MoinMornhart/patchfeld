@@ -10,6 +10,18 @@ All changes to Patchfeld. Version scheme: every digit runs from 0 to 9 –
 
 <!-- releases -->
 
+## 0.0.4 – 2026-09-11
+
+- Arbeitsschutz & Support auf 20 Fragen erweitert
+- Neue Themen: fünf Sicherheitsregeln der Elektrotechnik, DGUV V3, Sicherheitszeichen, Brandklassen, Heben im Rack, ESD-Maßnahmen, ElektroG und Datenlöschung, Vier-Ohren-Modell, Beschwerdegespräch, aktives Zuhören, Erste Hilfe, Unterweisung nach § 12 ArbSchG
+- Neue Rechenaufgabe mit Zufallswerten: Arbeitszeit und gesetzliche Pausen (ArbZG/JArbSchG)
+
+**English**
+
+- Safety & support extended to 20 questions
+- New topics: five electrical safety rules, DGUV V3 testing, safety signs, fire classes, lifting in racks, ESD measures, ElektroG and data deletion, four-sides model, complaint handling, active listening, first aid, safety instruction per § 12 ArbSchG
+- New random calculation: working time and statutory breaks (ArbZG/JArbSchG)
+
 ## 0.0.3 – 2026-09-11
 
 - Betriebssysteme auf 20 Fragen erweitert
