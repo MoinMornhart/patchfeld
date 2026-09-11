@@ -10,6 +10,16 @@ All changes to Patchfeld. Version scheme: every digit runs from 0 to 9 –
 
 <!-- releases -->
 
+## 0.1.1 – 2026-09-11
+
+- Datenschutz auf 20 Fragen erweitert
+- Neue Themen: Rechtsgrundlagen nach Art. 6, Datenschutzbeauftragter (§ 38 BDSG), besondere Kategorien, Pseudonymisierung vs. Anonymisierung, Auskunftsersuchen, DSFA, Videoüberwachung, Data Privacy Framework, Verarbeitungsverzeichnis, Privacy by Default, Rollen nach DSGVO, Bußgeldrahmen, Löschkonzept, Datenschutz vs. Datensicherheit
+
+**English**
+
+- Data protection extended to 20 questions
+- New topics: legal bases under Art. 6, data protection officer (§ 38 BDSG), special categories, pseudonymisation vs anonymisation, access requests, DPIA, video surveillance, Data Privacy Framework, record of processing, privacy by default, GDPR roles, fine ranges, deletion concept, data protection vs data security
+
 ## 0.1.0 – 2026-09-11
 
 - IT-Sicherheit auf 20 Fragen erweitert
