@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Patchfeld</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<meta name="app-version" content="0.0.6">
+<meta name="app-version" content="0.0.7">
 <meta name="theme-color" content="#1b1f24">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -311,8 +311,11 @@ dialog::backdrop{background:rgba(10,12,14,.55)}
 /* =====================================================================
    PATCHFELD – Kern: Version, Bereiche, Hilfsfunktionen, Generatoren
    ===================================================================== */
-const APP_VERSION = '0.0.6';
+const APP_VERSION = '0.0.7';
 const CHANGELOG = [
+  {v:'0.0.7', d:'2026-09-11',
+   de:['Netzwerkdienste & Routing auf 20 Fragen erweitert','Neue Themen: DHCP-Relay und APIPA, DHCP-Bereich mit Ausschlüssen, DNS-TTL, Voice-VLAN, DHCP-Snooping, falsches Gateway, DNS-Einträge für Mailserver, Portweiterleitung, Routenarten, DNS-Auflösung, Fehlersuche von unten nach oben, 802.1Q-Trunk','Neue Rechenaufgaben mit Zufallswerten: Longest Prefix Match in der Routingtabelle, VLSM-Aufteilung'],
+   en:['Network services & routing extended to 20 questions','New topics: DHCP relay and APIPA, DHCP scope with exclusions, DNS TTL, voice VLAN, DHCP snooping, wrong gateway, DNS records for a mail server, port forwarding, route types, DNS resolution, bottom-up troubleshooting, 802.1Q trunk','New random calculations: longest prefix match in a routing table, VLSM allocation']},
   {v:'0.0.6', d:'2026-09-11',
    de:['Netzwerkgrundlagen auf 20 Fragen erweitert','Neue Themen: Cat 6A und Leitungslängen, MAC-Tabelle, Broadcast- und Kollisionsdomänen, IPv6 Link-local und SLAAC, RFC-1918-Adressen, Schleifen und STP, Schirmungsarten, strukturierte Verkabelung nach EN 50173, T568B-Belegung, Kapselung','Neue Rechenaufgaben mit Zufallswerten: benötigte Hosts zu Präfix und Maske, IPv6-Kurzschreibweise; PoE-Budget'],
    en:['Network fundamentals extended to 20 questions','New topics: Cat 6A and link lengths, MAC table, broadcast and collision domains, IPv6 link-local and SLAAC, RFC 1918 addresses, loops and STP, shielding types, structured cabling per EN 50173, T568B pin-out, encapsulation','New random calculations: required hosts to prefix and mask, IPv6 short notation; PoE budget']},
@@ -1677,6 +1680,218 @@ Q.push(
      o:['A router or layer-3 switch for inter-VLAN routing','A second DHCP server in VLAN 20','A trunk port between two access ports of the same switch','The Spanning Tree Protocol'],
      e:'VLANs are separate broadcast domains and thus separate IP networks. Traffic between networks must be routed – via router-on-a-stick or a layer-3 switch with SVIs.',
      n:'A trunk carries several VLANs over one link but does not connect them logically.'}}
+);
+
+/* ----- BEREICH:dienste – Erweiterung ----- */
+/* Routing: Longest Prefix Match in einer Routingtabelle */
+GEN.diensteLpm = function(L){
+  const A = rnd(16, 31), B = rnd(1, 253), B2 = B + 1;
+  const sp = pick([25, 26, 27, 28]), blk = 2**(32 - sp), C = rnd(0, 256/blk - 1) * blk;
+  const R = [
+    ['0.0.0.0', 0, '203.0.113.1', 'WAN', tx(L,'Internet (Provider)','Internet (provider)')],
+    [`10.${A}.0.0`, 16, '10.255.0.2', 'Gi0/1', tx(L,'Standort Nord','North site')],
+    [`10.${A}.${B}.0`, 24, '10.255.0.6', 'Gi0/2', tx(L,'Zweigstelle (VPN)','Branch office (VPN)')],
+    [`10.${A}.${B}.${C}`, sp, '10.255.0.10', 'Gi0/3', tx(L,'Labor-Firewall','Lab firewall')],
+    [`10.${A}.${B2}.0`, 24, '10.255.0.14', 'Gi0/4', tx(L,'Lager','Warehouse')]
+  ];
+  const cs = pick(['small', 'small', 'mid', 'mid', 'b16', 'def']);
+  let dst;
+  if (cs === 'small') dst = `10.${A}.${B}.${rnd(C + 1, C + blk - 2)}`;
+  else if (cs === 'mid') { const lo = [C-3, C-2, C-1].filter(x => x >= 1), hi = [C+blk, C+blk+1, C+blk+2].filter(x => x <= 254); dst = `10.${A}.${B}.${pick(lo.concat(hi))}`; }
+  else if (cs === 'b16') { let X; do { X = rnd(0, 255); } while (X === B || X === B2); dst = `10.${A}.${X}.${rnd(1, 254)}`; }
+  else dst = `10.${A + pick([-1, 1])}.${B}.${rnd(C + 1, C + blk - 2)}`;
+  const d = s2ip(dst), hits = R.filter(r => ((d & maskOf(r[1])) >>> 0) === s2ip(r[0]));
+  const best = hits.reduce((a, r) => r[1] > a[1] ? r : a);
+  const rng = `10.${A}.${B}.${C}–10.${A}.${B}.${C + blk - 1}`;
+  return { t:'in',
+    s: tx(L, `Der Core-Router in der Zentrale eines Logistikunternehmens hat die unten stehende Routingtabelle. Ein Client sendet ein Paket an die Zieladresse ${dst}.`,
+             `The core router at the headquarters of a logistics company has the routing table shown below. A client sends a packet to the destination address ${dst}.`),
+    tb: {h: tx(L, ['Zielnetz','Next Hop','Interface','Beschreibung'], ['Destination','Next hop','Interface','Description']), r: R.map(r => [`${r[0]}/${r[1]}`, r[2], r[3], r[4]])},
+    q: tx(L, 'An welchen Next Hop leitet der Router das Paket weiter, und welche Präfixlänge hat der dafür verwendete Eintrag?',
+             'To which next hop does the router forward the packet, and what is the prefix length of the entry used?'),
+    f: [ {l:'Next Hop', v:best[2]}, {l:tx(L,'Präfixlänge des Eintrags','Prefix length of the entry'), v:String(best[1]), u:'/'} ],
+    e: tx(L, `Passende Einträge: ${hits.map(r => `${r[0]}/${r[1]}`).join(', ')}. ${cs === 'small' || cs === 'mid' ? `Das /${sp}-Netz umfasst ${rng} (Blockgröße ${blk}); ${dst} liegt ${cs === 'small' ? 'darin' : 'nicht darin'}. ` : ''}Der Router wählt die längste Übereinstimmung (Longest Prefix Match): /${best[1]} → Next Hop ${best[2]} über ${best[3]}.`,
+             `Matching entries: ${hits.map(r => `${r[0]}/${r[1]}`).join(', ')}. ${cs === 'small' || cs === 'mid' ? `The /${sp} network spans ${rng} (block size ${blk}); ${dst} is ${cs === 'small' ? 'inside' : 'not inside'} it. ` : ''}The router chooses the longest match (longest prefix match): /${best[1]} → next hop ${best[2]} via ${best[3]}.`),
+    n: tx(L, 'Häufige Fehler: den ersten passenden Eintrag in der Tabelle zu nehmen statt des spezifischsten, oder nur das 3. Oktett zu vergleichen und die Grenzen kleiner Netze (/25–/28) nicht auszurechnen. Die Default-Route greift nur, wenn nichts Spezifischeres passt.',
+             'Common mistakes: taking the first matching entry in the table instead of the most specific one, or comparing only the third octet without calculating the boundaries of small networks (/25–/28). The default route only applies if nothing more specific matches.')
+  };
+};
+
+/* VLSM: Subnetze unterschiedlicher Größe lückenlos vergeben */
+GEN.diensteVlsm = function(L){
+  const D = [['Vertrieb','Sales'],['Produktion','Production'],['Verwaltung','Administration'],['Server','Servers'],['Gäste-WLAN','Guest Wi-Fi'],['Drucker & IoT','Printers & IoT']];
+  const sz = n => { let h = 2; while (2**h - 2 < n) h++; return 2**h; };
+  let deps, sum;
+  do {
+    const k = rnd(3, 4), names = shuffle(D).slice(0, k);
+    const needs = shuffle([rnd(50, 120), rnd(20, 60), rnd(8, 30), rnd(3, 14)]).slice(0, k);
+    deps = names.map((nm, i) => ({nm: tx(L, nm[0], nm[1]), need: needs[i], size: sz(needs[i]), i}));
+    sum = deps.reduce((a, x) => a + x.size, 0);
+  } while (sum > 224 || new Set(deps.map(x => x.size)).size < 2);
+  const X = rnd(0, 255), base = s2ip(`192.168.${X}.0`);
+  const ord = deps.slice().sort((a, b) => b.size - a.size || a.i - b.i);
+  let cur = base; ord.forEach(x => { x.net = cur; x.p = 32 - Math.log2(x.size); cur = (cur + x.size) >>> 0; });
+  const tgt = pick(ord.slice(1));
+  return { t:'in',
+    s: tx(L, `Ein mittelständischer Betrieb erhält für seinen neuen Standort das Netz ${ip2s(base)}/24. Die Abteilungen sollen eigene Subnetze mit jeweils passender Größe bekommen (VLSM). Die Hostzahlen enthalten bereits die Gateway-Adresse.`,
+             `A medium-sized company receives the network ${ip2s(base)}/24 for its new site. The departments are to get their own subnets of appropriate size (VLSM). The host counts already include the gateway address.`),
+    tb: {h: tx(L, ['Abteilung','Benötigte Hosts'], ['Department','Required hosts']), r: deps.map(x => [x.nm, x.need])},
+    q: tx(L, `Vergeben Sie die Subnetze lückenlos ab ${ip2s(base)}, das größte zuerst (bei gleicher Größe in Tabellenreihenfolge), jeweils so klein wie möglich. Geben Sie Netzadresse und Präfixlänge des Subnetzes „${tgt.nm}“ sowie die erste freie Adresse nach allen Subnetzen an.`,
+             `Allocate the subnets contiguously from ${ip2s(base)}, largest first (equal sizes in table order), each as small as possible. State the network address and prefix length of the subnet "${tgt.nm}" and the first free address after all subnets.`),
+    f: [ {l:tx(L,`Netzadresse ${tgt.nm}`,`Network address ${tgt.nm}`), v:ip2s(tgt.net)}, {l:tx(L,`Präfixlänge ${tgt.nm}`,`Prefix length ${tgt.nm}`), v:String(tgt.p), u:'/'}, {l:tx(L,'Erste freie Adresse','First free address'), v:ip2s(cur)} ],
+    e: tx(L, `Blockgröße je Abteilung = kleinste Zweierpotenz mit 2^h − 2 ≥ Bedarf. Vergabe: ${ord.map(x => `${x.nm} (${x.need} → ${x.size} Adressen, /${x.p}): ${ip2s(x.net)}–${ip2s((x.net + x.size - 1) >>> 0)}`).join('; ')}. Danach ist ${ip2s(cur)} die erste freie Adresse (${sum} von 256 Adressen belegt).`,
+             `Block size per department = smallest power of two with 2^h − 2 ≥ demand. Allocation: ${ord.map(x => `${x.nm} (${x.need} → ${x.size} addresses, /${x.p}): ${ip2s(x.net)}–${ip2s((x.net + x.size - 1) >>> 0)}`).join('; ')}. After that, ${ip2s(cur)} is the first free address (${sum} of 256 addresses used).`),
+    n: tx(L, 'Typischer Fehler: in Tabellenreihenfolge statt der Größe nach zu vergeben – dann beginnen große Netze nicht mehr auf ihrer Blockgrenze und es entstehen Lücken oder ungültige Netzadressen.',
+             'Typical mistake: allocating in table order instead of by size – large subnets then no longer start on their block boundary, leaving gaps or invalid network addresses.')
+  };
+};
+
+Q.push(
+{id:'dienste-06', a:'dienste', gen:'diensteLpm'},
+{id:'dienste-07', a:'dienste', gen:'diensteVlsm'},
+{id:'dienste-08', a:'dienste', t:'in', f:[{v:510, tol:0},{v:413, tol:0}],
+ de:{s:'Für das Client-VLAN der Verwaltung (10.40.0.0/23) richten Sie auf dem Windows-DHCP-Server einen Bereich von 10.40.0.1 bis 10.40.1.254 ein. Ausgeschlossen werden 10.40.0.1–10.40.0.30 (Gateway, Switches, Drucker) und 10.40.1.200–10.40.1.254 (Reserve für feste Adressen). Zusätzlich legen Sie 12 Reservierungen für Etikettendrucker an, deren Adressen im verbleibenden Bereich liegen.',
+     q:'Wie viele Adressen umfasst der Bereich insgesamt, und wie viele stehen noch für die dynamische Vergabe an beliebige Clients zur Verfügung?',
+     l:['Adressen im Bereich','Frei für dynamische Vergabe'],
+     e:'/23 = 512 Adressen, abzüglich Netz- und Broadcastadresse = 510 (10.40.0.1–10.40.1.254). Ausschlüsse: 30 + 55 (200 bis 254 sind 255 − 200 = 55 Adressen) = 85. Reservierungen belegen weitere 12. 510 − 85 − 12 = 413.',
+     n:'Häufig werden die Reservierungen vergessen – sie liegen zwar im Bereich, werden aber nur an die jeweilige MAC-Adresse vergeben und stehen anderen Clients nicht zur Verfügung. Ebenso typisch: die Grenzen falsch zählen (254 − 200 = 54 statt 55).'},
+ en:{s:'For the administration client VLAN (10.40.0.0/23) you create a scope from 10.40.0.1 to 10.40.1.254 on the Windows DHCP server. Excluded are 10.40.0.1–10.40.0.30 (gateway, switches, printers) and 10.40.1.200–10.40.1.254 (reserve for static addresses). In addition, you create 12 reservations for label printers whose addresses lie in the remaining range.',
+     q:'How many addresses does the scope contain in total, and how many are still available for dynamic assignment to any client?',
+     l:['Addresses in scope','Available for dynamic assignment'],
+     e:'/23 = 512 addresses, minus network and broadcast address = 510 (10.40.0.1–10.40.1.254). Exclusions: 30 + 55 (200 to 254 is 255 − 200 = 55 addresses) = 85. Reservations take another 12. 510 − 85 − 12 = 413.',
+     n:'The reservations are often forgotten – they lie within the scope but are only given to the respective MAC address and are not available to other clients. Also typical: counting the boundaries wrongly (254 − 200 = 54 instead of 55).'}},
+{id:'dienste-09', a:'dienste', t:'sc', c:0,
+ de:{s:'Im Neubau wurde VLAN 30 (10.30.0.0/24) eingerichtet; die SVI des Layer-3-Switches (10.30.0.1) ist das Gateway. Auf dem DHCP-Server im Server-VLAN (10.1.0.10) ist ein Bereich für 10.30.0.0/24 angelegt und aktiviert. Die Clients in VLAN 30 erhalten trotzdem nur Adressen aus 169.254.0.0/16.',
+     q:'Welche Maßnahme behebt das Problem?',
+     o:['Auf der SVI von VLAN 30 einen DHCP-Relay-Agent konfigurieren (z. B. ip helper-address 10.1.0.10)','Auf den Clients das Standardgateway 10.30.0.1 statisch eintragen','Im DHCP-Bereich die Option 003 (Router) auf 10.30.0.1 setzen','Die Lease-Dauer des Bereichs auf eine Stunde verkürzen'],
+     e:'DHCPDISCOVER ist ein Broadcast, den Router nicht weiterleiten. Der Relay-Agent nimmt ihn auf der SVI entgegen, leitet ihn per Unicast an den DHCP-Server weiter und trägt seine Interface-Adresse (giaddr) ein – daran erkennt der Server, aus welchem Bereich er vergeben muss.',
+     n:'Option 003 ist zwar nötig, damit die Clients ihr Gateway kennen – sie wird aber erst ausgeliefert, wenn die Anfrage den Server überhaupt erreicht. Ohne Relay verlässt der Discover VLAN 30 nicht.'},
+ en:{s:'VLAN 30 (10.30.0.0/24) was set up in the new building; the SVI of the layer-3 switch (10.30.0.1) is the gateway. On the DHCP server in the server VLAN (10.1.0.10), a scope for 10.30.0.0/24 has been created and activated. Nevertheless, the clients in VLAN 30 only receive addresses from 169.254.0.0/16.',
+     q:'Which measure fixes the problem?',
+     o:['Configure a DHCP relay agent on the SVI of VLAN 30 (e.g. ip helper-address 10.1.0.10)','Enter the default gateway 10.30.0.1 statically on the clients','Set option 003 (router) to 10.30.0.1 in the DHCP scope','Reduce the lease duration of the scope to one hour'],
+     e:'DHCPDISCOVER is a broadcast that routers do not forward. The relay agent receives it on the SVI, forwards it as unicast to the DHCP server and inserts its interface address (giaddr) – this tells the server which scope to assign from.',
+     n:'Option 003 is needed so the clients know their gateway – but it is only delivered once the request reaches the server at all. Without a relay, the discover never leaves VLAN 30.'}},
+{id:'dienste-10', a:'dienste', t:'sc', c:0,
+ de:{s:'Der Webshop eines Kunden zieht am Freitag um 18 Uhr auf einen neuen Server um. Sie ändern den A-Record von shop.kunde.de auf die neue IP-Adresse. Am Samstagvormittag melden einzelne Kunden, dass sie noch auf dem alten Server landen, andere erreichen bereits den neuen. Der Eintrag hat eine TTL von 86.400 Sekunden.',
+     q:'Wie erklären Sie das Verhalten, und was hätten Sie besser machen sollen?',
+     o:['Resolver bei Providern und in Firmennetzen haben die alte Antwort bis zu 24 Stunden zwischengespeichert; die TTL hätte einige Tage vor dem Umzug z. B. auf 300 Sekunden gesenkt werden sollen','Statt eines A-Records hätte ein CNAME auf die neue IP-Adresse angelegt werden müssen, dann wäre die Änderung sofort überall aktiv','Die Root-Server übernehmen Änderungen nur einmal täglich; der Umzug hätte um Mitternacht erfolgen müssen','Die betroffenen Kunden müssen ipconfig /release ausführen, weil ihr DNS-Server per DHCP vergeben wurde'],
+     e:'86.400 s = 24 h: Jeder Resolver, der vor der Änderung gefragt hat, darf die alte Antwort bis zu 24 h aus dem Cache liefern. Deshalb senkt man die TTL mindestens eine alte TTL-Dauer vor dem Umzug und erhöht sie danach wieder.',
+     n:'Ein CNAME zeigt immer auf einen Namen, nie auf eine IP-Adresse, und wird ebenfalls gemäß TTL zwischengespeichert – das Cache-Problem löst er nicht.'},
+ en:{s:"A customer's web shop moves to a new server on Friday at 6 pm. You change the A record of shop.customer.com to the new IP address. On Saturday morning some customers report that they still end up on the old server, while others already reach the new one. The record has a TTL of 86,400 seconds.",
+     q:'How do you explain this behaviour, and what should you have done better?',
+     o:['Resolvers at providers and in company networks cached the old answer for up to 24 hours; the TTL should have been lowered to e.g. 300 seconds a few days before the move','Instead of an A record, a CNAME pointing to the new IP address should have been created, then the change would have been active everywhere immediately','The root servers only take over changes once a day; the move should have taken place at midnight','The affected customers must run ipconfig /release because their DNS server was assigned via DHCP'],
+     e:'86,400 s = 24 h: every resolver that queried before the change may serve the old answer from its cache for up to 24 h. That is why you lower the TTL at least one old TTL period before the move and raise it again afterwards.',
+     n:'A CNAME always points to a name, never to an IP address, and is also cached according to its TTL – it does not solve the cache problem.'}},
+{id:'dienste-11', a:'dienste', t:'sc', c:0,
+ de:{s:'In einem Callcenter hängt an jeder Datendose ein IP-Telefon, an dessen PC-Port der Arbeitsplatz-PC angeschlossen ist. Sprachdaten sollen in VLAN 20 (Voice), die Daten des PCs in VLAN 10 (Clients) laufen. Die Telefone erhalten die Voice-VLAN-ID per LLDP-MED.',
+     q:'Wie konfigurieren Sie den Switch-Port?',
+     o:['Als Access-Port in VLAN 10 (untagged für den PC) mit zusätzlich konfiguriertem Voice-VLAN 20, das das Telefon getaggt nutzt','Als Trunk-Port, auf dem alle VLANs erlaubt sind und VLAN 1 als Native VLAN dient','Als Access-Port in VLAN 20; das Telefon ordnet den PC-Verkehr automatisch VLAN 10 zu','Als zwei getrennte Access-Ports, weil bei VLANs je Gerät ein eigener Anschluss nötig ist'],
+     e:'Beim Voice-VLAN taggt das Telefon seine Frames nach IEEE 802.1Q mit VLAN 20 (inkl. Priorität nach 802.1p), der PC-Verkehr läuft untagged durch das Telefon und landet im Access-VLAN 10. Die Voice-VLAN-ID lernt das Telefon per LLDP-MED (bei Cisco auch CDP).',
+     n:'Ein Trunk mit allen VLANs würde technisch funktionieren, gibt dem PC-Anschluss aber Zugang zu sämtlichen VLANs – unnötig und ein Sicherheitsrisiko (VLAN Hopping). VLAN 1 als Native VLAN gilt zudem als schlechte Praxis.'},
+ en:{s:'In a call centre, every network outlet has an IP phone, and the workstation PC is connected to the PC port of the phone. Voice traffic is to run in VLAN 20 (voice), PC data in VLAN 10 (clients). The phones receive the voice VLAN ID via LLDP-MED.',
+     q:'How do you configure the switch port?',
+     o:['As an access port in VLAN 10 (untagged for the PC) with an additionally configured voice VLAN 20, which the phone uses tagged','As a trunk port on which all VLANs are allowed and VLAN 1 is the native VLAN','As an access port in VLAN 20; the phone automatically assigns the PC traffic to VLAN 10','As two separate access ports, because VLANs require a dedicated port per device'],
+     e:'With a voice VLAN, the phone tags its frames according to IEEE 802.1Q with VLAN 20 (including 802.1p priority), while PC traffic passes through the phone untagged and ends up in access VLAN 10. The phone learns the voice VLAN ID via LLDP-MED (with Cisco also CDP).',
+     n:'A trunk with all VLANs would work technically but gives the PC port access to every VLAN – unnecessary and a security risk (VLAN hopping). Using VLAN 1 as the native VLAN is also considered bad practice.'}},
+{id:'dienste-12', a:'dienste', t:'sc', c:0,
+ de:{s:'Nach einer Schulung im Seminarraum melden mehrere Mitarbeitende, dass sie keine Serverfreigaben mehr erreichen. ipconfig zeigt bei ihnen 192.168.0.23 mit Gateway 192.168.0.1 statt einer Adresse aus 10.20.0.0/16. Im Seminarraum finden Sie einen mitgebrachten WLAN-Router, dessen LAN-Port an einer Datendose steckt.',
+     q:'Welche Maßnahme verhindert solche Fälle dauerhaft auf Switch-Ebene?',
+     o:['DHCP Snooping aktivieren und nur die Uplink-Ports in Richtung des echten DHCP-Servers als vertrauenswürdig (trusted) markieren','Die Lease-Dauer auf dem DHCP-Server verkürzen, damit die Clients schneller wieder eine korrekte Adresse erhalten','Für alle Clients DHCP-Reservierungen anlegen, damit sie immer ihre feste Adresse bekommen','Port Security mit maximal einer MAC-Adresse je Port aktivieren'],
+     e:'Mit DHCP Snooping verwirft der Switch DHCP-Servernachrichten (OFFER, ACK) auf nicht vertrauenswürdigen Ports. Ein fremder DHCP-Server an einem Access-Port kann dann keine Adressen mehr verteilen. Die dabei entstehende Binding-Tabelle ist zugleich Grundlage für Dynamic ARP Inspection.',
+     n:'Port Security begrenzt nur die Anzahl der MAC-Adressen je Port. Der mitgebrachte Router tritt am Port mit einer einzigen MAC-Adresse auf, wäre also erlaubt und könnte weiter DHCP-Anfragen beantworten. Reservierungen helfen nicht, weil Clients das erste eintreffende Angebot annehmen.'},
+ en:{s:'After a training session in the seminar room, several employees report that they can no longer reach server shares. ipconfig shows 192.168.0.23 with gateway 192.168.0.1 instead of an address from 10.20.0.0/16. In the seminar room you find a Wi-Fi router someone brought along, with its LAN port plugged into a network outlet.',
+     q:'Which measure permanently prevents such cases at switch level?',
+     o:['Enable DHCP snooping and mark only the uplink ports towards the legitimate DHCP server as trusted','Shorten the lease duration on the DHCP server so that clients get a correct address again more quickly','Create DHCP reservations for all clients so that they always get their fixed address','Enable port security with a maximum of one MAC address per port'],
+     e:'With DHCP snooping, the switch drops DHCP server messages (OFFER, ACK) on untrusted ports. A rogue DHCP server on an access port can then no longer hand out addresses. The resulting binding table is also the basis for Dynamic ARP Inspection.',
+     n:'Port security only limits the number of MAC addresses per port. The rogue router appears on the port with a single MAC address, so it would be allowed and could keep answering DHCP requests. Reservations do not help because clients accept the first offer that arrives.'}},
+{id:'dienste-13', a:'dienste', t:'mc', c:[0,1],
+ de:{s:'Eine Mitarbeiterin der Buchhaltung kann seit dem Austausch ihres PCs keine Webseiten und keine Server in anderen Netzen erreichen. Der Netzwerkdrucker 10.20.30.20 im selben Raum funktioniert. Laut Dokumentation ist 10.20.30.1 das Gateway des Netzes 10.20.30.0/24. ipconfig /all zeigt:',
+     code:'Ethernet-Adapter Ethernet:\n   DHCP aktiviert. . . . . . . . . . : Nein\n   IPv4-Adresse  . . . . . . . . . . : 10.20.30.45\n   Subnetzmaske  . . . . . . . . . . : 255.255.255.0\n   Standardgateway . . . . . . . . . : 10.20.31.1\n   DNS-Server  . . . . . . . . . . . : 10.20.1.10',
+     q:'Welche Aussagen zu dieser Konfiguration treffen zu?',
+     o:['Das eingetragene Gateway 10.20.31.1 liegt nicht im Netz 10.20.30.0/24 des Clients und ist nicht der Router – Pakete in fremde Netze kommen nicht an','Die Namensauflösung schlägt ebenfalls fehl, weil der DNS-Server 10.20.1.10 in einem anderen Netz liegt und nur über das Gateway erreichbar wäre','ipconfig /release und /renew beheben den Fehler, weil der Client dabei ein neues Gateway erhält','Der DNS-Server muss grundsätzlich im selben Subnetz wie der Client liegen','10.20.30.45 ist eine APIPA-Adresse; der DHCP-Server ist nicht erreichbar','Die Subnetzmaske ist falsch; mit 255.255.0.0 wäre die Konfiguration korrekt'],
+     e:'Anhand der Maske erkennt der Client, dass der Drucker im eigenen Netz liegt (direkte Zustellung per ARP), DNS-Server und Internet aber nicht. Diese Pakete gehen an das Gateway – und das ist falsch eingetragen. Lösung: Gateway 10.20.30.1 eintragen oder auf DHCP umstellen.',
+     n:'Verlockend ist /renew – bei „DHCP aktiviert: Nein“ ist die Adresse aber statisch, der Befehl ändert nichts. Eine APIPA-Adresse läge in 169.254.0.0/16, und eine größere Maske würde nicht zum tatsächlichen /24-Netz passen.'},
+ en:{s:'Since her PC was replaced, an accounting employee cannot reach any websites or servers in other networks. The network printer 10.20.30.20 in the same room works. According to the documentation, 10.20.30.1 is the gateway of the network 10.20.30.0/24. ipconfig /all shows:',
+     code:'Ethernet adapter Ethernet:\n   DHCP Enabled. . . . . . . . . . . : No\n   IPv4 Address. . . . . . . . . . . : 10.20.30.45\n   Subnet Mask . . . . . . . . . . . : 255.255.255.0\n   Default Gateway . . . . . . . . . : 10.20.31.1\n   DNS Servers . . . . . . . . . . . : 10.20.1.10',
+     q:'Which statements about this configuration are correct?',
+     o:['The configured gateway 10.20.31.1 is not in the client\'s network 10.20.30.0/24 and is not the router – packets to other networks do not arrive','Name resolution also fails because the DNS server 10.20.1.10 is in a different network and could only be reached via the gateway','ipconfig /release and /renew fix the error because the client receives a new gateway','The DNS server must always be in the same subnet as the client','10.20.30.45 is an APIPA address; the DHCP server cannot be reached','The subnet mask is wrong; with 255.255.0.0 the configuration would be correct'],
+     e:'Using the mask, the client recognises that the printer is in its own network (direct delivery via ARP), but the DNS server and the internet are not. Those packets go to the gateway – which is configured incorrectly. Fix: enter gateway 10.20.30.1 or switch to DHCP.',
+     n:'/renew is tempting – but with "DHCP Enabled: No" the address is static and the command changes nothing. An APIPA address would be in 169.254.0.0/16, and a larger mask would not match the actual /24 network.'}},
+{id:'dienste-14', a:'dienste', t:'mc', c:[0,1,2],
+ de:{s:'Die Holzbau Keller GmbH (Domain holzbau-keller.de) betreibt ihren Mailserver künftig selbst. Er ist unter der festen öffentlichen IPv4-Adresse 203.0.113.25 erreichbar und soll mail.holzbau-keller.de heißen. Viele empfangende Mailserver lehnen Mails von Absendern ohne passenden Reverse-Eintrag ab.',
+     q:'Welche DNS-Einträge sind dafür erforderlich?',
+     o:['A-Record: mail.holzbau-keller.de → 203.0.113.25','MX-Record: holzbau-keller.de → mail.holzbau-keller.de (Priorität 10)','PTR-Record: 25.113.0.203.in-addr.arpa → mail.holzbau-keller.de, eingetragen vom Inhaber des Adressbereichs (Provider)','MX-Record: holzbau-keller.de → 203.0.113.25','CNAME-Record: holzbau-keller.de → mail.holzbau-keller.de','SRV-Record: _smtp._tcp.holzbau-keller.de → mail.holzbau-keller.de:25'],
+     e:'Der MX-Record verweist auf einen Hostnamen, der seinerseits einen A-Record (bzw. AAAA) braucht. Die Rückwärtsauflösung erfolgt über einen PTR-Record in der Zone in-addr.arpa mit umgekehrter Oktettreihenfolge; diese Zone verwaltet der Inhaber des IP-Bereichs, also wird der Eintrag beim Provider beauftragt.',
+     n:'Ein MX-Record darf nicht direkt auf eine IP-Adresse zeigen (und auch nicht auf einen CNAME) – das Ziel muss ein Hostname mit A/AAAA-Record sein. Ein CNAME auf der Zonenspitze ist unzulässig, weil dort SOA und NS stehen; SRV-Records werden für SMTP nicht verwendet.'},
+ en:{s:'Holzbau Keller GmbH (domain holzbau-keller.de) will run its own mail server from now on. It is reachable at the fixed public IPv4 address 203.0.113.25 and is to be named mail.holzbau-keller.de. Many receiving mail servers reject mail from senders without a matching reverse record.',
+     q:'Which DNS records are required for this?',
+     o:['A record: mail.holzbau-keller.de → 203.0.113.25','MX record: holzbau-keller.de → mail.holzbau-keller.de (priority 10)','PTR record: 25.113.0.203.in-addr.arpa → mail.holzbau-keller.de, created by the owner of the address range (provider)','MX record: holzbau-keller.de → 203.0.113.25','CNAME record: holzbau-keller.de → mail.holzbau-keller.de','SRV record: _smtp._tcp.holzbau-keller.de → mail.holzbau-keller.de:25'],
+     e:'The MX record points to a host name, which in turn needs an A (or AAAA) record. Reverse resolution uses a PTR record in the in-addr.arpa zone with the octets in reverse order; this zone is managed by the owner of the IP range, so the record is ordered from the provider.',
+     n:'An MX record must not point directly to an IP address (nor to a CNAME) – the target must be a host name with an A/AAAA record. A CNAME at the zone apex is not allowed because the SOA and NS records are there; SRV records are not used for SMTP.'}},
+{id:'dienste-15', a:'dienste', t:'mc', c:[0,1,2],
+ de:{s:'Ein Architekturbüro möchte seinen internen Projektserver (192.168.10.20) für Kunden per HTTPS aus dem Internet erreichbar machen. Der Internetrouter hat die feste öffentliche IPv4-Adresse 198.51.100.7 und setzt für die Clients bereits PAT ein.',
+     q:'Welche Aussagen zur Einrichtung treffen zu?',
+     o:['Auf dem Router wird eine Portweiterleitung (Destination NAT) von 198.51.100.7:443/TCP auf 192.168.10.20:443 eingerichtet','Der Server braucht eine gleichbleibende Adresse, also eine statische Konfiguration oder eine DHCP-Reservierung','Der öffentliche DNS-Eintrag (z. B. projekte.buero-beispiel.de) zeigt auf 198.51.100.7','Der öffentliche DNS-Eintrag zeigt auf 192.168.10.20, damit Kunden den Server direkt ansprechen','Der Server benötigt eine eigene öffentliche IP-Adresse, weil sich PAT und Portweiterleitung gegenseitig ausschließen','Es genügt, Port 443/UDP weiterzuleiten, weil HTTPS verbindungslos arbeitet'],
+     e:'Eingehende Verbindungen auf 443/TCP an der öffentlichen Adresse übersetzt der Router per Destination NAT an die feste interne Adresse des Servers; ausgehend nutzen die Clients weiter PAT. Von außen ist nur die öffentliche Adresse erreichbar, auf sie muss der DNS-Eintrag zeigen. Besser als eine Freigabe ins LAN ist ein Server in einer DMZ.',
+     n:'Eine private Adresse aus RFC 1918 im öffentlichen DNS nützt nichts – sie wird im Internet nicht geroutet. PAT und Portweiterleitung laufen problemlos parallel auf derselben öffentlichen Adresse.'},
+ en:{s:'An architecture firm wants to make its internal project server (192.168.10.20) reachable for customers via HTTPS from the internet. The internet router has the fixed public IPv4 address 198.51.100.7 and already uses PAT for the clients.',
+     q:'Which statements about the setup are correct?',
+     o:['A port forwarding rule (destination NAT) from 198.51.100.7:443/TCP to 192.168.10.20:443 is set up on the router','The server needs a constant address, i.e. a static configuration or a DHCP reservation','The public DNS record (e.g. projects.firm-example.com) points to 198.51.100.7','The public DNS record points to 192.168.10.20 so that customers can address the server directly','The server needs its own public IP address because PAT and port forwarding are mutually exclusive','Forwarding port 443/UDP is sufficient because HTTPS is connectionless'],
+     e:'The router translates incoming connections on 443/TCP at the public address to the server\'s fixed internal address via destination NAT; outbound, the clients keep using PAT. From outside only the public address is reachable, so the DNS record must point to it. Placing the server in a DMZ is better than exposing it in the LAN.',
+     n:'A private RFC 1918 address in public DNS is useless – it is not routed on the internet. PAT and port forwarding run side by side on the same public address without any problem.'}},
+{id:'dienste-16', a:'dienste', t:'match',
+ de:{s:'Sie pflegen die DNS-Zonen eines mittelständischen Unternehmens und erhalten mehrere Änderungsaufträge aus den Fachabteilungen.',
+     q:'Ordnen Sie jedem Auftrag den passenden Ressourceneintrag (Record-Typ) zu.',
+     p:[['Der Webserver www soll zusätzlich per IPv6 (2001:db8:5::80) erreichbar sein','AAAA'],['shop.firma.de soll als Alias auf den Hostnamen eines externen Shop-Anbieters verweisen','CNAME'],['Clients sollen die Domänencontroller über _ldap._tcp.dc._msdcs.firma.local finden','SRV'],['Die Subdomain lab.firma.de wird an eigene Nameserver der Entwicklungsabteilung delegiert','NS'],['Per SPF soll festgelegt werden, welche Server Mails für firma.de versenden dürfen','TXT'],['Der Drucker druck01 soll unter seiner Adresse 10.20.30.20 auflösbar sein','A']],
+     e:'A und AAAA ordnen einem Namen eine IPv4- bzw. IPv6-Adresse zu, CNAME einen Alias auf einen anderen Namen. SRV-Records enthalten Dienst, Protokoll, Priorität, Gewichtung, Port und Zielhost – Active Directory nutzt sie zum Auffinden der DCs. NS-Records delegieren Zonen, SPF wird als TXT-Record hinterlegt.',
+     n:'Häufig wird für den externen Shop ein A-Record gewählt. Da der Anbieter seine IP-Adressen ändern kann, ist ein CNAME auf dessen Hostnamen richtig – ein CNAME zeigt immer auf einen Namen, nie auf eine Adresse.'},
+ en:{s:'You maintain the DNS zones of a medium-sized company and receive several change requests from the departments.',
+     q:'Match each request to the appropriate resource record type.',
+     p:[['The web server www is also to be reachable via IPv6 (2001:db8:5::80)','AAAA'],['shop.company.com is to point as an alias to the host name of an external shop provider','CNAME'],['Clients are to find the domain controllers via _ldap._tcp.dc._msdcs.company.local','SRV'],['The subdomain lab.company.com is delegated to the R&D department\'s own name servers','NS'],['SPF is to define which servers may send mail for company.com','TXT'],['The printer print01 is to be resolvable to its address 10.20.30.20','A']],
+     e:'A and AAAA map a name to an IPv4 or IPv6 address, CNAME maps an alias to another name. SRV records contain service, protocol, priority, weight, port and target host – Active Directory uses them to locate the DCs. NS records delegate zones; SPF is stored as a TXT record.',
+     n:'An A record is often chosen for the external shop. Since the provider may change its IP addresses, a CNAME to its host name is correct – a CNAME always points to a name, never to an address.'}},
+{id:'dienste-17', a:'dienste', t:'match',
+ de:{s:'Sie erstellen für eine Kundin mit Zentrale und mehreren Standorten ein Routingkonzept und erklären ihr die Einträge, die später in den Routingtabellen stehen werden.',
+     q:'Ordnen Sie jeder Beschreibung den passenden Begriff zu.',
+     p:[['Eine Zweigstelle hat nur eine Leitung zur Zentrale; alle unbekannten Ziele sollen dorthin','Default-Route 0.0.0.0/0'],['Distanzvektorprotokoll, Metrik ist die Hop-Anzahl, ab 16 Hops gilt ein Ziel als unerreichbar','RIP'],['Link-State-Protokoll, Metrik sind Kosten aus der Bandbreite, Einteilung in Areas','OSPF'],['Vom Administrator manuell eingetragen, passt sich bei Ausfällen nicht automatisch an','Statische Route'],['Netz, das direkt an einem Router-Interface anliegt und automatisch in der Tabelle steht','Direkt verbundenes Netz (connected)']],
+     e:'Die Default-Route greift, wenn kein spezifischerer Eintrag passt. RIP zählt nur Hops (max. 15), OSPF berechnet mit dem vollständigen Topologiebild den kürzesten Pfad nach Kosten (Referenzbandbreite ÷ Interface-Bandbreite). Statische Routen sind einfach und sicher, aber ohne automatische Umschaltung; connected Routes entstehen durch die Interface-Konfiguration.',
+     n:'RIP und OSPF werden oft verwechselt: RIP ist das einfache Distanzvektorprotokoll mit Hop-Metrik, OSPF das Link-State-Protokoll mit Kosten-Metrik und Areas.'},
+ en:{s:'You are creating a routing concept for a customer with a headquarters and several sites and explain the entries that will later appear in the routing tables.',
+     q:'Match each description to the appropriate term.',
+     p:[['A branch office has only one line to headquarters; all unknown destinations are to go there','Default route 0.0.0.0/0'],['Distance-vector protocol, the metric is the hop count, a destination 16 hops away is considered unreachable','RIP'],['Link-state protocol, the metric is a cost derived from bandwidth, divided into areas','OSPF'],['Entered manually by the administrator, does not adapt automatically in case of failures','Static route'],['Network attached directly to a router interface that appears in the table automatically','Directly connected network (connected)']],
+     e:'The default route applies if no more specific entry matches. RIP only counts hops (max. 15); OSPF uses the complete topology view to calculate the shortest path by cost (reference bandwidth ÷ interface bandwidth). Static routes are simple and secure but have no automatic failover; connected routes result from the interface configuration.',
+     n:'RIP and OSPF are often confused: RIP is the simple distance-vector protocol with a hop metric, OSPF the link-state protocol with a cost metric and areas.'}},
+{id:'dienste-18', a:'dienste', t:'order',
+ de:{s:'Ein Mitarbeiter ruft zum ersten Mal www.lieferant-beispiel.de auf. Weder sein Client noch der interne DNS-Server kennen den Namen; der DNS-Server arbeitet als Resolver ohne Forwarder und hat einen leeren Cache.',
+     q:'Bringen Sie die Schritte der Namensauflösung in die richtige Reihenfolge.',
+     o:['Der Client prüft seinen lokalen DNS-Cache (inkl. hosts-Datei) – kein Eintrag','Der Client stellt eine rekursive Anfrage an den internen DNS-Server','Der DNS-Server fragt einen Root-Server und erhält einen Verweis auf die Nameserver der Top-Level-Domain .de','Der DNS-Server fragt einen .de-Nameserver und erhält einen Verweis auf die autoritativen Nameserver von lieferant-beispiel.de','Der autoritative Nameserver liefert den A-Record für www.lieferant-beispiel.de','Der DNS-Server speichert die Antwort gemäß TTL im Cache und gibt sie an den Client zurück'],
+     e:'Der Client fragt rekursiv – er erwartet eine fertige Antwort. Der Resolver arbeitet die Hierarchie iterativ ab: Root → TLD → autoritativer Server, wobei er jeweils nur Verweise (Referrals) erhält. Die Antwort wird für die Dauer der TTL zwischengespeichert.',
+     n:'Oft wird angenommen, der Root-Server kenne die IP-Adresse oder frage selbst weiter. Root-Server beantworten keine rekursiven Anfragen, sondern verweisen nur auf die zuständigen TLD-Server.'},
+ en:{s:'An employee opens www.supplier-example.de for the first time. Neither his client nor the internal DNS server knows the name; the DNS server acts as a resolver without forwarders and has an empty cache.',
+     q:'Put the steps of name resolution in the correct order.',
+     o:['The client checks its local DNS cache (including the hosts file) – no entry','The client sends a recursive query to the internal DNS server','The DNS server queries a root server and receives a referral to the name servers of the top-level domain .de','The DNS server queries a .de name server and receives a referral to the authoritative name servers of supplier-example.de','The authoritative name server returns the A record for www.supplier-example.de','The DNS server caches the answer according to its TTL and returns it to the client'],
+     e:'The client queries recursively – it expects a complete answer. The resolver works through the hierarchy iteratively: root → TLD → authoritative server, receiving only referrals along the way. The answer is cached for the duration of the TTL.',
+     n:'People often assume the root server knows the IP address or queries further itself. Root servers do not answer recursive queries; they only refer to the responsible TLD servers.'}},
+{id:'dienste-19', a:'dienste', t:'order',
+ de:{s:'Ein Kunde meldet telefonisch: „Das Internet geht nicht.“ Vor Ort gehen Sie am betroffenen Windows-PC systematisch von unten nach oben (in Anlehnung an das OSI-Modell) vor.',
+     q:'Bringen Sie die Prüfschritte in eine sinnvolle Reihenfolge.',
+     o:['Link-LED an Netzwerkkarte und Switch-Port sowie das Patchkabel prüfen','Mit ipconfig /all IP-Adresse, Maske, Gateway und DNS-Server kontrollieren','Das Standardgateway anpingen','Eine externe IP-Adresse anpingen, bei Fehlschlag mit tracert den Abbruchpunkt ermitteln','Mit nslookup prüfen, ob Namen aufgelöst werden','Die Webseite im Browser aufrufen und ggf. Proxy-Einstellungen prüfen'],
+     e:'Jeder Schritt setzt den vorherigen voraus: ohne Link keine Adresse, ohne gültige Konfiguration kein Gateway, ohne Gateway kein fremdes Netz. Ist eine externe IP erreichbar, aber kein Name, liegt das Problem beim DNS – erst danach lohnt der Blick auf Browser und Proxy.',
+     n:'Verlockend ist, direkt mit dem Browser oder nslookup zu beginnen. Schlägt das fehl, bleibt aber offen, ob DNS oder eine darunterliegende Schicht die Ursache ist – die IP-Konnektivität muss zuerst geklärt werden.'},
+ en:{s:'A customer reports by phone: "The internet is not working." On site, you work systematically from the bottom up (based on the OSI model) on the affected Windows PC.',
+     q:'Put the checks in a sensible order.',
+     o:['Check the link LED on the network card and switch port as well as the patch cable','Use ipconfig /all to check the IP address, mask, gateway and DNS server','Ping the default gateway','Ping an external IP address; if it fails, use tracert to find where it stops','Use nslookup to check whether names are resolved','Open the website in the browser and check proxy settings if necessary'],
+     e:'Each step requires the previous one: no link, no address; no valid configuration, no gateway; no gateway, no foreign network. If an external IP is reachable but no name is, the problem is DNS – only then is it worth looking at the browser and proxy.',
+     n:'It is tempting to start straight away with the browser or nslookup. If that fails, however, it remains unclear whether DNS or a lower layer is the cause – IP connectivity must be clarified first.'}},
+{id:'dienste-20', a:'dienste', t:'open',
+ de:{s:'Fachgespräch: In Ihrem Abschlussprojekt haben Sie zwei Etagenswitches über einen Trunk verbunden, auf dem die VLANs 10 (Clients), 20 (Voice) und 99 (Management) übertragen werden. Der Prüfungsausschuss fragt nach.',
+     q:'Erläutern Sie, wie ein Frame eines PCs in VLAN 10 über den Trunk zum anderen Switch gelangt, was es mit dem Native VLAN auf sich hat und welche Sicherheitsmaßnahmen Sie dazu umgesetzt haben.',
+     m:'• Der PC sendet einen normalen (untagged) Frame; der Access-Port ist VLAN 10 zugeordnet, der Switch behandelt den Frame intern als VLAN 10.\n• Beim Weiterleiten über den Trunk fügt der Switch einen 4-Byte-Tag nach IEEE 802.1Q ein (TPID 0x8100, 3 Bit Priorität PCP, 12 Bit VLAN-ID → VLANs 1–4094); die Prüfsumme wird neu berechnet.\n• Der empfangende Switch liest die VLAN-ID, entfernt den Tag an Access-Ports und leitet nur an Ports in VLAN 10 weiter – Broadcasts bleiben im VLAN.\n• Native VLAN: Frames dieses VLANs laufen untagged über den Trunk. Es muss auf beiden Seiten gleich sein, sonst landen Frames im falschen VLAN (Native VLAN Mismatch).\n• Sicherheit: Native VLAN auf ein ungenutztes VLAN statt VLAN 1 legen (oder Tagging erzwingen), nur benötigte VLANs auf dem Trunk erlauben, automatische Trunk-Aushandlung (DTP) abschalten, ungenutzte Ports deaktivieren, Management in eigenem VLAN.\n• Verkehr zwischen den VLANs läuft nur über Router bzw. Layer-3-Switch und kann dort per ACL gefiltert werden.',
+     k:['Access-Port untagged, Zuordnung zu VLAN 10','802.1Q-Tag mit 12-Bit-VLAN-ID auf dem Trunk','Empfänger wertet Tag aus, Broadcast bleibt im VLAN','Native VLAN untagged, auf beiden Seiten gleich','Native VLAN ≠ VLAN 1, erlaubte VLANs begrenzen, DTP aus','Inter-VLAN-Verkehr nur über Router/L3-Switch mit ACLs']},
+ en:{s:'Expert interview: in your final project you connected two floor switches via a trunk carrying VLANs 10 (clients), 20 (voice) and 99 (management). The examination board asks you about it.',
+     q:'Explain how a frame from a PC in VLAN 10 reaches the other switch via the trunk, what the native VLAN is about and which security measures you implemented for it.',
+     m:'• The PC sends a normal (untagged) frame; the access port is assigned to VLAN 10, and the switch treats the frame internally as VLAN 10.\n• When forwarding over the trunk, the switch inserts a 4-byte IEEE 802.1Q tag (TPID 0x8100, 3-bit priority PCP, 12-bit VLAN ID → VLANs 1–4094); the checksum is recalculated.\n• The receiving switch reads the VLAN ID, removes the tag on access ports and forwards only to ports in VLAN 10 – broadcasts stay within the VLAN.\n• Native VLAN: frames of this VLAN cross the trunk untagged. It must be the same on both sides, otherwise frames end up in the wrong VLAN (native VLAN mismatch).\n• Security: set the native VLAN to an unused VLAN instead of VLAN 1 (or enforce tagging), allow only required VLANs on the trunk, disable automatic trunk negotiation (DTP), shut down unused ports, keep management in its own VLAN.\n• Traffic between the VLANs only flows via a router or layer-3 switch and can be filtered there with ACLs.',
+     k:['Access port untagged, assigned to VLAN 10','802.1Q tag with 12-bit VLAN ID on the trunk','Receiver evaluates tag, broadcast stays in VLAN','Native VLAN untagged, identical on both sides','Native VLAN ≠ VLAN 1, restrict allowed VLANs, DTP off','Inter-VLAN traffic only via router/L3 switch with ACLs']}}
 );
 
 /* ===== BEREICH:ad – Active Directory & Rechte (2. Lehrjahr) ===== */

@@ -1,17 +1,17 @@
 {
-  "version": "0.0.6",
+  "version": "0.0.7",
   "date": "2026-09-11",
   "file": "index.html",
   "notes": {
     "de": [
-      "Netzwerkgrundlagen auf 20 Fragen erweitert",
-      "Neue Themen: Cat 6A und Leitungslängen, MAC-Tabelle, Broadcast- und Kollisionsdomänen, IPv6 Link-local und SLAAC, RFC-1918-Adressen, Schleifen und STP, Schirmungsarten, strukturierte Verkabelung nach EN 50173, T568B-Belegung, Kapselung",
-      "Neue Rechenaufgaben mit Zufallswerten: benötigte Hosts zu Präfix und Maske, IPv6-Kurzschreibweise; PoE-Budget"
+      "Netzwerkdienste & Routing auf 20 Fragen erweitert",
+      "Neue Themen: DHCP-Relay und APIPA, DHCP-Bereich mit Ausschlüssen, DNS-TTL, Voice-VLAN, DHCP-Snooping, falsches Gateway, DNS-Einträge für Mailserver, Portweiterleitung, Routenarten, DNS-Auflösung, Fehlersuche von unten nach oben, 802.1Q-Trunk",
+      "Neue Rechenaufgaben mit Zufallswerten: Longest Prefix Match in der Routingtabelle, VLSM-Aufteilung"
     ],
     "en": [
-      "Network fundamentals extended to 20 questions",
-      "New topics: Cat 6A and link lengths, MAC table, broadcast and collision domains, IPv6 link-local and SLAAC, RFC 1918 addresses, loops and STP, shielding types, structured cabling per EN 50173, T568B pin-out, encapsulation",
-      "New random calculations: required hosts to prefix and mask, IPv6 short notation; PoE budget"
+      "Network services & routing extended to 20 questions",
+      "New topics: DHCP relay and APIPA, DHCP scope with exclusions, DNS TTL, voice VLAN, DHCP snooping, wrong gateway, DNS records for a mail server, port forwarding, route types, DNS resolution, bottom-up troubleshooting, 802.1Q trunk",
+      "New random calculations: longest prefix match in a routing table, VLSM allocation"
     ]
   }
 }

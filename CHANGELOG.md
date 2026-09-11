@@ -10,6 +10,18 @@ All changes to Patchfeld. Version scheme: every digit runs from 0 to 9 –
 
 <!-- releases -->
 
+## 0.0.7 – 2026-09-11
+
+- Netzwerkdienste & Routing auf 20 Fragen erweitert
+- Neue Themen: DHCP-Relay und APIPA, DHCP-Bereich mit Ausschlüssen, DNS-TTL, Voice-VLAN, DHCP-Snooping, falsches Gateway, DNS-Einträge für Mailserver, Portweiterleitung, Routenarten, DNS-Auflösung, Fehlersuche von unten nach oben, 802.1Q-Trunk
+- Neue Rechenaufgaben mit Zufallswerten: Longest Prefix Match in der Routingtabelle, VLSM-Aufteilung
+
+**English**
+
+- Network services & routing extended to 20 questions
+- New topics: DHCP relay and APIPA, DHCP scope with exclusions, DNS TTL, voice VLAN, DHCP snooping, wrong gateway, DNS records for a mail server, port forwarding, route types, DNS resolution, bottom-up troubleshooting, 802.1Q trunk
+- New random calculations: longest prefix match in a routing table, VLSM allocation
+
 ## 0.0.6 – 2026-09-11
 
 - Netzwerkgrundlagen auf 20 Fragen erweitert
