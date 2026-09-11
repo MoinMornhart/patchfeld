@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Patchfeld</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<meta name="app-version" content="0.1.8">
+<meta name="app-version" content="0.1.9">
 <meta name="theme-color" content="#1b1f24">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -311,8 +311,11 @@ dialog::backdrop{background:rgba(10,12,14,.55)}
 /* =====================================================================
    PATCHFELD – Kern: Version, Bereiche, Hilfsfunktionen, Generatoren
    ===================================================================== */
-const APP_VERSION = '0.1.8';
+const APP_VERSION = '0.1.9';
 const CHANGELOG = [
+  {v:'0.1.9', d:'2026-09-11',
+   de:['Active Directory & Rechte auf 20 Fragen erweitert','Neue Themen: Kopieren vs. Verschieben und NTFS-Rechte, Loopback-Verarbeitung, DNS beim Domänenbeitritt, Gruppenbereiche, explizites Zulassen vs. geerbtes Verweigern, GPO-Fehlersuche, Fine-Grained Password Policies, Entra Connect, AD-Struktur, FSMO-Rollen, erster Domänencontroller, GPO-Rollout, Delegierung','Neue Rechenaufgaben mit Zufallswerten: Kontosperrung aus Anmeldeprotokoll, Gruppen und Mitgliedschaften nach AGDLP'],
+   en:['Active Directory & permissions extended to 20 questions','New topics: copying vs moving and NTFS permissions, loopback processing, DNS for domain join, group scopes, explicit allow vs inherited deny, GPO troubleshooting, fine-grained password policies, Entra Connect, AD structure, FSMO roles, first domain controller, GPO rollout, delegation','New random calculations: account lockout from a logon log, groups and memberships per AGDLP']},
   {v:'0.1.8', d:'2026-09-11',
    de:['Cloud & Hybridbetrieb auf 20 Fragen erweitert','Neue Themen: Shared Responsibility nach Kompromittierung, NIST-Merkmale, Bereitstellungsmodelle, Entra Cloud Sync, Autoscaling über Verfügbarkeitszonen, CAL-Kombination, Reserved/Spot/On-Demand, Archiv-Speicher, Authentifizierungsvarianten im Hybridbetrieb, BYOL, Exit-Strategie, CLOUD Act','Neue Rechenaufgaben mit Zufallswerten: monatliche Cloud-Rechnung, Lizenzierung pro Kern'],
    en:['Cloud & hybrid operation extended to 20 questions','New topics: shared responsibility after a compromise, NIST characteristics, deployment models, Entra Cloud Sync, autoscaling across availability zones, combining CALs, reserved/spot/on-demand, archive storage, hybrid authentication options, BYOL, exit strategy, CLOUD Act','New random calculations: monthly cloud bill, per-core licensing']},
@@ -2167,6 +2170,207 @@ Q.push(
      m:'Decline with reasons:\n• Principle of least privilege (need-to-know).\n• Full control also allows changing permissions and deleting – ransomware or a mistake would then encrypt/delete all drives.\n• Confidential data of other departments (e.g. HR) would be exposed – a data protection breach.\nSolution: role concept with groups (AGDLP), "Modify" on the required project folders, documented request process for further access.',
      k:['Least privilege / need-to-know','Risk of deletion, ransomware','Data protection / confidential data','Group-based role concept','"Modify" instead of full control','Documented request process']}}
 );
+/* ----- BEREICH:ad – Erweiterung ----- */
+/* Kontosperrung: Fehlversuche mit Zurücksetzungsdauer auswerten */
+GEN.adLockout = function(L){
+  let T, W, D; do { T = pick([3,4,5]); W = pick([10,15,20,30]); D = pick([15,30,60]); } while (D < W);
+  const reset = Math.random() < 0.7, k1 = rnd(1, T-1);
+  const hm = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+  const times = []; let t = rnd(600, 675);
+  for (let i = 0; i < k1; i++){ times.push(t); t += rnd(1,4); }
+  t = times[k1-1] + (reset ? W + rnd(2,25) : rnd(Math.max(1, W-8), W-2));
+  for (let i = 0; i < (reset ? T : T-k1); i++){ times.push(t); t += rnd(1,4); }
+  const lockT = times[times.length-1], unlock = lockT + D, gap = times[k1] - times[k1-1];
+  const maxGap = Math.max(...times.slice(1).map((v,i) => v - times[i]));
+  const who = pick([['Herr Brandt aus dem Einkauf','Mr Brandt from purchasing'],['Frau Yilmaz aus der Buchhaltung','Ms Yilmaz from accounting'],['Herr Novak aus dem Vertrieb','Mr Novak from sales']]);
+  const eDe = reset
+    ? `Zwischen Versuch ${k1} (${hm(times[k1-1])}) und Versuch ${k1+1} (${hm(times[k1])}) liegen ${gap} min – mehr als die ${W} min Zurücksetzungsdauer. Der Zähler steht danach wieder auf 0, der Versuch um ${hm(times[k1])} zählt als 1. Der ${T}. Fehlversuch in Folge erfolgt um ${hm(lockT)} (Nr. ${times.length}) → Sperre. Entsperrung: ${hm(lockT)} + ${D} min = ${hm(unlock)}.`
+    : `Kein Abstand zwischen zwei Fehlversuchen erreicht die ${W} min Zurücksetzungsdauer (größter Abstand ${maxGap} min), der Zähler wird also nie zurückgesetzt. Beim ${T}. Fehlversuch um ${hm(lockT)} wird das Konto gesperrt. Entsperrung: ${hm(lockT)} + ${D} min = ${hm(unlock)}.`;
+  const eEn = reset
+    ? `Between attempt ${k1} (${hm(times[k1-1])}) and attempt ${k1+1} (${hm(times[k1])}) there are ${gap} min – more than the ${W} min reset time. The counter is back at 0, so the attempt at ${hm(times[k1])} counts as 1. The ${T===3?'3rd':T+'th'} consecutive failure happens at ${hm(lockT)} (no. ${times.length}) → lockout. Unlock: ${hm(lockT)} + ${D} min = ${hm(unlock)}.`
+    : `No gap between two failed attempts reaches the ${W} min reset time (largest gap ${maxGap} min), so the counter is never reset. The account is locked at the ${T===3?'3rd':T+'th'} failure at ${hm(lockT)}. Unlock: ${hm(lockT)} + ${D} min = ${hm(unlock)}.`;
+  return { t:'in',
+    s: tx(L, `${who[0]} meldet sich nach dem Urlaub mehrfach mit einem alten Kennwort an. In der Default Domain Policy gilt: Kontensperrungsschwelle ${T} ungültige Anmeldeversuche, Kontosperrdauer ${D} Minuten, Zurücksetzungsdauer des Kontosperrungszählers ${W} Minuten. Das Sicherheitsprotokoll zeigt folgende Fehlversuche; dazwischen gab es keine erfolgreiche Anmeldung.`,
+             `${who[1]} logs on several times with an old password after the holidays. The Default Domain Policy sets: account lockout threshold ${T} invalid logon attempts, account lockout duration ${D} minutes, reset account lockout counter after ${W} minutes. The security log shows the following failed attempts; there was no successful logon in between.`),
+    tb: {h: tx(L, ['Nr.','Uhrzeit','Ereignis'], ['No.','Time','Event']), r: times.map((v,i) => [i+1, hm(v), tx(L,'Anmeldung mit falschem Kennwort','Logon with wrong password')])},
+    q: tx(L, 'Um wie viel Uhr wird das Konto gesperrt und um wie viel Uhr automatisch wieder entsperrt? Angabe als hh:mm.', 'At what time is the account locked out and at what time is it automatically unlocked? Answer as hh:mm.'),
+    f: [ {l:tx(L,'Gesperrt um','Locked out at'), v:hm(lockT)}, {l:tx(L,'Entsperrt um','Unlocked at'), v:hm(unlock)} ],
+    e: tx(L, eDe, eEn),
+    n: reset
+      ? tx(L, `Naheliegend, aber falsch: alle Fehlversuche durchzuzählen und die Sperre schon um ${hm(times[T-1])} anzusetzen – nach ${W} min ohne Fehlversuch beginnt der Zähler wieder bei 0.`, `Tempting but wrong: counting all failures and assuming the lockout at ${hm(times[T-1])} – after ${W} min without a failure the counter restarts at 0.`)
+      : tx(L, `Naheliegend, aber falsch: die Sperrdauer ab dem ersten Fehlversuch (${hm(times[0])}) zu rechnen – sie beginnt erst mit dem Versuch, der die Schwelle erreicht.`, `Tempting but wrong: counting the lockout duration from the first failure (${hm(times[0])}) – it starts only with the attempt that reaches the threshold.`)
+  };
+};
+
+/* AGDLP: Gruppen und Verschachtelungen aus einer Zugriffsmatrix ableiten */
+GEN.adAgdlp = function(L){
+  let deps, fols, mx, dl, nest;
+  do {
+    deps = shuffle([['Vertrieb','Sales'],['Einkauf','Purchasing'],['Buchhaltung','Accounting'],['Technik','Engineering'],['Personal','HR'],['Marketing','Marketing']]).slice(0, rnd(3,4));
+    fols = shuffle([['Angebote','Offers'],['Kalkulation','Costing'],['Preislisten','PriceLists'],['Projekte','Projects'],['Rechnungen','Invoices'],['Vorlagen','Templates']]).slice(0, rnd(4,5));
+    mx = fols.map(() => deps.map(() => { const r = Math.random(); return r < 0.4 ? 0 : r < 0.75 ? 1 : 2; }));
+    dl = []; nest = 0;
+    fols.forEach((f,i) => { [1,2].forEach(lv => { if (mx[i].includes(lv)) dl.push([f, lv]); }); nest += mx[i].filter(v => v).length; });
+  } while (mx.some(r => r.every(v => !v)) || nest <= dl.length);
+  const G = deps.length, lvl = [null, tx(L,'Lesen','Read'), tx(L,'Ändern','Modify')], di = tx(L,0,1);
+  const dlNames = dl.map(([f,lv]) => `DL_${f[di]}_${lvl[lv]}`).join(', ');
+  return { t:'in',
+    s: tx(L, 'Auf dem neuen Fileserver FS01 sollen die Abteilungsordner nach dem AGDLP-Prinzip berechtigt werden. Die Fachabteilungen haben folgenden Zugriffsbedarf gemeldet.', 'On the new file server FS01 the department folders are to be permissioned according to the AGDLP principle. The departments have reported the following access requirements.'),
+    tb: {h: [tx(L,'Ordner','Folder'), ...deps.map(d => d[di])], r: fols.map((f,i) => [f[di], ...mx[i].map(v => v ? lvl[v] : '–')])},
+    q: tx(L, 'Je Abteilung gibt es eine globale Gruppe, je Ordner und tatsächlich benötigter Berechtigungsstufe genau eine domänenlokale Gruppe. Wie viele globale und domänenlokale Gruppen brauchen Sie, und wie viele Mitgliedschaften globaler Gruppen in domänenlokalen Gruppen entstehen?', 'There is one global group per department and exactly one domain local group per folder and permission level actually needed. How many global and domain local groups do you need, and how many memberships of global groups in domain local groups result?'),
+    f: [ {l:tx(L,'Globale Gruppen','Global groups'), v:G, tol:0}, {l:tx(L,'Domänenlokale Gruppen','Domain local groups'), v:dl.length, tol:0}, {l:tx(L,'Mitgliedschaften G in DL','Memberships G in DL'), v:nest, tol:0} ],
+    e: tx(L, `Globale Gruppen: eine je Abteilung → ${G}. Domänenlokale Gruppen: eine je Ordner und vorkommender Stufe → ${dl.length} (${dlNames}). Jede ausgefüllte Zelle ist eine Mitgliedschaft der globalen Abteilungsgruppe in der passenden DL-Gruppe → ${nest}. Nur die DL-Gruppen erhalten NTFS-Berechtigungen.`,
+             `Global groups: one per department → ${G}. Domain local groups: one per folder and occurring level → ${dl.length} (${dlNames}). Every filled cell is a membership of the department's global group in the matching DL group → ${nest}. Only the DL groups receive NTFS permissions.`),
+    n: tx(L, `Naheliegend, aber falsch: für jede ausgefüllte Zelle eine eigene domänenlokale Gruppe anzulegen (das wären ${nest}) – mehrere globale Gruppen können Mitglied derselben DL-Gruppe sein.`, `Tempting but wrong: creating a separate domain local group for every filled cell (that would be ${nest}) – several global groups can be members of the same DL group.`)
+  };
+};
+
+Q.push(
+{id:'ad-06', a:'ad', t:'sc', c:0,
+ de:{s:'Auf dem Fileserver liegen D:\\Personal (nur DL_Personal_Ändern und Administratoren berechtigt) und D:\\Austausch (Domänen-Benutzer: Ändern). Eine Personalsachbearbeiterin kopiert die Datei „Gehaltsliste.xlsx“ per Kopieren und Einfügen von D:\\Personal nach D:\\Austausch.',
+     q:'Welche NTFS-Berechtigungen hat die Kopie in D:\\Austausch?',
+     o:['Sie erbt die Berechtigungen des Zielordners – alle Domänen-Benutzer können sie ändern','Sie behält die Berechtigungen aus D:\\Personal, weil Quelle und Ziel auf demselben Volume liegen','Sie hat zunächst keine Berechtigungen, bis ein Administrator welche vergibt','Sie erhält die Schnittmenge der Berechtigungen von Quell- und Zielordner'],
+     e:'Eine Kopie ist immer ein neues Objekt und erbt die Berechtigungen des Zielordners – egal, ob das Volume dasselbe ist. Die Gehaltsliste ist damit für alle Domänen-Benutzer änderbar – ein Datenschutzvorfall.',
+     n:'Die ursprünglichen Berechtigungen bleiben nur beim Verschieben innerhalb desselben NTFS-Volumes erhalten. Beim Kopieren und beim Verschieben auf ein anderes Volume gelten die Rechte des Ziels.'},
+ en:{s:'The file server holds D:\\HR (only DL_HR_Modify and administrators have access) and D:\\Exchange (Domain Users: Modify). An HR clerk copies the file "Payroll.xlsx" from D:\\HR to D:\\Exchange using copy and paste.',
+     q:'Which NTFS permissions does the copy in D:\\Exchange have?',
+     o:['It inherits the permissions of the target folder – all domain users can modify it','It keeps the permissions from D:\\HR because source and target are on the same volume','It has no permissions at first until an administrator assigns some','It receives the intersection of the source and target folder permissions'],
+     e:'A copy is always a new object and inherits the permissions of the target folder – regardless of whether the volume is the same. The payroll list can now be modified by all domain users – a data protection incident.',
+     n:'The original permissions are only kept when moving within the same NTFS volume. When copying, and when moving to another volume, the permissions of the target apply.'}},
+{id:'ad-07', a:'ad', t:'sc', c:0,
+ de:{s:'Im Schulungsraum stehen 12 PCs in der OU „Schulung-PCs“. Egal welcher Mitarbeiter sich dort anmeldet, er soll eine eingeschränkte Oberfläche erhalten (Einstellungen der Benutzerkonfiguration). Die Benutzerkonten liegen in den Abteilungs-OUs. Die GPO mit diesen Benutzereinstellungen ist mit der OU „Schulung-PCs“ verknüpft, wirkt aber nicht.',
+     q:'Welche Maßnahme löst das Problem fachgerecht?',
+     o:['In der Computerkonfiguration einer GPO auf „Schulung-PCs“ den Loopbackverarbeitungsmodus für Benutzergruppenrichtlinie auf „Ersetzen“ setzen','Die GPO zusätzlich mit der Domäne verknüpfen und „Erzwungen“ aktivieren','Alle Benutzerkonten zusätzlich in die OU „Schulung-PCs“ verschieben','Auf den Schulungs-PCs gpupdate /force ausführen und neu starten'],
+     e:'Benutzereinstellungen wirken normalerweise nur auf Benutzerobjekte in der verknüpften OU. Mit Loopback werden bei der Anmeldung an diesen Computern die Benutzereinstellungen der GPOs angewendet, die für das Computerobjekt gelten. „Ersetzen“ verwirft die normalen Benutzer-GPOs, „Zusammenführen“ ergänzt sie.',
+     n:'gpupdate /force stößt nur eine Aktualisierung an – solange die GPO keine Benutzerobjekte erreicht, bleibt die Benutzerkonfiguration wirkungslos. Eine erzwungene Domänenverknüpfung würde alle Benutzer an allen PCs einschränken.'},
+ en:{s:'The training room has 12 PCs in the OU "Training-PCs". Whichever employee logs on there should get a restricted desktop (user configuration settings). The user accounts are in the department OUs. The GPO with these user settings is linked to the OU "Training-PCs" but has no effect.',
+     q:'Which measure solves the problem properly?',
+     o:['In the computer configuration of a GPO on "Training-PCs", set "Configure user Group Policy loopback processing mode" to "Replace"','Additionally link the GPO to the domain and set it to "Enforced"','Additionally move all user accounts into the OU "Training-PCs"','Run gpupdate /force on the training PCs and restart them'],
+     e:'User settings normally only apply to user objects in the linked OU. With loopback, the user settings of the GPOs that apply to the computer object are applied at logon to these computers. "Replace" discards the normal user GPOs, "Merge" adds to them.',
+     n:'gpupdate /force only triggers a refresh – as long as the GPO does not reach any user objects, the user configuration has no effect. An enforced domain link would restrict all users on all PCs.'}},
+{id:'ad-08', a:'ad', t:'sc', c:0,
+ de:{s:'In der neuen Niederlassung sollen PCs der Domäne ad.firma.de beitreten. Der Router verteilt per DHCP die IP-Adressen und trägt als DNS-Server 1.1.1.1 ein. Die VPN-Verbindung zur Zentrale steht, ein Ping auf den Domänencontroller 10.0.0.10 funktioniert. Der Domänenbeitritt bricht mit der Meldung ab, dass kein AD-Domänencontroller für die Domäne kontaktiert werden konnte.',
+     q:'Was ist die wahrscheinlichste Ursache und wie beheben Sie sie?',
+     o:['Die Clients können die SRV-Einträge der Domäne nicht auflösen – per DHCP-Option 006 den DC 10.0.0.10 als DNS-Server verteilen','Die Uhrzeit der Clients weicht mehr als 5 Minuten ab – die Zeitsynchronisation korrigieren','Der Domänencontroller ist kein globaler Katalog – die GC-Funktion aktivieren','Die Computerkonten fehlen im Container „Computers“ – sie vorab im AD anlegen'],
+     e:'Clients finden Domänencontroller über DNS-SRV-Einträge wie _ldap._tcp.dc._msdcs.ad.firma.de. Ein öffentlicher DNS-Server kennt die interne Zone nicht, also scheitert die DC-Suche, obwohl die IP-Verbindung steht. Domänenmitglieder nutzen nur interne DNS-Server, die externe Anfragen weiterleiten.',
+     n:'Eine abweichende Uhrzeit stört die Kerberos-Anmeldung, aber nicht das Auffinden des Domänencontrollers. Der erfolgreiche Ping zeigt, dass das Netz funktioniert – es fehlt die Namensauflösung.'},
+ en:{s:'PCs in the new branch office are to join the domain ad.firma.de. The router hands out IP addresses via DHCP and sets 1.1.1.1 as DNS server. The VPN to headquarters is up, and a ping to the domain controller 10.0.0.10 works. The domain join aborts with the message that no AD domain controller for the domain could be contacted.',
+     q:'What is the most likely cause and how do you fix it?',
+     o:['The clients cannot resolve the domain\'s SRV records – distribute the DC 10.0.0.10 as DNS server via DHCP option 006','The clients\' clock is more than 5 minutes off – correct the time synchronisation','The domain controller is not a global catalog – enable the GC function','The computer accounts are missing in the "Computers" container – pre-create them in AD'],
+     e:'Clients locate domain controllers via DNS SRV records such as _ldap._tcp.dc._msdcs.ad.firma.de. A public DNS server does not know the internal zone, so the DC lookup fails although IP connectivity exists. Domain members use only internal DNS servers, which forward external queries.',
+     n:'A clock offset disturbs Kerberos authentication, but not locating the domain controller. The successful ping shows that the network works – name resolution is what is missing.'}},
+{id:'ad-09', a:'ad', t:'sc', c:0,
+ de:{s:'Nach der Übernahme eines Tochterunternehmens besteht die Gesamtstruktur aus den Domänen firma.de und nord.firma.de. Die Controllerin J. Wolf (Konto in nord.firma.de) soll auf Berichte in firma.de zugreifen. Ein Kollege will ihr Konto dafür in verschiedene Gruppen aufnehmen.',
+     q:'In welche dieser Gruppen kann das Konto von J. Wolf NICHT direkt aufgenommen werden?',
+     o:['Globale Gruppe G_Controlling in firma.de','Domänenlokale Gruppe DL_Berichte_Lesen in firma.de','Universelle Gruppe U_Konzernberichte in firma.de','Globale Gruppe G_Controlling_Nord in nord.firma.de'],
+     e:'Globale Gruppen dürfen nur Konten und globale Gruppen der eigenen Domäne enthalten. Nach AGDLP kommt J. Wolf in eine globale Gruppe ihrer Domäne nord.firma.de, diese wird Mitglied der domänenlokalen Gruppe in firma.de.',
+     n:'Die domänenlokale Gruppe klingt eingeschränkt, darf aber Mitglieder aus allen Domänen der Gesamtstruktur und vertrauter Domänen enthalten – beschränkt ist nur, wo sie für Berechtigungen verwendet werden kann.'},
+ en:{s:'After acquiring a subsidiary, the forest consists of the domains firma.de and nord.firma.de. The controller J. Wolf (account in nord.firma.de) needs access to reports in firma.de. A colleague wants to add her account to various groups for this.',
+     q:'Which of these groups can J. Wolf\'s account NOT be added to directly?',
+     o:['Global group G_Controlling in firma.de','Domain local group DL_Reports_Read in firma.de','Universal group U_GroupReports in firma.de','Global group G_Controlling_Nord in nord.firma.de'],
+     e:'Global groups may only contain accounts and global groups from their own domain. Following AGDLP, J. Wolf goes into a global group of her domain nord.firma.de, which then becomes a member of the domain local group in firma.de.',
+     n:'The domain local group sounds restricted, but it may contain members from all domains of the forest and from trusted domains – what is restricted is only where it can be used for permissions.'}},
+{id:'ad-10', a:'ad', t:'sc', c:0,
+ de:{s:'Auf D:\\Projekte ist für die Gruppe DL_Praktikanten „Schreiben – Verweigern“ gesetzt und wird an alle Unterordner vererbt. Auf dem Unterordner D:\\Projekte\\Schulung hat ein Kollege zusätzlich eine explizite Berechtigung „Ändern – Zulassen“ für DL_Praktikanten eingetragen, die Vererbung dort aber aktiv gelassen. Die Freigabeberechtigungen schränken nicht ein. Praktikant Tim will eine Datei in Schulung speichern.',
+     q:'Kann Tim die Datei speichern?',
+     o:['Ja – eine explizite Zulassung hat Vorrang vor einer geerbten Verweigerung','Nein – Verweigern hat immer Vorrang vor Zulassen','Nein – geerbte Berechtigungen lassen sich erst nach Deaktivieren der Vererbung übersteuern','Ja – aber nur, wenn Tim Besitzer des Ordners Schulung ist'],
+     e:'Windows prüft die Einträge in der Reihenfolge explizit Verweigern, explizit Zulassen, geerbt Verweigern, geerbt Zulassen. Die explizite Zulassung am Ordner Schulung greift vor der geerbten Verweigerung. Kontrolle über den Reiter „Effektiver Zugriff“ in den erweiterten Sicherheitseinstellungen.',
+     n:'„Verweigern schlägt Zulassen“ gilt nur auf gleicher Ebene, also wenn beide explizit oder beide geerbt sind. Eine geerbte Verweigerung wird von einer expliziten Zulassung übersteuert.'},
+ en:{s:'On D:\\Projects, "Write – Deny" is set for the group DL_Interns and inherited by all subfolders. On the subfolder D:\\Projects\\Training a colleague has additionally added an explicit "Modify – Allow" permission for DL_Interns, leaving inheritance enabled. The share permissions do not restrict anything. Intern Tim wants to save a file in Training.',
+     q:'Can Tim save the file?',
+     o:['Yes – an explicit allow takes precedence over an inherited deny','No – deny always takes precedence over allow','No – inherited permissions can only be overridden after disabling inheritance','Yes – but only if Tim is the owner of the Training folder'],
+     e:'Windows checks the entries in the order explicit deny, explicit allow, inherited deny, inherited allow. The explicit allow on the Training folder applies before the inherited deny. Check it on the "Effective Access" tab of the advanced security settings.',
+     n:'"Deny beats allow" only holds at the same level, i.e. when both are explicit or both inherited. An inherited deny is overridden by an explicit allow.'}},
+{id:'ad-11', a:'ad', t:'mc', c:[0,1,2],
+ de:{s:'Die neue GPO „Laufwerke Einkauf“ (Benutzerkonfiguration, Laufwerkszuordnung über Einstellungen) ist mit der OU „Einkauf“ verknüpft, die Sicherheitsfilterung enthält nur G_Einkauf. Herr Lang aus dem Einkauf erhält das Laufwerk trotz Neuanmeldung nicht; gpresult /r führt die GPO bei ihm nicht unter den angewendeten Richtlinien auf.',
+     q:'Welche Ursachen kommen in Frage? (Mehrere Antworten)',
+     o:['Sein Benutzerkonto liegt noch im Standardcontainer „Users“ statt in der OU „Einkauf“','Die Verknüpfung der GPO mit der OU ist deaktiviert','Herr Lang ist nicht Mitglied der Gruppe G_Einkauf','Herr Lang hat keine lokalen Administratorrechte auf seinem PC','Die Default Domain Policy ist auf „Erzwungen“ gesetzt'],
+     e:'Eine Benutzer-GPO erreicht nur Benutzerobjekte in der verknüpften OU (mit dem Container „Users“ lassen sich keine GPOs verknüpfen), die Verknüpfung muss aktiviert sein und der Benutzer muss von der Sicherheitsfilterung erfasst werden.',
+     n:'Lokale Administratorrechte sind für die Anwendung von GPOs nicht nötig – der Gruppenrichtliniendienst verarbeitet sie ohne Zutun des Benutzers. Eine erzwungene Default Domain Policy setzt sich nur bei widersprüchlichen Einstellungen durch, blendet andere GPOs aber nicht aus.'},
+ en:{s:'The new GPO "Drives Purchasing" (user configuration, drive mapping via preferences) is linked to the OU "Purchasing"; its security filtering contains only G_Purchasing. Mr Lang from purchasing does not get the drive despite logging on again; gpresult /r does not list the GPO among his applied policies.',
+     q:'Which causes are possible? (Multiple answers)',
+     o:['His user account is still in the default container "Users" instead of the OU "Purchasing"','The GPO\'s link to the OU is disabled','Mr Lang is not a member of the group G_Purchasing','Mr Lang has no local administrator rights on his PC','The Default Domain Policy is set to "Enforced"'],
+     e:'A user GPO only reaches user objects in the linked OU (GPOs cannot be linked to the "Users" container), the link must be enabled and the user must be covered by the security filtering.',
+     n:'Local administrator rights are not needed for GPOs to apply – the Group Policy service processes them without user action. An enforced Default Domain Policy only wins where settings conflict; it does not hide other GPOs.'}},
+{id:'ad-12', a:'ad', t:'mc', c:[0,2,3],
+ de:{s:'Die IT-Leitung verlangt: Alle Mitarbeiter brauchen Kennwörter mit mindestens 12 Zeichen, die Administratorkonten (Gruppe G_Admins) mindestens 16 Zeichen und eine Sperre nach 3 Fehlversuchen. Ein Kollege plant die Umsetzung.',
+     q:'Welche Aussagen zur Umsetzung sind richtig? (Mehrere Antworten)',
+     o:['Die 12 Zeichen für alle Domänenkonten werden in einer GPO auf Domänenebene festgelegt, üblicherweise in der Default Domain Policy','Eine GPO mit Kennwortrichtlinie, verknüpft mit der OU „Admins“, setzt die 16 Zeichen für die Domänenkonten in dieser OU durch','Für die Administratoren wird ein Password Settings Object (differenzierte Kennwortrichtlinie) angelegt und der globalen Sicherheitsgruppe G_Admins zugewiesen','Gelten für ein Konto mehrere PSOs, gewinnt das PSO mit dem niedrigsten Rangfolgewert (Precedence)','Ein PSO wird wie eine GPO mit der OU verknüpft, in der die Administratorkonten liegen'],
+     e:'Die Kennwort- und Sperrrichtlinie für Domänenkonten wirkt nur aus GPOs auf Domänenebene. Abweichende Regeln für Benutzer oder globale Sicherheitsgruppen setzt man mit PSOs, z. B. im Active Directory-Verwaltungscenter. Bei mehreren PSOs gewinnt der niedrigste Precedence-Wert, ein direkt dem Benutzer zugewiesenes PSO geht Gruppen-PSOs vor.',
+     n:'Eine Kennwortrichtlinie in einer OU-GPO wirkt nur auf die lokalen Konten der Computer in dieser OU, nicht auf Domänenkonten – deshalb braucht man für abweichende Domänenregeln ein PSO.'},
+ en:{s:'IT management requires: all employees need passwords of at least 12 characters, administrator accounts (group G_Admins) at least 16 characters and a lockout after 3 failed attempts. A colleague is planning the implementation.',
+     q:'Which statements about the implementation are correct? (Multiple answers)',
+     o:['The 12 characters for all domain accounts are set in a GPO at domain level, usually the Default Domain Policy','A GPO with a password policy linked to the OU "Admins" enforces the 16 characters for the domain accounts in that OU','A Password Settings Object (fine-grained password policy) is created for the administrators and applied to the global security group G_Admins','If several PSOs apply to an account, the PSO with the lowest precedence value wins','A PSO is linked to the OU containing the administrator accounts, just like a GPO'],
+     e:'The password and lockout policy for domain accounts only takes effect from GPOs at domain level. Different rules for users or global security groups are set with PSOs, e.g. in the Active Directory Administrative Center. With several PSOs the lowest precedence value wins; a PSO applied directly to the user beats group PSOs.',
+     n:'A password policy in an OU GPO only affects the local accounts of the computers in that OU, not domain accounts – that is why different domain rules need a PSO.'}},
+{id:'ad-13', a:'ad', t:'mc', c:[0,1,3],
+ de:{s:'Das Unternehmen führt Microsoft 365 ein. Die Mitarbeiter sollen sich in der Cloud mit denselben Anmeldedaten wie im lokalen AD anmelden. Geplant ist Microsoft Entra Connect Sync mit Kennworthashsynchronisierung (PHS).',
+     q:'Welche Aussagen zu dieser Hybridlösung treffen zu? (Mehrere Antworten)',
+     o:['Benutzer und Gruppen werden aus dem lokalen AD nach Entra ID synchronisiert, das lokale AD bleibt führend','Es werden keine Klartextkennwörter übertragen, sondern ein weiterer Hash des Kennworthashes','Entra ID ersetzt die lokalen Domänencontroller, die GPOs werden danach aus der Cloud verteilt','Die Cloud-Anmeldung funktioniert auch, wenn die lokalen Domänencontroller vorübergehend nicht erreichbar sind','Entra ID übernimmt die lokale OU-Struktur, sodass OU-verknüpfte GPOs auch für Cloud-Dienste gelten'],
+     e:'Entra Connect Sync überträgt Identitäten aus dem lokalen AD (Quelle der Wahrheit) nach Entra ID. Bei PHS wird ein gesalzener, erneut gehashter Wert des Kennworthashes synchronisiert und die Anmeldung erfolgt direkt in Entra ID – deshalb auch ohne erreichbare lokale DCs.',
+     n:'Entra ID ist kein Domänencontroller in der Cloud: Es hat eine flache Struktur ohne OUs und GPOs. Cloud-verwaltete Geräte steuert man z. B. mit Intune, die lokalen DCs bleiben für die Domäne nötig.'},
+ en:{s:'The company is introducing Microsoft 365. Employees should sign in to the cloud with the same credentials as in the on-premises AD. Microsoft Entra Connect Sync with password hash synchronisation (PHS) is planned.',
+     q:'Which statements about this hybrid solution are true? (Multiple answers)',
+     o:['Users and groups are synchronised from the on-premises AD to Entra ID; the on-premises AD remains the source of authority','No plain-text passwords are transferred, but a further hash of the password hash','Entra ID replaces the on-premises domain controllers; GPOs are then distributed from the cloud','Cloud sign-in still works if the on-premises domain controllers are temporarily unreachable','Entra ID adopts the on-premises OU structure, so OU-linked GPOs also apply to cloud services'],
+     e:'Entra Connect Sync transfers identities from the on-premises AD (source of authority) to Entra ID. With PHS a salted, re-hashed value of the password hash is synchronised and authentication happens directly in Entra ID – so it works without reachable on-premises DCs.',
+     n:'Entra ID is not a domain controller in the cloud: it has a flat structure without OUs and GPOs. Cloud-managed devices are controlled e.g. with Intune; the on-premises DCs remain necessary for the domain.'}},
+{id:'ad-14', a:'ad', t:'match',
+ de:{s:'Sie erstellen für die Geschäftsleitung eine Übersicht zur geplanten AD-Struktur der Müller-Gruppe mit den Standorten Köln und Leipzig und einer Tochterfirma.',
+     q:'Ordnen Sie jedem Begriff die passende Beschreibung zu.',
+     p:[['Gesamtstruktur (Forest)','Äußerste Sicherheitsgrenze mit gemeinsamem Schema und globalem Katalog'],['Domäne','Verwaltungs- und Replikationseinheit mit eigener Benutzerdatenbank, z. B. ad.mueller.de'],['Organisationseinheit (OU)','Container innerhalb einer Domäne zum Delegieren von Rechten und Verknüpfen von GPOs'],['Standort (Site)','Abbild der physischen Netzstruktur (IP-Subnetze) zur Steuerung von Replikation und DC-Auswahl'],['Vertrauensstellung (Trust)','Beziehung, die Benutzern einer Domäne den Zugriff auf Ressourcen einer anderen erlaubt'],['Globaler Katalog','Teilreplikat aller Objekte der Gesamtstruktur für forestweite Suchen und universelle Gruppen']],
+     e:'AD trennt die logische Struktur (Gesamtstruktur, Domänen, OUs) von der physischen (Standorte, DCs). Die Sicherheitsgrenze ist die Gesamtstruktur, nicht die Domäne.',
+     n:'OUs und Standorte werden oft verwechselt: Eine OU „Leipzig“ ordnet Objekte nur logisch und beeinflusst die Replikation nicht – dafür braucht man einen Standort mit zugeordnetem Subnetz.'},
+ en:{s:'You are preparing an overview of the planned AD structure of the Müller Group, with sites in Cologne and Leipzig and a subsidiary, for management.',
+     q:'Match each term to the correct description.',
+     p:[['Forest','Outermost security boundary with a common schema and global catalog'],['Domain','Administrative and replication unit with its own user database, e.g. ad.mueller.de'],['Organizational unit (OU)','Container within a domain for delegating rights and linking GPOs'],['Site','Representation of the physical network (IP subnets) to control replication and DC selection'],['Trust','Relationship that allows users of one domain to access resources of another'],['Global catalog','Partial replica of all objects in the forest for forest-wide searches and universal groups']],
+     e:'AD separates the logical structure (forest, domains, OUs) from the physical one (sites, DCs). The security boundary is the forest, not the domain.',
+     n:'OUs and sites are often confused: an OU "Leipzig" only organises objects logically and does not affect replication – that requires a site with an assigned subnet.'}},
+{id:'ad-15', a:'ad', t:'match',
+ de:{s:'Der alte Domänencontroller DC01 soll außer Betrieb gehen. netdom query fsmo zeigt, dass er alle FSMO-Rollen hält. Vor dem Übertragen erklären Sie dem Auszubildenden die Rollen.',
+     q:'Ordnen Sie jeder FSMO-Rolle ihre Aufgabe zu.',
+     p:[['Schemamaster','Einzige Stelle, an der das AD-Schema erweitert werden kann'],['Domänennamenmaster','Hinzufügen und Entfernen von Domänen in der Gesamtstruktur'],['RID-Master','Vergabe von RID-Pools an die DCs zur Bildung eindeutiger SIDs'],['PDC-Emulator','Zeitquelle der Domäne und bevorzugte Stelle für Kennwortänderungen und Kontosperrungen'],['Infrastrukturmaster','Aktualisierung von Verweisen auf Objekte aus anderen Domänen']],
+     e:'Schema- und Domänennamenmaster gibt es einmal je Gesamtstruktur, RID-Master, PDC-Emulator und Infrastrukturmaster einmal je Domäne. Übertragen werden sie z. B. mit Move-ADDirectoryServerOperationMasterRole, bevor DC01 herabgestuft wird.',
+     n:'Die Zeitquelle wird gern dem Schemamaster zugeordnet, weil er als „oberster“ Master gilt – tatsächlich ist der PDC-Emulator der Stammdomäne die Zeitreferenz der Gesamtstruktur.'},
+ en:{s:'The old domain controller DC01 is to be decommissioned. netdom query fsmo shows that it holds all FSMO roles. Before transferring them, you explain the roles to the apprentice.',
+     q:'Match each FSMO role to its task.',
+     p:[['Schema master','The only place where the AD schema can be extended'],['Domain naming master','Adding and removing domains in the forest'],['RID master','Allocating RID pools to the DCs to build unique SIDs'],['PDC emulator','Time source of the domain and preferred point for password changes and account lockouts'],['Infrastructure master','Updating references to objects from other domains']],
+     e:'The schema and domain naming masters exist once per forest; the RID master, PDC emulator and infrastructure master once per domain. They are transferred e.g. with Move-ADDirectoryServerOperationMasterRole before DC01 is demoted.',
+     n:'The time source is often attributed to the schema master because it seems the "top" master – in fact the PDC emulator of the forest root domain is the time reference for the forest.'}},
+{id:'ad-16', a:'ad', t:'order',
+ de:{s:'Die Becker Logistik GmbH (40 Mitarbeiter) erhält ihre erste AD-Domäne ad.becker-logistik.de. Ein neuer Server mit Windows Server 2025 ist frisch installiert, die Clients beziehen ihre Adressen per DHCP.',
+     q:'Bringen Sie die Schritte bis zur ersten Domänenanmeldung eines Clients in die richtige Reihenfolge.',
+     o:['Statische IP-Adresse und endgültigen Servernamen festlegen','Rolle „Active Directory-Domänendienste“ installieren','Server zum Domänencontroller heraufstufen (neue Gesamtstruktur, DNS-Server, DSRM-Kennwort) und neu starten','Im DHCP-Bereich den Domänencontroller als DNS-Server (Option 006) eintragen','Client der Domäne beitreten lassen und mit einem Domänenkonto anmelden'],
+     e:'Name und IP-Adresse müssen vor dem Heraufstufen feststehen, weil sie in DNS und AD registriert werden. Erst wenn der DC mit DNS läuft, verweisen die Clients per DHCP auf ihn und können die Domäne finden und beitreten.',
+     n:'Den Server erst nach dem Heraufstufen umzubenennen oder umzuadressieren ist ein typischer Fehler – DNS-Einträge, Zertifikate und Verweise müssen dann aufwendig nachgezogen werden.'},
+ en:{s:'Becker Logistik GmbH (40 employees) is getting its first AD domain ad.becker-logistik.de. A new server with Windows Server 2025 has just been installed; the clients obtain their addresses via DHCP.',
+     q:'Put the steps up to the first domain logon of a client in the correct order.',
+     o:['Set a static IP address and the final server name','Install the "Active Directory Domain Services" role','Promote the server to domain controller (new forest, DNS server, DSRM password) and restart','Enter the domain controller as DNS server (option 006) in the DHCP scope','Join the client to the domain and log on with a domain account'],
+     e:'Name and IP address must be final before promotion because they are registered in DNS and AD. Only when the DC is running with DNS do the clients point to it via DHCP and can find and join the domain.',
+     n:'Renaming or re-addressing the server after promotion is a typical mistake – DNS records, certificates and references then have to be fixed laboriously.'}},
+{id:'ad-17', a:'ad', t:'order',
+ de:{s:'Die Abteilung Einkauf soll per GPO das Netzlaufwerk P: auf \\\\fs01\\einkauf erhalten. Andere Abteilungen dürfen während der Einrichtung nicht beeinträchtigt werden.',
+     q:'Bringen Sie die Arbeitsschritte in eine sinnvolle Reihenfolge.',
+     o:['In der Gruppenrichtlinienverwaltung (GPMC) eine neue GPO unter „Gruppenrichtlinienobjekte“ anlegen, noch ohne Verknüpfung','Die Laufwerkszuordnung in der Benutzerkonfiguration einrichten und die Sicherheitsfilterung auf G_Einkauf setzen','Die fertige GPO mit der OU „Einkauf“ verknüpfen','Auf einem Test-PC gpupdate /force ausführen und den Testbenutzer neu anmelden','Mit gpresult /r prüfen, ob die GPO unter den angewendeten Richtlinien erscheint'],
+     e:'Eine GPO wird erst verknüpft, wenn Inhalt und Filterung fertig sind – sonst wirken halb konfigurierte Einstellungen sofort. Danach wird gezielt getestet und das Ergebnis mit gpresult nachgewiesen.',
+     n:'„GPO hier erstellen und verknüpfen“ direkt an der OU ist bequem, lässt unfertige Einstellungen aber schon beim nächsten Aktualisierungsintervall wirken.'},
+ en:{s:'The purchasing department is to receive the network drive P: pointing to \\\\fs01\\purchasing via GPO. Other departments must not be affected during the setup.',
+     q:'Put the work steps in a sensible order.',
+     o:['Create a new GPO under "Group Policy Objects" in the Group Policy Management Console (GPMC), not yet linked','Configure the drive mapping in the user configuration and set the security filtering to G_Purchasing','Link the finished GPO to the OU "Purchasing"','Run gpupdate /force on a test PC and log the test user on again','Check with gpresult /r whether the GPO appears among the applied policies'],
+     e:'A GPO is only linked once its content and filtering are complete – otherwise half-configured settings take effect immediately. Then it is tested specifically and the result is verified with gpresult.',
+     n:'"Create a GPO in this domain, and link it here" directly on the OU is convenient, but lets unfinished settings take effect at the next refresh interval.'}},
+{id:'ad-18', a:'ad', t:'open',
+ de:{s:'Der Helpdesk (Gruppe G_Helpdesk) muss täglich Kennwörter zurücksetzen und ruft dafür jedes Mal einen Administrator. Der Teamleiter schlägt vor: „Nehmt uns doch einfach in die Gruppe Domänen-Admins auf.“',
+     q:'Wie begründen Sie Ihre Ablehnung und wie setzen Sie die Anforderung stattdessen um?',
+     m:'Ablehnung:\n• Domänen-Admins haben Vollzugriff auf alle DCs, GPOs und Konten – ein kompromittiertes Helpdesk-Konto gefährdet die gesamte Domäne.\n• Prinzip der minimalen Rechte und Aufgabentrennung.\nUmsetzung:\n• Assistent „Objektverwaltung zuweisen“ auf den Benutzer-OUs ausführen, nicht auf der ganzen Domäne.\n• G_Helpdesk nur „Setzt Benutzerkennwörter zurück und erzwingt Kennwortänderung bei der nächsten Anmeldung“ delegieren, ggf. zusätzlich das Entsperren von Konten.\n• Administratorkonten in einer eigenen OU ohne diese Delegierung verwalten.\n• Mit einem Helpdesk-Konto testen, Delegierung dokumentieren, Kennwortrücksetzungen überwachen (Ereignis 4724).',
+     k:['Domänen-Admins = Vollzugriff auf die Domäne','Least Privilege / Aufgabentrennung','Delegierung auf OU-Ebene per Assistent','Nur Kennwort zurücksetzen und Entsperren','Administratorkonten ausnehmen','Test, Dokumentation, Überwachung']},
+ en:{s:'The helpdesk (group G_Helpdesk) has to reset passwords every day and calls an administrator each time. The team leader suggests: "Just add us to the Domain Admins group."',
+     q:'How do you justify declining and how do you implement the requirement instead?',
+     m:'Declining:\n• Domain Admins have full control over all DCs, GPOs and accounts – a compromised helpdesk account endangers the entire domain.\n• Principle of least privilege and separation of duties.\nImplementation:\n• Run the Delegation of Control Wizard on the user OUs, not on the whole domain.\n• Delegate to G_Helpdesk only "Reset user passwords and force password change at next logon", optionally also unlocking accounts.\n• Manage administrator accounts in a separate OU without this delegation.\n• Test with a helpdesk account, document the delegation, monitor password resets (event 4724).',
+     k:['Domain Admins = full control over the domain','Least privilege / separation of duties','Delegation at OU level via the wizard','Only reset passwords and unlock','Exclude administrator accounts','Test, documentation, monitoring']}},
+{id:'ad-19', a:'ad', gen:'adLockout'},
+{id:'ad-20', a:'ad', gen:'adAgdlp'}
+);
+
 </script>
 
 <script>

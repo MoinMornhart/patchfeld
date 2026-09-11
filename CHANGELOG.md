@@ -10,6 +10,18 @@ All changes to Patchfeld. Version scheme: every digit runs from 0 to 9 –
 
 <!-- releases -->
 
+## 0.1.9 – 2026-09-11
+
+- Active Directory & Rechte auf 20 Fragen erweitert
+- Neue Themen: Kopieren vs. Verschieben und NTFS-Rechte, Loopback-Verarbeitung, DNS beim Domänenbeitritt, Gruppenbereiche, explizites Zulassen vs. geerbtes Verweigern, GPO-Fehlersuche, Fine-Grained Password Policies, Entra Connect, AD-Struktur, FSMO-Rollen, erster Domänencontroller, GPO-Rollout, Delegierung
+- Neue Rechenaufgaben mit Zufallswerten: Kontosperrung aus Anmeldeprotokoll, Gruppen und Mitgliedschaften nach AGDLP
+
+**English**
+
+- Active Directory & permissions extended to 20 questions
+- New topics: copying vs moving and NTFS permissions, loopback processing, DNS for domain join, group scopes, explicit allow vs inherited deny, GPO troubleshooting, fine-grained password policies, Entra Connect, AD structure, FSMO roles, first domain controller, GPO rollout, delegation
+- New random calculations: account lockout from a logon log, groups and memberships per AGDLP
+
 ## 0.1.8 – 2026-09-11
 
 - Cloud & Hybridbetrieb auf 20 Fragen erweitert

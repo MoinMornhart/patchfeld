@@ -1,17 +1,17 @@
 {
-  "version": "0.1.8",
+  "version": "0.1.9",
   "date": "2026-09-11",
   "file": "index.html",
   "notes": {
     "de": [
-      "Cloud & Hybridbetrieb auf 20 Fragen erweitert",
-      "Neue Themen: Shared Responsibility nach Kompromittierung, NIST-Merkmale, Bereitstellungsmodelle, Entra Cloud Sync, Autoscaling über Verfügbarkeitszonen, CAL-Kombination, Reserved/Spot/On-Demand, Archiv-Speicher, Authentifizierungsvarianten im Hybridbetrieb, BYOL, Exit-Strategie, CLOUD Act",
-      "Neue Rechenaufgaben mit Zufallswerten: monatliche Cloud-Rechnung, Lizenzierung pro Kern"
+      "Active Directory & Rechte auf 20 Fragen erweitert",
+      "Neue Themen: Kopieren vs. Verschieben und NTFS-Rechte, Loopback-Verarbeitung, DNS beim Domänenbeitritt, Gruppenbereiche, explizites Zulassen vs. geerbtes Verweigern, GPO-Fehlersuche, Fine-Grained Password Policies, Entra Connect, AD-Struktur, FSMO-Rollen, erster Domänencontroller, GPO-Rollout, Delegierung",
+      "Neue Rechenaufgaben mit Zufallswerten: Kontosperrung aus Anmeldeprotokoll, Gruppen und Mitgliedschaften nach AGDLP"
     ],
     "en": [
-      "Cloud & hybrid operation extended to 20 questions",
-      "New topics: shared responsibility after a compromise, NIST characteristics, deployment models, Entra Cloud Sync, autoscaling across availability zones, combining CALs, reserved/spot/on-demand, archive storage, hybrid authentication options, BYOL, exit strategy, CLOUD Act",
-      "New random calculations: monthly cloud bill, per-core licensing"
+      "Active Directory & permissions extended to 20 questions",
+      "New topics: copying vs moving and NTFS permissions, loopback processing, DNS for domain join, group scopes, explicit allow vs inherited deny, GPO troubleshooting, fine-grained password policies, Entra Connect, AD structure, FSMO roles, first domain controller, GPO rollout, delegation",
+      "New random calculations: account lockout from a logon log, groups and memberships per AGDLP"
     ]
   }
 }
