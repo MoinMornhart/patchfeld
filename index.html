@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Patchfeld</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<meta name="app-version" content="0.0.7">
+<meta name="app-version" content="0.0.8">
 <meta name="theme-color" content="#1b1f24">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -311,8 +311,11 @@ dialog::backdrop{background:rgba(10,12,14,.55)}
 /* =====================================================================
    PATCHFELD – Kern: Version, Bereiche, Hilfsfunktionen, Generatoren
    ===================================================================== */
-const APP_VERSION = '0.0.7';
+const APP_VERSION = '0.0.8';
 const CHANGELOG = [
+  {v:'0.0.8', d:'2026-09-11',
+   de:['Speicher & Virtualisierung auf 20 Fragen erweitert','Neue Themen: RAID-5-Rebuild-Risiko, iSCSI (Initiator, Target, LUN), DAS/NFS/SMB/FC, Thin Provisioning, Datastore-Dimensionierung, Memory Ballooning, Container vs. VM, Deduplizierung und Tiering, Templates und Live-Migration, Snapshot-Konsolidierung, Hot-Spare-Rebuild','Neue Rechenaufgaben mit Zufallswerten: Schreib-IOPS mit RAID-Write-Penalty, Thin-Überbuchung'],
+   en:['Storage & virtualisation extended to 20 questions','New topics: RAID 5 rebuild risk, iSCSI (initiator, target, LUN), DAS/NFS/SMB/FC, thin provisioning, datastore sizing, memory ballooning, containers vs VMs, deduplication and tiering, templates and live migration, snapshot consolidation, hot spare rebuild','New random calculations: write IOPS with RAID write penalty, thin overcommitment']},
   {v:'0.0.7', d:'2026-09-11',
    de:['Netzwerkdienste & Routing auf 20 Fragen erweitert','Neue Themen: DHCP-Relay und APIPA, DHCP-Bereich mit Ausschlüssen, DNS-TTL, Voice-VLAN, DHCP-Snooping, falsches Gateway, DNS-Einträge für Mailserver, Portweiterleitung, Routenarten, DNS-Auflösung, Fehlersuche von unten nach oben, 802.1Q-Trunk','Neue Rechenaufgaben mit Zufallswerten: Longest Prefix Match in der Routingtabelle, VLSM-Aufteilung'],
    en:['Network services & routing extended to 20 questions','New topics: DHCP relay and APIPA, DHCP scope with exclusions, DNS TTL, voice VLAN, DHCP snooping, wrong gateway, DNS records for a mail server, port forwarding, route types, DNS resolution, bottom-up troubleshooting, 802.1Q trunk','New random calculations: longest prefix match in a routing table, VLSM allocation']},
@@ -2050,6 +2053,205 @@ Q.push(
      e:'Type 1 has direct hardware access, is therefore performant and suited to servers. Type 2 runs as an application on a host operating system.',
      n:'VirtualBox is a widespread hypervisor, but type 2 – it runs as a program on Windows, macOS or Linux.'}}
 );
+/* ----- BEREICH:speicher – Erweiterung ----- */
+/* RAID: nutzbare Host-IOPS unter Berücksichtigung des Write-Penalty */
+GEN.speicherWriteIops = function(L){
+  const lv = pick(['1','10','5','6']);
+  const P = {'1':2, '10':2, '5':4, '6':6}[lv];
+  const n = lv==='1' ? 2 : lv==='10' ? pick([4,6,8,12]) : lv==='5' ? rnd(4,8) : rnd(5,10);
+  const disk = pick([['SAS-HDD mit 10.000 U/min','SAS HDD at 10,000 rpm',140],['SAS-HDD mit 15.000 U/min','SAS HDD at 15,000 rpm',180],['NL-SAS-HDD mit 7.200 U/min','NL-SAS HDD at 7,200 rpm',75]]);
+  const iops = disk[2], rd = pick([50,60,70,80]), wr = 100 - rd;
+  const raw = n * iops, fac = (rd + wr * P) / 100, host = Math.floor(raw / fac + 1e-9);
+  const app = pick([['die Warenwirtschafts-Datenbank','the ERP database'],['den neuen Mailserver','the new mail server'],['das Dokumentenmanagementsystem','the document management system'],['den Datastore der Terminalserver','the terminal server datastore']]);
+  const pen = {
+    '1': tx(L,'jeder Schreibvorgang geht auf beide Platten eines Spiegels','every write goes to both disks of a mirror'),
+    '10': tx(L,'jeder Schreibvorgang geht auf beide Platten eines Spiegels','every write goes to both disks of a mirror'),
+    '5': tx(L,'Daten lesen, Parität lesen, Daten schreiben, Parität schreiben','read data, read parity, write data, write parity'),
+    '6': tx(L,'Daten und beide Paritäten jeweils lesen und schreiben','read and write the data and both parities')}[lv];
+  return { t:'in',
+    s: tx(L, `Für ${app[0]} wird ein Plattenverbund aus ${n} × ${disk[0]} (je ca. ${iops} IOPS) als RAID ${lv} geplant. Laut Monitoring des Altsystems besteht die Last zu ${rd} % aus Lese- und zu ${wr} % aus Schreibzugriffen.`,
+             `For ${app[1]}, a disk array of ${n} × ${disk[1]} (approx. ${iops} IOPS each) is planned as RAID ${lv}. According to monitoring of the old system, the load consists of ${rd} % reads and ${wr} % writes.`),
+    q: tx(L, 'Berechnen Sie die Roh-IOPS aller Platten und die maximal vom Host nutzbaren IOPS unter Berücksichtigung des Write-Penalty. Runden Sie auf ganze IOPS ab.', 'Calculate the raw IOPS of all disks and the maximum IOPS usable by the host, taking the write penalty into account. Round down to whole IOPS.'),
+    f: [ {l:tx(L,'Roh-IOPS','Raw IOPS'), v:raw, tol:0, u:'IOPS'}, {l:tx(L,'Nutzbare Host-IOPS','Usable host IOPS'), v:host, tol:1, u:'IOPS'} ],
+    e: tx(L, `Roh-IOPS: ${n} × ${iops} = ${fmt(raw,0,L)}. RAID ${lv} hat den Write-Penalty ${P} (${pen}). Ein Host-IO kostet im Mittel ${fmt(rd/100,2,L)} × 1 + ${fmt(wr/100,2,L)} × ${P} = ${fmt(fac,2,L)} Platten-IOs. ${fmt(raw,0,L)} ÷ ${fmt(fac,2,L)} = ${fmt(raw/fac,2,L)} → ${fmt(host,0,L)} IOPS.`,
+             `Raw IOPS: ${n} × ${iops} = ${fmt(raw,0,L)}. RAID ${lv} has a write penalty of ${P} (${pen}). One host IO costs on average ${fmt(rd/100,2,L)} × 1 + ${fmt(wr/100,2,L)} × ${P} = ${fmt(fac,2,L)} disk IOs. ${fmt(raw,0,L)} ÷ ${fmt(fac,2,L)} = ${fmt(raw/fac,2,L)} → ${fmt(host,0,L)} IOPS.`),
+    n: tx(L, 'Häufiger Fehler: den Write-Penalty auf alle Zugriffe anzuwenden (Roh-IOPS ÷ Penalty) oder ihn ganz zu vergessen – Lesezugriffe kosten auch bei RAID 5/6 nur einen Platten-IO.', 'Common mistake: applying the write penalty to all IOs (raw IOPS ÷ penalty) or forgetting it entirely – reads cost only one disk IO, even with RAID 5/6.')
+  };
+};
+
+/* Thin Provisioning: Überbuchungsfaktor und tatsächliche Belegung des Pools */
+GEN.speicherThin = function(L){
+  let g, phys, prov, used;
+  do {
+    g = [[tx(L,'Fileserver','File server'), rnd(2,4), pick([2000,3000,4000])],
+         [tx(L,'Datenbankserver','Database server'), rnd(1,3), pick([1000,1500,2000])],
+         [tx(L,'Anwendungsserver','Application server'), rnd(4,10), pick([200,300,500])]]
+        .map(x => [x[0], x[1], x[2], Math.round(x[2] * pick([0.25,0.3,0.4,0.5,0.6]))]);
+    prov = g.reduce((s,x) => s + x[1]*x[2], 0);
+    used = g.reduce((s,x) => s + x[1]*x[3], 0);
+    phys = pick([8,10,12,16,20]);
+  } while (!(prov > phys*1200 && used < phys*900));
+  const cap = phys * 1000, ratio = r2(prov / cap), fill = Math.round(used / cap * 1000) / 10;
+  return { t:'in',
+    s: tx(L, `Auf einem Storage-System steht ein Pool mit ${phys} TB Nettokapazität bereit (1 TB = 1.000 GB). Alle virtuellen Festplatten wurden per Thin Provisioning angelegt. Die Tabelle zeigt die bereitgestellten und die tatsächlich belegten Größen.`,
+             `A storage system provides a pool with ${phys} TB net capacity (1 TB = 1,000 GB). All virtual disks were created with thin provisioning. The table shows the provisioned and the actually used sizes.`),
+    tb: {h: tx(L,['Servergruppe','Anzahl VMs','Bereitgestellt je VM (GB)','Belegt je VM (GB)'],['Server group','Number of VMs','Provisioned per VM (GB)','Used per VM (GB)']), r: g.map(x => [x[0], x[1], fmt(x[2],0,L), fmt(x[3],0,L)])},
+    q: tx(L, 'Berechnen Sie den Überbuchungsfaktor (bereitgestellt ÷ physisch, zwei Nachkommastellen) und die aktuelle Belegung des Pools in Prozent (eine Nachkommastelle).', 'Calculate the overcommitment ratio (provisioned ÷ physical, two decimal places) and the current pool utilisation in percent (one decimal place).'),
+    f: [ {l:tx(L,'Überbuchungsfaktor','Overcommitment ratio'), v:ratio, tol:0.011, u:': 1'}, {l:tx(L,'Belegung des Pools','Pool utilisation'), v:fill, tol:0.11, u:'%'} ],
+    e: tx(L, `Bereitgestellt: ${g.map(x => `${x[1]} × ${fmt(x[2],0,L)}`).join(' + ')} = ${fmt(prov,0,L)} GB → ${fmt(prov,0,L)} ÷ ${fmt(cap,0,L)} = ${fmt(ratio,2,L)} : 1. Belegt: ${g.map(x => `${x[1]} × ${fmt(x[3],0,L)}`).join(' + ')} = ${fmt(used,0,L)} GB → ${fmt(used,0,L)} ÷ ${fmt(cap,0,L)} × 100 = ${fmt(fill,1,L)} %. Der Pool ist überbucht – Schwellwert-Alarme sind Pflicht.`,
+             `Provisioned: ${g.map(x => `${x[1]} × ${fmt(x[2],0,L)}`).join(' + ')} = ${fmt(prov,0,L)} GB → ${fmt(prov,0,L)} ÷ ${fmt(cap,0,L)} = ${fmt(ratio,2,L)} : 1. Used: ${g.map(x => `${x[1]} × ${fmt(x[3],0,L)}`).join(' + ')} = ${fmt(used,0,L)} GB → ${fmt(used,0,L)} ÷ ${fmt(cap,0,L)} × 100 = ${fmt(fill,1,L)} %. The pool is overcommitted – threshold alerts are mandatory.`),
+    n: tx(L, 'Naheliegend, aber falsch: für die Belegung die bereitgestellte statt der belegten Kapazität anzusetzen – Thin Provisioning belegt nur tatsächlich geschriebene Blöcke, sonst ergäbe sich eine Belegung über 100 %.', 'Tempting but wrong: using the provisioned instead of the used capacity for utilisation – thin provisioning only consumes blocks actually written; otherwise you would get more than 100 %.')
+  };
+};
+
+Q.push(
+{id:'speicher-06', a:'speicher', gen:'speicherWriteIops'},
+{id:'speicher-07', a:'speicher', t:'sc', c:0,
+ de:{s:'Im NAS der Konstruktionsabteilung (RAID 5 aus 8 × 18 TB, kein Hot-Spare) meldet der Controller den Ausfall einer Platte. Der Status steht auf „Degraded“, die Mitarbeiter arbeiten normal weiter. Ihr Teamleiter fragt, wie kritisch die Lage ist.',
+     q:'Welche Einschätzung ist fachlich richtig?',
+     o:['Sehr kritisch: Bis der Rebuild abgeschlossen ist, besteht keine Redundanz mehr; der Rebuild großer Platten dauert unter Last viele Stunden, und ein weiterer Ausfall oder ein nicht lesbarer Sektor führt zum Datenverlust – sofort tauschen, vorher aktuelles Backup sicherstellen','Unkritisch: RAID 5 verkraftet den Ausfall einer Platte, daher reicht es, die Platte beim nächsten Wartungstermin zu tauschen','Unkritisch: Der Controller verteilt die Daten automatisch auf die restlichen sieben Platten und stellt die Redundanz ohne neue Platte wieder her','Kritisch, aber nur für die Leistung: Datenverlust ist ausgeschlossen, solange der Controller eine Batterie (BBU) besitzt'],
+     e:'Im Zustand „Degraded“ werden fehlende Daten bei jedem Zugriff aus der Parität berechnet; eine zweite Störung ist nicht mehr abgedeckt. Beim Rebuild müssen alle übrigen Platten komplett gelesen werden – bei 18-TB-Platten ein langes Risikofenster. Für so große Platten ist RAID 6 oder ein Hot-Spare üblich.',
+     n:'Die Aussage „RAID 5 verkraftet eine Platte“ stimmt nur für den ersten Ausfall. Danach ist das Array ohne Schutz, bis der Rebuild fertig ist – Abwarten bis zum Wartungstermin verlängert genau dieses Risiko.'},
+ en:{s:'In the design department\'s NAS (RAID 5 of 8 × 18 TB, no hot spare), the controller reports a failed disk. The status shows "Degraded", and staff keep working normally. Your team leader asks how critical the situation is.',
+     q:'Which assessment is technically correct?',
+     o:['Very critical: until the rebuild is complete there is no redundancy; rebuilding large disks under load takes many hours, and another failure or an unreadable sector leads to data loss – replace immediately after making sure a current backup exists','Not critical: RAID 5 tolerates the failure of one disk, so it is enough to replace the disk at the next maintenance window','Not critical: the controller automatically redistributes the data over the remaining seven disks and restores redundancy without a new disk','Critical, but only for performance: data loss is impossible as long as the controller has a battery (BBU)'],
+     e:'In the "Degraded" state, missing data is calculated from parity on every access; a second fault is no longer covered. During the rebuild all remaining disks must be read completely – with 18 TB disks a long window of risk. RAID 6 or a hot spare is usual for disks this large.',
+     n:'"RAID 5 tolerates one disk" is only true for the first failure. After that the array is unprotected until the rebuild finishes – waiting for the maintenance window prolongs exactly this risk.'}},
+{id:'speicher-08', a:'speicher', t:'mc', c:[0,1,2],
+ de:{s:'Ein Kunde bindet zwei neue Virtualisierungshosts per iSCSI an ein vorhandenes Storage-System an. Der Auszubildende soll die Konfiguration vorbereiten und notiert sich einige Aussagen.',
+     q:'Welche Aussagen sind korrekt? (Mehrere Antworten)',
+     o:['Die Hosts sind die iSCSI-Initiatoren, das Storage-System stellt als Target die LUNs bereit','Eine LUN erscheint auf dem Host als lokales Block-Device, das der Host selbst mit einem Dateisystem formatiert','iSCSI überträgt SCSI-Befehle über TCP/IP (Standardport 3260) und kann über normales Ethernet laufen; ein getrenntes Speichernetz (VLAN oder eigene Switches) ist empfehlenswert','iSCSI stellt wie SMB dateibasierte Freigaben bereit, auf die Benutzer per UNC-Pfad zugreifen','Das Target formatiert die LUN mit NTFS, bevor sie an den Initiator übergeben wird','Für iSCSI sind zwingend Fibre-Channel-HBAs in den Hosts erforderlich'],
+     e:'iSCSI ist ein Block-Speicherprotokoll: Das Target liefert Blöcke, das Dateisystem (z. B. NTFS, ReFS, VMFS) legt der Initiator an. Aus Leistungs- und Sicherheitsgründen wird iSCSI-Verkehr vom Clientnetz getrennt, meist mit Multipath (MPIO).',
+     n:'Die Verwechslung mit SMB/NFS liegt nahe, weil beides über das LAN läuft. iSCSI liefert aber keine Dateien, sondern rohe Blöcke – deshalb formatiert der Host die LUN.'},
+ en:{s:'A customer connects two new virtualisation hosts to an existing storage system via iSCSI. The apprentice is to prepare the configuration and notes down some statements.',
+     q:'Which statements are correct? (Multiple answers)',
+     o:['The hosts are the iSCSI initiators; the storage system provides the LUNs as the target','A LUN appears on the host as a local block device, which the host formats with a file system itself','iSCSI transports SCSI commands over TCP/IP (default port 3260) and can run over normal Ethernet; a separate storage network (VLAN or dedicated switches) is recommended','Like SMB, iSCSI provides file-based shares that users access via a UNC path','The target formats the LUN with NTFS before handing it to the initiator','iSCSI strictly requires Fibre Channel HBAs in the hosts'],
+     e:'iSCSI is a block storage protocol: the target delivers blocks, and the initiator creates the file system (e.g. NTFS, ReFS, VMFS). For performance and security reasons iSCSI traffic is separated from the client network, usually with multipathing (MPIO).',
+     n:'Confusing it with SMB/NFS is tempting because both run over the LAN. But iSCSI delivers raw blocks, not files – which is why the host formats the LUN.'}},
+{id:'speicher-09', a:'speicher', t:'match',
+ de:{s:'Für ein Beratungsgespräch zur Speicherarchitektur bereiten Sie eine Übersicht der Anbindungsarten und Protokolle vor.',
+     q:'Ordnen Sie jeder Technik die zutreffende Beschreibung zu.',
+     p:[['DAS','Speicher hängt direkt an einem einzelnen Server (z. B. SAS), ohne Netzwerk'],['NFS','Dateibasierter Zugriff, typisch in Linux/Unix-Umgebungen und als Datastore für Hypervisoren'],['SMB','Dateibasierter Zugriff, Standard für Windows-Freigaben (TCP 445)'],['iSCSI','Blockbasierter Zugriff über TCP/IP auf vorhandener Ethernet-Infrastruktur'],['Fibre Channel','Blockbasierter Zugriff über ein eigenes Speichernetz mit HBAs und FC-Switches']],
+     e:'NAS-Protokolle (NFS, SMB) liefern Dateien, SAN-Protokolle (iSCSI, FC) liefern Blöcke. FC ist latenzarm und vom LAN unabhängig, aber teurer; iSCSI nutzt Standard-Ethernet.',
+     n:'NFS und SMB werden gern vertauscht, weil beide Dateifreigaben bereitstellen – NFS stammt aus der Unix-Welt, SMB aus der Windows-Welt.'},
+ en:{s:'For a consultation on storage architecture, you prepare an overview of connection types and protocols.',
+     q:'Match each technology to the right description.',
+     p:[['DAS','Storage attached directly to a single server (e.g. SAS), without a network'],['NFS','File-based access, typical in Linux/Unix environments and as a hypervisor datastore'],['SMB','File-based access, the standard for Windows shares (TCP 445)'],['iSCSI','Block-based access over TCP/IP on existing Ethernet infrastructure'],['Fibre Channel','Block-based access over a dedicated storage network with HBAs and FC switches']],
+     e:'NAS protocols (NFS, SMB) deliver files, SAN protocols (iSCSI, FC) deliver blocks. FC offers low latency and is independent of the LAN but more expensive; iSCSI uses standard Ethernet.',
+     n:'NFS and SMB are often swapped because both provide file shares – NFS comes from the Unix world, SMB from the Windows world.'}},
+{id:'speicher-10', a:'speicher', t:'sc', c:0,
+ de:{s:'Ein Kunde betreibt alle VMs auf einem Datastore mit Thin-Provisioned-Disks. Bereitgestellt sind 18 TB, physisch vorhanden 10 TB, aktuell belegt 9,6 TB. Ein Kollege meint: „Kein Problem, die VMs haben ja noch reichlich freien Platz.“',
+     q:'Was passiert, wenn der Datastore physisch vollläuft?',
+     o:['Schreibzugriffe schlagen fehl; der Hypervisor hält betroffene VMs an bzw. sie stürzen ab – und zwar alle VMs auf dem Datastore, auch wenn ihre eigenen Disks noch „Platz“ zeigen','Der Hypervisor wandelt die Thin-Disks automatisch in Thick-Disks um und reserviert so den benötigten Platz','Nur die VM, die zuletzt geschrieben hat, wird angehalten; alle anderen laufen normal weiter','Nichts – das Gastbetriebssystem sieht nur seine bereitgestellte Größe und kann daher weiterschreiben'],
+     e:'Thin Provisioning belegt physischen Platz erst beim Schreiben. Das Gast-OS sieht freien Platz, der physisch nicht existiert. Bei einem überbuchten Pool sind Monitoring mit Schwellwerten, Reserven und rechtzeitige Erweiterung Pflicht.',
+     n:'Richtig ist, dass der Gast nur die bereitgestellte Größe sieht – gerade deshalb schreibt er weiter, bis der gemeinsame physische Speicher erschöpft ist und alle VMs darauf betroffen sind.'},
+ en:{s:'A customer runs all VMs on one datastore with thin-provisioned disks. 18 TB are provisioned, 10 TB physically available, 9.6 TB currently used. A colleague says: "No problem, the VMs still have plenty of free space."',
+     q:'What happens when the datastore physically runs full?',
+     o:['Writes fail; the hypervisor pauses the affected VMs or they crash – and this affects all VMs on the datastore, even if their own disks still show "free space"','The hypervisor automatically converts the thin disks into thick disks, thereby reserving the space required','Only the VM that wrote last is paused; all others continue running normally','Nothing – the guest operating system only sees its provisioned size and can therefore keep writing'],
+     e:'Thin provisioning only consumes physical space when data is written. The guest OS sees free space that does not physically exist. With an overcommitted pool, monitoring with thresholds, reserves and timely expansion are mandatory.',
+     n:'It is true that the guest only sees its provisioned size – that is exactly why it keeps writing until the shared physical storage is exhausted and all VMs on it are affected.'}},
+{id:'speicher-11', a:'speicher', t:'in', f:[{v:2352, tol:0, u:'GB'}, {v:2823, tol:1, u:'GB'}],
+ de:{s:'Für einen neuen ESXi-Host planen Sie den Datastore. Alle virtuellen Festplatten werden Thick Provisioned angelegt. ESXi erzeugt beim Einschalten jeder VM eine Auslagerungsdatei (.vswp) in Höhe des konfigurierten Arbeitsspeichers; Speicherreservierungen sind nicht gesetzt. Für Snapshots und Logs sind 20 % Reserve auf den Gesamtbedarf einzuplanen.',
+     tb:{h:['VM-Gruppe','Anzahl','RAM je VM','Virtuelle Disk je VM'], r:[['Terminalserver',4,'24 GB','150 GB'],['SQL-Server',2,'64 GB','500 GB'],['Anwendungsserver',6,'8 GB','80 GB']]},
+     q:'Berechnen Sie den Speicherbedarf ohne Reserve und die Mindestgröße des Datastores mit Reserve. Runden Sie das Endergebnis auf ganze GB auf.',
+     l:['Bedarf ohne Reserve','Datastore mit 20 % Reserve'],
+     e:'Je VM zählen Disk + .vswp (= RAM): Terminalserver 4 × (150 + 24) = 696 GB, SQL 2 × (500 + 64) = 1.128 GB, Anwendung 6 × (80 + 8) = 528 GB → 2.352 GB. Mit Reserve: 2.352 × 1,2 = 2.822,4 GB → aufgerundet 2.823 GB.',
+     n:'Typischer Fehler: nur die virtuellen Disks zu addieren (2.080 GB) – die Auslagerungsdateien belegen zusätzlich so viel Platz wie der konfigurierte RAM, sonst starten die letzten VMs nicht.'},
+ en:{s:'You are planning the datastore for a new ESXi host. All virtual disks are thick provisioned. When each VM is powered on, ESXi creates a swap file (.vswp) equal to the configured memory; no memory reservations are set. Plan a 20 % reserve on the total for snapshots and logs.',
+     tb:{h:['VM group','Count','RAM per VM','Virtual disk per VM'], r:[['Terminal server',4,'24 GB','150 GB'],['SQL server',2,'64 GB','500 GB'],['Application server',6,'8 GB','80 GB']]},
+     q:'Calculate the storage required without reserve and the minimum datastore size with reserve. Round the final result up to whole GB.',
+     l:['Required without reserve','Datastore with 20 % reserve'],
+     e:'Per VM, count disk + .vswp (= RAM): terminal servers 4 × (150 + 24) = 696 GB, SQL 2 × (500 + 64) = 1,128 GB, application 6 × (80 + 8) = 528 GB → 2,352 GB. With reserve: 2,352 × 1.2 = 2,822.4 GB → rounded up 2,823 GB.',
+     n:'Typical mistake: adding up only the virtual disks (2,080 GB) – the swap files take up additional space equal to the configured RAM, otherwise the last VMs will not start.'}},
+{id:'speicher-12', a:'speicher', t:'order',
+ de:{s:'Ein Windows-Server-Host soll eine neue LUN von einem iSCSI-Storage erhalten, auf der künftig VM-Dateien liegen. Storage und Host sind bereits im getrennten Speicher-VLAN verkabelt.',
+     q:'Bringen Sie die Einrichtungsschritte in die richtige Reihenfolge.',
+     o:['Auf dem Storage die LUN mit der geplanten Größe anlegen','Am Storage ein Target erstellen, die LUN zuordnen und den Zugriff auf den IQN des Hosts (optional mit CHAP) beschränken','Am Host im iSCSI-Initiator das Zielportal (IP des Storage) hinzufügen und das Target ermitteln','Mit dem Target verbinden (bei zwei Pfaden mit aktiviertem MPIO)','In der Datenträgerverwaltung den neuen Datenträger online schalten und initialisieren (GPT)','Volume anlegen und mit NTFS oder ReFS formatieren'],
+     e:'Erst muss das Target die LUN für genau diesen Initiator freigeben, dann kann der Host sie ermitteln und sich anmelden. Formatiert wird zuletzt auf dem Host, weil iSCSI nur Blöcke liefert.',
+     n:'Häufig wird versucht, am Host zu verbinden, bevor die Zugriffsbeschränkung auf den IQN gesetzt ist – das Target ist dann zwar sichtbar, liefert aber keine LUN aus.'},
+ en:{s:'A Windows Server host is to receive a new LUN from an iSCSI storage system on which VM files will be stored in future. Storage and host are already cabled in the separate storage VLAN.',
+     q:'Put the setup steps in the correct order.',
+     o:['Create the LUN with the planned size on the storage','Create a target on the storage, map the LUN and restrict access to the host\'s IQN (optionally with CHAP)','On the host, add the target portal (storage IP) in the iSCSI initiator and discover the target','Connect to the target (with MPIO enabled if there are two paths)','In Disk Management, bring the new disk online and initialise it (GPT)','Create a volume and format it with NTFS or ReFS'],
+     e:'The target must first release the LUN to exactly this initiator; then the host can discover it and log in. Formatting is done last on the host because iSCSI only delivers blocks.',
+     n:'People often try to connect from the host before access is restricted to its IQN – the target is then visible but presents no LUN.'}},
+{id:'speicher-13', a:'speicher', t:'mc', c:[0,1,2],
+ de:{s:'Ein Virtualisierungshost mit 256 GB RAM betreibt VMs mit insgesamt 340 GB konfiguriertem Arbeitsspeicher. Anwender klagen über träge Anwendungen. Das Monitoring zeigt aktives Memory Ballooning und Host-Swapping; die CPU-Auslastung liegt bei 35 %.',
+     q:'Welche Maßnahmen sind geeignet, das Problem zu beheben? (Mehrere Antworten)',
+     o:['Den Host mit zusätzlichem physischem RAM aufrüsten','Einzelne VMs per Live-Migration auf einen weniger ausgelasteten Host verschieben','Überdimensionierte VMs anhand der Monitoringdaten auf ihren tatsächlichen Bedarf verkleinern (Rightsizing)','Den betroffenen VMs mehr Arbeitsspeicher zuweisen, damit sie nicht mehr auslagern','Den Balloon-Treiber in den Gastsystemen deinstallieren','Den VMs zusätzliche vCPUs zuweisen'],
+     e:'Ballooning und Host-Swapping zeigen, dass der physische RAM überbucht ist. Abhilfe schafft nur mehr physischer RAM oder weniger Bedarf auf dem Host. Die CPU ist mit 35 % nicht der Engpass.',
+     n:'Mehr RAM für die VMs klingt logisch, erhöht aber die Überbuchung weiter. Ohne Balloon-Treiber muss der Host noch stärker auf das deutlich langsamere Host-Swapping ausweichen.'},
+ en:{s:'A virtualisation host with 256 GB RAM runs VMs with a total of 340 GB of configured memory. Users complain about sluggish applications. Monitoring shows active memory ballooning and host swapping; CPU utilisation is 35 %.',
+     q:'Which measures are suitable to solve the problem? (Multiple answers)',
+     o:['Upgrade the host with additional physical RAM','Move individual VMs to a less loaded host via live migration','Shrink oversized VMs to their actual requirement based on monitoring data (rightsizing)','Assign more memory to the affected VMs so that they stop swapping','Uninstall the balloon driver in the guest systems','Assign additional vCPUs to the VMs'],
+     e:'Ballooning and host swapping show that physical RAM is overcommitted. Only more physical RAM or less demand on the host helps. At 35 % the CPU is not the bottleneck.',
+     n:'More RAM for the VMs sounds logical but increases overcommitment further. Without the balloon driver the host has to fall back even more on the much slower host swapping.'}},
+{id:'speicher-14', a:'speicher', t:'mc', c:[0,1,2],
+ de:{s:'Die Entwicklungsabteilung möchte eine interne Webanwendung künftig als Docker-Container auf einem Linux-Host betreiben statt in einer eigenen VM. Sie sollen die Unterschiede für die Betriebsdokumentation zusammenfassen.',
+     q:'Welche Aussagen sind korrekt? (Mehrere Antworten)',
+     o:['Container teilen sich den Kernel des Hostbetriebssystems und starten deshalb in Sekunden','Ein Image ist eine schreibgeschützte, aus Schichten aufgebaute Vorlage, aus der beliebig viele Container gestartet werden','Daten, die ein Neuerstellen des Containers überleben sollen, gehören in ein Volume oder Bind-Mount','Container isolieren stärker als VMs, weil jeder Container einen eigenen Kernel mitbringt','Ein Linux-Container läuft unter Windows ohne jede Virtualisierungsschicht direkt auf dem Windows-Kernel','Wird ein Container gelöscht und aus dem Image neu erstellt, bleiben Änderungen im Container-Dateisystem automatisch erhalten'],
+     e:'Container virtualisieren auf Betriebssystemebene: ein Kernel, getrennte Namespaces und cgroups. Das macht sie leichtgewichtig, die Isolation ist aber schwächer als bei einer VM. Die beschreibbare Container-Schicht ist flüchtig, persistente Daten liegen in Volumes.',
+     n:'Die stärkere Isolation ist ein Vorteil von VMs, nicht von Containern: Container teilen den Host-Kernel, eine Kernel-Schwachstelle betrifft daher alle Container.'},
+ en:{s:'The development department wants to run an internal web application as a Docker container on a Linux host in future instead of in its own VM. You are to summarise the differences for the operations documentation.',
+     q:'Which statements are correct? (Multiple answers)',
+     o:['Containers share the kernel of the host operating system and therefore start within seconds','An image is a read-only template built from layers, from which any number of containers can be started','Data that should survive re-creating the container belongs in a volume or bind mount','Containers isolate more strongly than VMs because each container brings its own kernel','A Linux container runs on Windows directly on the Windows kernel without any virtualisation layer','If a container is deleted and re-created from the image, changes in the container file system are kept automatically'],
+     e:'Containers virtualise at operating-system level: one kernel, separate namespaces and cgroups. That makes them lightweight, but isolation is weaker than with a VM. The writable container layer is ephemeral; persistent data lives in volumes.',
+     n:'Stronger isolation is an advantage of VMs, not containers: containers share the host kernel, so a kernel vulnerability affects all containers.'}},
+{id:'speicher-15', a:'speicher', gen:'speicherThin'},
+{id:'speicher-16', a:'speicher', t:'sc', c:0,
+ de:{s:'Auf dem Backup-Speicher eines Systemhauses liegen die Vollsicherungen von 40 VMs, die alle aus derselben Windows-Server-Vorlage erstellt wurden. Der Speicher ist fast voll; das Storage-System bietet mehrere Effizienzfunktionen an.',
+     q:'Welche Funktion spart in dieser Situation voraussichtlich den meisten Platz?',
+     o:['Deduplizierung, weil identische Datenblöcke der gleichartigen VMs nur einmal gespeichert und sonst nur referenziert werden','Kompression, weil sie doppelte Blöcke über Dateigrenzen hinweg erkennt und zusammenfasst','Thin Provisioning, weil es die vorhandenen Sicherungsdateien nachträglich verkleinert','Storage-Tiering, weil selten gelesene Sicherungen auf langsamere, günstigere Platten verschoben werden'],
+     e:'Aus derselben Vorlage erstellte VMs enthalten blockweise weitgehend identische Betriebssystem- und Programmdateien. Deduplizierung speichert jeden Block nur einmal; Kompression wirkt zusätzlich, aber nur innerhalb der einzelnen Daten. Bei verschlüsselten Daten bringen beide Verfahren kaum etwas.',
+     n:'Kompression spart ebenfalls Platz, verkleinert aber jeden Block bzw. jede Datei für sich – dass 40 Sicherungen dieselben Blöcke enthalten, erkennt nur die Deduplizierung.'},
+ en:{s:'On an IT service provider\'s backup storage, the full backups of 40 VMs are stored, all created from the same Windows Server template. The storage is almost full; the storage system offers several efficiency features.',
+     q:'Which feature is likely to save the most space in this situation?',
+     o:['Deduplication, because identical data blocks of the similar VMs are stored only once and otherwise just referenced','Compression, because it detects and merges duplicate blocks across file boundaries','Thin provisioning, because it subsequently shrinks the existing backup files','Storage tiering, because rarely read backups are moved to slower, cheaper disks'],
+     e:'VMs created from the same template contain largely identical operating system and program files at block level. Deduplication stores each block only once; compression adds to this, but only within the individual data. With encrypted data, both methods achieve little.',
+     n:'Compression saves space too, but it shrinks each block or file on its own – only deduplication recognises that 40 backups contain the same blocks.'}},
+{id:'speicher-17', a:'speicher', t:'match',
+ de:{s:'Für die Betriebsdokumentation einer neuen Virtualisierungsumgebung erstellen Sie ein Glossar der VM-Funktionen, damit die Kollegen im Support sie richtig einsetzen.',
+     q:'Ordnen Sie jeder Funktion die zutreffende Beschreibung zu.',
+     p:[['Vorlage (Template)','Nicht startbares Master-Image, aus dem neue VMs einheitlich bereitgestellt werden'],['Vollständiger Klon','Unabhängige Kopie einer VM mit eigenen virtuellen Disks'],['Verknüpfter Klon (Linked Clone)','Kopie, die nur Änderungen speichert und dauerhaft von der Disk der Quell-VM abhängt'],['Snapshot','Zustand einer VM zu einem Zeitpunkt; spätere Änderungen landen in einer Delta-Datei'],['Live-Migration','Verschiebt eine laufende VM ohne spürbare Unterbrechung auf einen anderen Host'],['HA-Neustart','Startet die VMs eines ausgefallenen Hosts automatisch auf den übrigen Clusterknoten neu']],
+     e:'Live-Migration setzt einen laufenden Quellhost voraus und dient geplanten Wartungen. Bei einem Hostausfall greift HA: Die VMs werden neu gestartet, es entsteht eine kurze Unterbrechung.',
+     n:'Live-Migration und HA werden oft gleichgesetzt. Nach einem Hostausfall gibt es aber keinen laufenden Arbeitsspeicher mehr, der migriert werden könnte – die VMs werden neu gestartet.'},
+ en:{s:'For the operations documentation of a new virtualisation environment, you create a glossary of VM features so that your support colleagues use them correctly.',
+     q:'Match each feature to the right description.',
+     p:[['Template','Non-bootable master image from which new VMs are deployed uniformly'],['Full clone','Independent copy of a VM with its own virtual disks'],['Linked clone','Copy that only stores changes and permanently depends on the source VM\'s disk'],['Snapshot','State of a VM at a point in time; later changes go into a delta file'],['Live migration','Moves a running VM to another host without noticeable interruption'],['HA restart','Automatically restarts the VMs of a failed host on the remaining cluster nodes']],
+     e:'Live migration requires a running source host and is used for planned maintenance. When a host fails, HA takes over: the VMs are restarted, causing a short interruption.',
+     n:'Live migration and HA are often equated. But after a host failure there is no running memory left that could be migrated – the VMs are restarted.'}},
+{id:'speicher-18', a:'speicher', t:'sc', c:0,
+ de:{s:'Vor einem Update wurde für den Mailserver (VM) ein Snapshot erstellt, der seit drei Wochen nicht gelöscht wurde. Die Delta-Datei ist auf 400 GB angewachsen, der Datastore ist zu 94 % belegt, und die VM reagiert zunehmend langsam.',
+     q:'Wie gehen Sie fachlich richtig vor?',
+     o:['Freien Platz auf dem Datastore prüfen und den Snapshot im Snapshot-Manager des Hypervisors löschen, sodass die Änderungen in die Basisdisk konsolidiert werden – möglichst außerhalb der Hauptlastzeit','Die Delta-Datei im Datastore-Browser löschen, weil sie nur die Differenz enthält und die Basisdisk vollständig ist','Zum Snapshot zurückkehren (Revert), damit die Delta-Datei verworfen wird und wieder Platz frei ist','Einen weiteren Snapshot erstellen, damit die große Delta-Datei eingefroren wird und keine neuen Daten mehr aufnimmt'],
+     e:'Beim Löschen eines Snapshots führt der Hypervisor die Delta-Datei mit der Basisdisk zusammen (Konsolidierung); der aktuelle Stand bleibt erhalten. Das erzeugt hohe I/O-Last und kann kurzzeitig zusätzlichen Platz benötigen. Snapshots sollten grundsätzlich nur kurz bestehen.',
+     n:'Die Delta-Datei manuell zu löschen wirkt naheliegend, vernichtet aber alle Änderungen der letzten drei Wochen: Der aktuelle Stand steckt gerade in der Delta-Datei, die Basisdisk enthält den alten Zustand.'},
+ en:{s:'Before an update, a snapshot was taken of the mail server (VM) and has not been deleted for three weeks. The delta file has grown to 400 GB, the datastore is 94 % full, and the VM is responding increasingly slowly.',
+     q:'What is the technically correct procedure?',
+     o:['Check the free space on the datastore and delete the snapshot in the hypervisor\'s snapshot manager so that the changes are consolidated into the base disk – ideally outside peak hours','Delete the delta file in the datastore browser, because it only contains the difference and the base disk is complete','Revert to the snapshot so that the delta file is discarded and space is freed','Take another snapshot so that the large delta file is frozen and no longer receives new data'],
+     e:'When a snapshot is deleted, the hypervisor merges the delta file into the base disk (consolidation); the current state is preserved. This causes heavy I/O load and may briefly require additional space. Snapshots should only exist for a short time.',
+     n:'Deleting the delta file manually seems obvious but destroys all changes of the last three weeks: the current state is in the delta file, while the base disk holds the old state.'}},
+{id:'speicher-19', a:'speicher', t:'order',
+ de:{s:'Ein Datenbankserver nutzt ein Hardware-RAID 6 aus sieben Platten, eine achte Platte ist als Hot-Spare konfiguriert. Nachts fällt eine Platte aus; am Morgen übernehmen Sie den Vorgang.',
+     q:'Bringen Sie die Abläufe in die richtige Reihenfolge.',
+     o:['Der Controller erkennt den Plattenfehler, markiert die Platte als ausgefallen und meldet „Degraded“ (z. B. per E-Mail oder SNMP)','Der Controller bindet den Hot-Spare automatisch in den Verbund ein','Rebuild: Die Daten der ausgefallenen Platte werden aus Daten und Parität der übrigen Platten auf den Hot-Spare geschrieben','Nach Abschluss des Rebuilds meldet der Verbund wieder „Optimal“','Die defekte Platte im laufenden Betrieb (Hot-Swap) gegen eine kompatible Platte tauschen','Die neue Platte als Hot-Spare konfigurieren und den Vorfall dokumentieren'],
+     e:'Der Hot-Spare verkürzt die Zeit ohne volle Redundanz, weil der Rebuild sofort und ohne Eingreifen startet. Die Ersatzplatte übernimmt danach die Rolle des Hot-Spares.',
+     n:'Häufig wird angenommen, zuerst müsse die defekte Platte getauscht werden – genau das erspart der Hot-Spare: Der Rebuild beginnt sofort, auch nachts.'},
+ en:{s:'A database server uses a hardware RAID 6 of seven disks, with an eighth disk configured as a hot spare. One disk fails at night; you take over the case in the morning.',
+     q:'Put the steps in the correct order.',
+     o:['The controller detects the disk error, marks the disk as failed and reports "Degraded" (e.g. by e-mail or SNMP)','The controller automatically adds the hot spare to the array','Rebuild: the data of the failed disk is written to the hot spare from the data and parity of the remaining disks','After the rebuild is complete, the array reports "Optimal" again','Replace the defective disk during operation (hot swap) with a compatible disk','Configure the new disk as a hot spare and document the incident'],
+     e:'The hot spare shortens the time without full redundancy because the rebuild starts immediately without intervention. The replacement disk then takes over the role of hot spare.',
+     n:'People often assume the defective disk must be replaced first – that is exactly what the hot spare avoids: the rebuild starts immediately, even at night.'}},
+{id:'speicher-20', a:'speicher', t:'open',
+ de:{s:'Fachgespräch (AP 2): In Ihrem Projekt haben Sie für einen Kunden zwei Virtualisierungshosts mit einem gemeinsamen iSCSI-SAN als Cluster aufgebaut. Der Prüfer fragt: „Was passiert, wenn einer Ihrer Hosts ausfällt – und wo hat Ihre Lösung noch einen Single Point of Failure?“',
+     q:'Beantworten Sie die Frage des Prüfers wie im Fachgespräch.',
+     m:'• Hostausfall: Die Knoten überwachen sich per Heartbeat; fällt ein Host aus, startet der Cluster (HA) dessen VMs auf dem verbleibenden Host neu – kurze Unterbrechung, keine Live-Migration.\n• Voraussetzung: Beide Hosts sehen dieselben LUNs, und der verbleibende Host hat genug RAM- und CPU-Reserve (N+1-Planung, bei zwei Hosts je höchstens ca. 50 % Last).\n• Ein Quorum bzw. Zeuge (Datei- oder Datenträgerzeuge) verhindert Split-Brain.\n• Geplante Wartung: VMs vorher per Live-Migration verschieben, dann ohne Ausfall patchen.\n• SPOF: das SAN selbst – abgemildert durch zwei Controller, redundante Netzteile, passendes RAID (z. B. RAID 10: geringer Write-Penalty, schneller Rebuild) und zwei getrennte iSCSI-Pfade über zwei Switches mit MPIO.\n• Das Storage-Array als Ganzes bleibt ein Risiko → unabhängiges Backup (3-2-1) bzw. Replikation an einen zweiten Standort.',
+     k:['HA-Neustart statt Live-Migration bei Hostausfall','Ressourcenreserve / N+1','Quorum gegen Split-Brain','Redundante SAN-Anbindung (MPIO, zwei Switches)','SAN als SPOF erkannt, Controller-Redundanz','Backup bleibt notwendig']},
+ en:{s:'Expert interview (AP 2): In your project you built a cluster of two virtualisation hosts with shared iSCSI SAN storage for a customer. The examiner asks: "What happens if one of your hosts fails – and where does your solution still have a single point of failure?"',
+     q:'Answer the examiner\'s question as in the expert interview.',
+     m:'• Host failure: the nodes monitor each other via heartbeat; if a host fails, the cluster (HA) restarts its VMs on the remaining host – short interruption, no live migration.\n• Prerequisite: both hosts see the same LUNs, and the remaining host has enough RAM and CPU reserve (N+1 planning, with two hosts at most approx. 50 % load each).\n• A quorum or witness (file share or disk witness) prevents split brain.\n• Planned maintenance: move VMs beforehand via live migration, then patch without downtime.\n• SPOF: the SAN itself – mitigated by two controllers, redundant power supplies, a suitable RAID (e.g. RAID 10: low write penalty, fast rebuild) and two separate iSCSI paths via two switches with MPIO.\n• The storage array as a whole remains a risk → independent backup (3-2-1) or replication to a second site.',
+     k:['HA restart instead of live migration on host failure','Resource reserve / N+1','Quorum against split brain','Redundant SAN connection (MPIO, two switches)','SAN identified as SPOF, controller redundancy','Backup still required']}}
+);
+
 </script>
 
 <script>

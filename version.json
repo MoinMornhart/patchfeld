@@ -1,17 +1,17 @@
 {
-  "version": "0.0.7",
+  "version": "0.0.8",
   "date": "2026-09-11",
   "file": "index.html",
   "notes": {
     "de": [
-      "Netzwerkdienste & Routing auf 20 Fragen erweitert",
-      "Neue Themen: DHCP-Relay und APIPA, DHCP-Bereich mit Ausschlüssen, DNS-TTL, Voice-VLAN, DHCP-Snooping, falsches Gateway, DNS-Einträge für Mailserver, Portweiterleitung, Routenarten, DNS-Auflösung, Fehlersuche von unten nach oben, 802.1Q-Trunk",
-      "Neue Rechenaufgaben mit Zufallswerten: Longest Prefix Match in der Routingtabelle, VLSM-Aufteilung"
+      "Speicher & Virtualisierung auf 20 Fragen erweitert",
+      "Neue Themen: RAID-5-Rebuild-Risiko, iSCSI (Initiator, Target, LUN), DAS/NFS/SMB/FC, Thin Provisioning, Datastore-Dimensionierung, Memory Ballooning, Container vs. VM, Deduplizierung und Tiering, Templates und Live-Migration, Snapshot-Konsolidierung, Hot-Spare-Rebuild",
+      "Neue Rechenaufgaben mit Zufallswerten: Schreib-IOPS mit RAID-Write-Penalty, Thin-Überbuchung"
     ],
     "en": [
-      "Network services & routing extended to 20 questions",
-      "New topics: DHCP relay and APIPA, DHCP scope with exclusions, DNS TTL, voice VLAN, DHCP snooping, wrong gateway, DNS records for a mail server, port forwarding, route types, DNS resolution, bottom-up troubleshooting, 802.1Q trunk",
-      "New random calculations: longest prefix match in a routing table, VLSM allocation"
+      "Storage & virtualisation extended to 20 questions",
+      "New topics: RAID 5 rebuild risk, iSCSI (initiator, target, LUN), DAS/NFS/SMB/FC, thin provisioning, datastore sizing, memory ballooning, containers vs VMs, deduplication and tiering, templates and live migration, snapshot consolidation, hot spare rebuild",
+      "New random calculations: write IOPS with RAID write penalty, thin overcommitment"
     ]
   }
 }
