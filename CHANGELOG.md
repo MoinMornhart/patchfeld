@@ -10,6 +10,16 @@ All changes to Patchfeld. Version scheme: every digit runs from 0 to 9 –
 
 <!-- releases -->
 
+## 0.1.6 – 2026-09-11
+
+- Glossar auf 118 Fachbegriffe erweitert
+- Neu u. a.: 802.1X, APIPA, BIA, CAB, CMDB, DIN 66399, DSFA, GFS, IPv6, LACP, MTBF/MTTR, OLA, OSPF, PoE, Projektantrag, PSP, RADIUS, Scrum, Kanban, SNMP, Syslog, Thin Provisioning, TLS, umask, VRRP, WPA3
+
+**English**
+
+- Glossary extended to 118 terms
+- New incl.: 802.1X, APIPA, BIA, CAB, CMDB, DIN 66399, DPIA, GFS, IPv6, LACP, MTBF/MTTR, OLA, OSPF, PoE, project application, WBS, RADIUS, Scrum, Kanban, SNMP, syslog, thin provisioning, TLS, umask, VRRP, WPA3
+
 ## 0.1.5 – 2026-09-11
 
 - Präsentation & Fachgespräch auf 20 Fragen erweitert

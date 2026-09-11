@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Patchfeld</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<meta name="app-version" content="0.1.5">
+<meta name="app-version" content="0.1.6">
 <meta name="theme-color" content="#1b1f24">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -311,8 +311,11 @@ dialog::backdrop{background:rgba(10,12,14,.55)}
 /* =====================================================================
    PATCHFELD – Kern: Version, Bereiche, Hilfsfunktionen, Generatoren
    ===================================================================== */
-const APP_VERSION = '0.1.5';
+const APP_VERSION = '0.1.6';
 const CHANGELOG = [
+  {v:'0.1.6', d:'2026-09-11',
+   de:['Glossar auf 118 Fachbegriffe erweitert','Neu u. a.: 802.1X, APIPA, BIA, CAB, CMDB, DIN 66399, DSFA, GFS, IPv6, LACP, MTBF/MTTR, OLA, OSPF, PoE, Projektantrag, PSP, RADIUS, Scrum, Kanban, SNMP, Syslog, Thin Provisioning, TLS, umask, VRRP, WPA3'],
+   en:['Glossary extended to 118 terms','New incl.: 802.1X, APIPA, BIA, CAB, CMDB, DIN 66399, DPIA, GFS, IPv6, LACP, MTBF/MTTR, OLA, OSPF, PoE, project application, WBS, RADIUS, Scrum, Kanban, SNMP, syslog, thin provisioning, TLS, umask, VRRP, WPA3']},
   {v:'0.1.5', d:'2026-09-11',
    de:['Präsentation & Fachgespräch auf 20 Fragen erweitert','9 neue Prüferfragen mit Musterlösung: halbiertes Budget, IPsec-Tunnel im Detail, Eigenleistung, Datenschutz und Betriebsrat, Zeitabweichung, unbekannte Fragen, Wirtschaftlichkeit, Nervosität, Ransomware-Szenario','Neue Themen: genehmigungsfähige Projektthemen, Zeitnot in der Präsentation, überladene Folien, Inhalt des Projektantrags, Bewertung im Fachgespräch, Gliederung der Projektdokumentation'],
    en:['Presentation & expert interview extended to 20 questions','9 new examiner questions with model answers: halved budget, IPsec tunnel in detail, own contribution, data protection and works council, schedule deviation, unknown questions, economic viability, nerves, ransomware scenario','New topics: approvable project topics, running out of time, overloaded slides, content of the project application, assessment in the interview, structure of the project documentation']},
@@ -4292,7 +4295,64 @@ const GLOSSAR = [
 ['VLAN','dienste','Virtual Local Area Network','Logische Trennung eines Switches in Broadcast-Domänen; Tagging nach IEEE 802.1Q.','Logical separation of a switch into broadcast domains; tagging according to IEEE 802.1Q.'],
 ['VPN','sec','Virtual Private Network','Verschlüsselter Tunnel über ein unsicheres Netz, z. B. IPsec, WireGuard, OpenVPN.','Encrypted tunnel over an untrusted network, e.g. IPsec, WireGuard, OpenVPN.'],
 ['Werkvertrag','kfm','§ 631 BGB','Schuldet einen Erfolg (z. B. funktionsfähiges Netzwerk); endet mit der Abnahme.','Owes a result (e.g. a working network); ends with formal acceptance.','Contract for work (Werkvertrag)'],
-['3-2-1-Regel','sec','Backup-Regel','Drei Kopien, zwei Medientypen, eine Kopie außer Haus – oft ergänzt um eine unveränderliche Kopie.','Three copies, two media types, one off-site – often extended by one immutable copy.','3-2-1 rule']
+['3-2-1-Regel','sec','Backup-Regel','Drei Kopien, zwei Medientypen, eine Kopie außer Haus – oft ergänzt um eine unveränderliche Kopie.','Three copies, two media types, one off-site – often extended by one immutable copy.','3-2-1 rule'],
+['802.1X','sec','Port-based Network Access Control','Authentifizierung am Switchport oder im WLAN, bevor Zugriff gewährt wird; Prüfung meist über einen RADIUS-Server.','Authentication at the switch port or Wi-Fi before access is granted; usually checked by a RADIUS server.'],
+['Abnahme','integ','Abnahmeprotokoll','Förmliche Bestätigung des Auftraggebers, dass die Leistung vertragsgemäß ist; startet Gewährleistung und Fälligkeit.','Formal confirmation by the client that the work complies with the contract; starts warranty and payment due date.','Acceptance'],
+['Amortisationsdauer','pm','Payback Period','Zeit, bis die Investition durch Einsparungen bzw. Rückflüsse gedeckt ist: Investition ÷ jährlicher Rückfluss.','Time until the investment is recovered through savings or returns: investment ÷ annual return.','Payback period'],
+['APIPA','dienste','Automatic Private IP Addressing','Selbst vergebene Adresse 169.254.x.x, wenn kein DHCP-Server antwortet – Hinweis auf DHCP-Problem.','Self-assigned address 169.254.x.x when no DHCP server answers – a sign of a DHCP problem.'],
+['ArbStättV','ergo','Arbeitsstättenverordnung','Regelt Anforderungen an Arbeitsstätten, inkl. Bildschirmarbeitsplätze (Anhang 6).','German workplace ordinance, incl. requirements for display screen workstations (annex 6).','Workplace ordinance (ArbStättV)'],
+['BIA','ha','Business Impact Analysis','Ermittelt kritische Geschäftsprozesse und die Folgen ihres Ausfalls; Grundlage für RTO/RPO.','Identifies critical business processes and the impact of their failure; basis for RTO/RPO.'],
+['Bezugspreis','kfm','Einstandspreis','Listenpreis − Rabatt − Skonto + Bezugskosten.','List price − trade discount − cash discount + delivery costs.','Landed cost (Bezugspreis)'],
+['CAB','itsm','Change Advisory Board','Gremium, das Changes bewertet und freigibt; für Notfälle das ECAB.','Board that assesses and approves changes; the ECAB for emergencies.'],
+['CMDB','itsm','Configuration Management Database','Datenbank der Configuration Items (Server, Software, Verträge) und ihrer Beziehungen.','Database of configuration items (servers, software, contracts) and their relationships.'],
+['Container','speicher','Container-Virtualisierung','Isolierte Anwendungsumgebung, die den Kernel des Hosts teilt – leichter als eine VM (z. B. Docker).','Isolated application environment sharing the host kernel – lighter than a VM (e.g. Docker).','Container'],
+['CSR','sec','Certificate Signing Request','Zertifikatsantrag mit öffentlichem Schlüssel und Identitätsdaten, den eine CA signiert.','Certificate request containing the public key and identity data, signed by a CA.'],
+['Deduplizierung','speicher','Deduplication','Speichert identische Datenblöcke nur einmal – spart Platz, v. a. bei Backups und VDI.','Stores identical data blocks only once – saves space, especially for backups and VDI.','Deduplication'],
+['DGUV V3','ergo','Unfallverhütungsvorschrift Elektrische Anlagen und Betriebsmittel','Regelmäßige Prüfung elektrischer Geräte durch eine Elektrofachkraft.','German accident prevention regulation: regular testing of electrical equipment by a qualified electrician.'],
+['DIN 66399','integ','Vernichtung von Datenträgern','Norm für Datenträgervernichtung mit Schutzklassen 1–3 und Sicherheitsstufen 1–7.','Standard for destroying data media with protection classes 1–3 and security levels 1–7.'],
+['DSFA','ds','Datenschutz-Folgenabschätzung','Pflicht nach Art. 35 DSGVO bei voraussichtlich hohem Risiko für Betroffene.','Required under Art. 35 GDPR where processing is likely to result in a high risk.','DPIA (DSFA)'],
+['Eskalation','itsm','funktional / hierarchisch','Funktional: Weitergabe an höhere Fachkompetenz (2nd/3rd Level). Hierarchisch: Einbindung der Führungsebene.','Functional: handing over to higher expertise (2nd/3rd level). Hierarchical: involving management.','Escalation'],
+['Fachgespräch','fg','AP 2, max. 15 Minuten','Prüfungsgespräch über das betriebliche Projekt im Anschluss an die Präsentation.','Examination interview about the company project following the presentation.','Expert interview (Fachgespräch)'],
+['Fremdschlüssel','sql','Foreign Key','Attribut, das auf den Primärschlüssel einer anderen Tabelle verweist und die Beziehung abbildet.','Attribute referencing the primary key of another table, representing the relationship.','Foreign key'],
+['Gantt-Diagramm','pm','Balkenplan','Zeitliche Darstellung der Vorgänge als Balken; zeigt Dauer, Überlappung und Meilensteine.','Timeline of activities as bars; shows duration, overlaps and milestones.','Gantt chart'],
+['GFS','ha','Grandfather-Father-Son','Generationenprinzip für Backups: tägliche, wöchentliche und monatliche Sicherungen mit eigener Aufbewahrung.','Generational backup scheme: daily, weekly and monthly backups with their own retention.'],
+['Hash','sec','Hashfunktion','Einwegfunktion mit fester Ausgabelänge (z. B. SHA-256); prüft Integrität, Passwörter nur mit Salt und langsamen Verfahren speichern.','One-way function with fixed output length (e.g. SHA-256); checks integrity; store passwords only with salt and slow algorithms.','Hash'],
+['IPv6','net','Internet Protocol Version 6','128-Bit-Adressen in Hexadezimal; Nullblöcke kürzbar (::), Subnetze meist /64, Link-local fe80::/10.','128-bit addresses in hexadecimal; zero blocks shortened (::), subnets usually /64, link-local fe80::/10.'],
+['Kanban','pm','Kanban-Board','Agiles Verfahren mit Board und WIP-Limits für kontinuierlichen Arbeitsfluss, ohne feste Sprints.','Agile method with a board and WIP limits for continuous flow, without fixed sprints.'],
+['LACP','ha','Link Aggregation Control Protocol','Bündelt mehrere physische Links zu einem logischen (IEEE 802.1AX) – mehr Bandbreite und Ausfallsicherheit.','Bundles several physical links into one logical link (IEEE 802.1AX) – more bandwidth and resilience.'],
+['Leasing','kfm','Nutzungsüberlassung gegen Raten','Leasinggeber bleibt Eigentümer; für den Nehmer laufende Kosten statt Investition.','Lessor remains owner; for the lessee running costs instead of an investment.'],
+['LUN','speicher','Logical Unit Number','Logisches Speicher-Volume, das ein SAN einem Host als Blockgerät bereitstellt.','Logical storage volume that a SAN presents to a host as a block device.'],
+['Magisches Dreieck','pm','Zeit – Kosten – Qualität/Umfang','Die drei Projektziele beeinflussen sich gegenseitig: Ändert sich eines, müssen die anderen angepasst werden.','The three project goals affect each other: if one changes, the others must be adjusted.','Magic triangle'],
+['Meilenstein','pm','Milestone','Ereignis ohne Dauer, das den Abschluss einer wichtigen Projektphase markiert.','Event without duration marking the completion of an important project phase.','Milestone'],
+['MFA','sec','Multi-Faktor-Authentifizierung','Kombination aus mindestens zwei Faktoren: Wissen, Besitz, Inhärenz.','Combination of at least two factors: knowledge, possession, inherence.','MFA'],
+['MTBF / MTTR','itsm','Mean Time Between Failures / To Repair','Mittlere Betriebszeit zwischen Ausfällen bzw. mittlere Reparaturzeit; Verfügbarkeit = MTBF ÷ (MTBF + MTTR).','Mean operating time between failures and mean repair time; availability = MTBF ÷ (MTBF + MTTR).'],
+['N+1','ha','Redundanzkonzept','Eine Komponente mehr als benötigt; 2N = vollständig doppelt ausgelegt.','One component more than required; 2N = fully duplicated.'],
+['Normalisierung','sql','1NF – 2NF – 3NF','Aufteilung von Tabellen zur Vermeidung von Redundanz und Anomalien.','Splitting tables to avoid redundancy and anomalies.','Normalisation'],
+['OLA','itsm','Operational Level Agreement','Interne Vereinbarung zwischen IT-Teams, die ein SLA absichert; UC = Vertrag mit externem Dienstleister.','Internal agreement between IT teams underpinning an SLA; UC = contract with an external supplier.'],
+['OSPF','dienste','Open Shortest Path First','Dynamisches Link-State-Routingprotokoll; Metrik: Kosten auf Basis der Bandbreite.','Dynamic link-state routing protocol; metric: cost based on bandwidth.'],
+['OU','ad','Organizational Unit','Container im AD zur Strukturierung von Objekten, zur Delegation und zum Verknüpfen von GPOs.','AD container for structuring objects, delegating administration and linking GPOs.','OU (organisational unit)'],
+['PoE','net','Power over Ethernet','Stromversorgung über das Netzwerkkabel (IEEE 802.3af/at/bt), z. B. für Telefone, Kameras, Access Points.','Power over the network cable (IEEE 802.3af/at/bt), e.g. for phones, cameras, access points.'],
+['Primärschlüssel','sql','Primary Key','Eindeutiges, nicht leeres Attribut, das jeden Datensatz einer Tabelle identifiziert.','Unique, non-null attribute identifying each row of a table.','Primary key'],
+['Projektantrag','fg','AP 2','Antrag an die IHK mit Thema, Ausgangslage, Ziel, Zeitplanung (FISI: 40 h); muss vor Projektbeginn genehmigt sein.','Application to the IHK with topic, situation, goal and schedule (FISI: 40 h); must be approved before the project starts.','Project application (Projektantrag)'],
+['Pseudonymisierung','ds','Art. 4 Nr. 5 DSGVO','Personenbezug nur mit getrennt aufbewahrter Zusatzinformation herstellbar – bleibt personenbezogen. Anonyme Daten fallen nicht unter die DSGVO.','Link to a person only possible with separately kept additional information – still personal data. Anonymous data is outside the GDPR.','Pseudonymisation'],
+['PSP','pm','Projektstrukturplan','Hierarchische Zerlegung des Projekts in Teilaufgaben und Arbeitspakete.','Hierarchical breakdown of the project into subtasks and work packages.','WBS (PSP)'],
+['RADIUS','sec','Remote Authentication Dial-In User Service','Zentraler Authentifizierungsdienst für WLAN, VPN und 802.1X.','Central authentication service for Wi-Fi, VPN and 802.1X.'],
+['Rollback','integ','Rückfallplan','Geplanter Weg zurück zum alten Zustand, falls eine Änderung scheitert – mit Kriterien, Zeitpunkt und Backup.','Planned path back to the previous state if a change fails – with criteria, deadline and backup.','Rollback'],
+['Scrum','pm','Agiles Framework','Arbeit in Sprints; Rollen Product Owner, Scrum Master, Developers; Artefakte Product/Sprint Backlog, Inkrement.','Work in sprints; roles product owner, scrum master, developers; artefacts product/sprint backlog, increment.'],
+['Shared Responsibility','cloud','Modell geteilter Verantwortung','Legt fest, welche Schichten der Cloud-Anbieter und welche der Kunde absichert – Daten bleiben immer Kundensache.','Defines which layers the provider and which the customer secures – data is always the customer\'s responsibility.','Shared responsibility'],
+['Skonto','kfm','Barzahlungsnachlass','Prozentualer Abzug bei Zahlung innerhalb einer kurzen Frist; lohnt sich meist sogar mit Kredit.','Percentage discount for payment within a short period; usually worth it even with a loan.','Cash discount (Skonto)'],
+['SNMP','itsm','Simple Network Management Protocol','Abfrage (GET, Port 161) und Meldung (TRAP, Port 162) von Gerätezuständen; v3 mit Authentifizierung und Verschlüsselung.','Queries (GET, port 161) and notifications (TRAP, port 162) of device states; v3 with authentication and encryption.'],
+['Spanning Tree','net','STP / RSTP','Verhindert Schleifen im Switch-Netz, indem redundante Pfade blockiert werden.','Prevents loops in switched networks by blocking redundant paths.','Spanning tree'],
+['SSH','linux','Secure Shell','Verschlüsselter Fernzugriff auf Port 22; Anmeldung sicher per Schlüsselpaar.','Encrypted remote access on port 22; secure logon with a key pair.'],
+['sudo','linux','superuser do','Führt einzelne Befehle mit Root-Rechten aus; Berechtigungen in /etc/sudoers.','Runs single commands with root privileges; permissions in /etc/sudoers.'],
+['Syslog','itsm','System Logging Protocol','Standard für Protokollmeldungen mit Schweregraden 0 (Emergency) bis 7 (Debug); Port 514.','Standard for log messages with severities 0 (emergency) to 7 (debug); port 514.'],
+['systemd','linux','System- und Dienstverwaltung','Init-System vieler Distributionen; Dienste per systemctl, Logs per journalctl.','Init system of many distributions; services via systemctl, logs via journalctl.'],
+['Thin Provisioning','speicher','Speicherzuweisung nach Bedarf','Volumes belegen nur tatsächlich genutzten Platz – Überbuchung möglich, Füllstand überwachen.','Volumes only occupy space actually used – overcommitment possible, monitor usage.','Thin provisioning'],
+['TLS','sec','Transport Layer Security','Verschlüsselt Verbindungen (z. B. HTTPS) hybrid: asymmetrischer Schlüsselaustausch, symmetrische Datenübertragung.','Encrypts connections (e.g. HTTPS) hybridly: asymmetric key exchange, symmetric data transfer.'],
+['umask','linux','User File-Creation Mask','Legt fest, welche Rechte bei neuen Dateien entzogen werden, z. B. 022 → Dateien 644, Ordner 755.','Defines which permissions are removed for new files, e.g. 022 → files 644, directories 755.'],
+['Vendor Lock-in','cloud','Anbieterabhängigkeit','Wechsel des Anbieters ist durch proprietäre Dienste, Formate oder Kosten erschwert – Exit-Strategie einplanen.','Switching providers is hindered by proprietary services, formats or costs – plan an exit strategy.','Vendor lock-in'],
+['VRRP','ha','Virtual Router Redundancy Protocol','Mehrere Router teilen sich eine virtuelle Gateway-IP; fällt der Master aus, übernimmt ein Backup.','Several routers share a virtual gateway IP; if the master fails, a backup takes over.'],
+['WPA3','sec','Wi-Fi Protected Access 3','Aktueller WLAN-Sicherheitsstandard (SAE statt PSK); Enterprise-Variante mit 802.1X.','Current Wi-Fi security standard (SAE instead of PSK); enterprise variant with 802.1X.']
 ];
 </script>
 
