@@ -10,6 +10,18 @@ All changes to Patchfeld. Version scheme: every digit runs from 0 to 9 –
 
 <!-- releases -->
 
+## 0.1.8 – 2026-09-11
+
+- Cloud & Hybridbetrieb auf 20 Fragen erweitert
+- Neue Themen: Shared Responsibility nach Kompromittierung, NIST-Merkmale, Bereitstellungsmodelle, Entra Cloud Sync, Autoscaling über Verfügbarkeitszonen, CAL-Kombination, Reserved/Spot/On-Demand, Archiv-Speicher, Authentifizierungsvarianten im Hybridbetrieb, BYOL, Exit-Strategie, CLOUD Act
+- Neue Rechenaufgaben mit Zufallswerten: monatliche Cloud-Rechnung, Lizenzierung pro Kern
+
+**English**
+
+- Cloud & hybrid operation extended to 20 questions
+- New topics: shared responsibility after a compromise, NIST characteristics, deployment models, Entra Cloud Sync, autoscaling across availability zones, combining CALs, reserved/spot/on-demand, archive storage, hybrid authentication options, BYOL, exit strategy, CLOUD Act
+- New random calculations: monthly cloud bill, per-core licensing
+
 ## 0.1.7 – 2026-09-11
 
 - Skripting & SQL auf 20 Fragen erweitert

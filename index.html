@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Patchfeld</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<meta name="app-version" content="0.1.7">
+<meta name="app-version" content="0.1.8">
 <meta name="theme-color" content="#1b1f24">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -311,8 +311,11 @@ dialog::backdrop{background:rgba(10,12,14,.55)}
 /* =====================================================================
    PATCHFELD – Kern: Version, Bereiche, Hilfsfunktionen, Generatoren
    ===================================================================== */
-const APP_VERSION = '0.1.7';
+const APP_VERSION = '0.1.8';
 const CHANGELOG = [
+  {v:'0.1.8', d:'2026-09-11',
+   de:['Cloud & Hybridbetrieb auf 20 Fragen erweitert','Neue Themen: Shared Responsibility nach Kompromittierung, NIST-Merkmale, Bereitstellungsmodelle, Entra Cloud Sync, Autoscaling über Verfügbarkeitszonen, CAL-Kombination, Reserved/Spot/On-Demand, Archiv-Speicher, Authentifizierungsvarianten im Hybridbetrieb, BYOL, Exit-Strategie, CLOUD Act','Neue Rechenaufgaben mit Zufallswerten: monatliche Cloud-Rechnung, Lizenzierung pro Kern'],
+   en:['Cloud & hybrid operation extended to 20 questions','New topics: shared responsibility after a compromise, NIST characteristics, deployment models, Entra Cloud Sync, autoscaling across availability zones, combining CALs, reserved/spot/on-demand, archive storage, hybrid authentication options, BYOL, exit strategy, CLOUD Act','New random calculations: monthly cloud bill, per-core licensing']},
   {v:'0.1.7', d:'2026-09-11',
    de:['Skripting & SQL auf 20 Fragen erweitert','Neue Themen: UPDATE ohne WHERE, Normalisierung und Anomalien, Datentypen, logische Auswertungsreihenfolge, cron, CSV-Benutzerimport per PowerShell, COUNT und NULL, Skriptvariablen und Exit-Codes, DELETE in Transaktionen, Unterabfragen, LIKE, Fremdschlüssel und ON DELETE, robuste Aufräumskripte','Neue Rechenaufgaben mit Zufallswerten: Ergebniszeilen einer Abfrage zählen, WHILE-Schleife nachvollziehen'],
    en:['Scripting & SQL extended to 20 questions','New topics: UPDATE without WHERE, normalisation and anomalies, data types, logical evaluation order, cron, CSV user import with PowerShell, COUNT and NULL, script variables and exit codes, DELETE in transactions, subqueries, LIKE, foreign keys and ON DELETE, robust cleanup scripts','New random calculations: count result rows of a query, trace a WHILE loop']},
@@ -3873,6 +3876,206 @@ Q.push(
      e:'Health data is a special category (Art. 9 GDPR) and subject to medical confidentiality. With US providers the third-country transfer must be secured – ideally with an EU data centre and customer-side encryption.',
      n:'Large providers do offer GDPR tooling, but the responsibility for lawful processing stays with the practice.'}}
 );
+/* ----- BEREICH:cloud – Erweiterung ----- */
+/* Cloud: Monatsrechnung aus VM-Stunden, Speicher und Egress */
+GEN.cloudMonthly = function(L){
+  const n = rnd(2, 6), p = pick([0.048,0.096,0.112,0.192,0.224,0.384]), full = Math.random() < 0.5;
+  const days = pick([20,21,22]), hpd = pick([10,11,12]), h = full ? 730 : days * hpd;
+  const gb = pick([256,512,1024,1536,2048]), sp = pick([0.02,0.025,0.04,0.05]);
+  const eg = pick([80,150,300,450,800,1200]), free = 100, ep = pick([0.07,0.08,0.09]);
+  const vm = r2(n * h * p), st = r2(gb * sp), egb = Math.max(0, eg - free), ec = r2(egb * ep), tot = r2(vm + st + ec);
+  const e3 = x => L === 'en' ? '€' + fmt(x, 3, L) : fmt(x, 3, L) + ' €';
+  const hTxt = full ? tx(L, '730 h', '730 h') : tx(L, `(${days} × ${hpd} h = ${h} h)`, `(${days} × ${hpd} h = ${h} h)`);
+  const egTxt = egb === 0
+    ? tx(L, `Egress: ${fmt(eg,0,L)} GB liegen im Freikontingent von 100 GB → ${eur(0,L)}.`, `Egress: ${fmt(eg,0,L)} GB are within the free 100 GB → ${eur(0,L)}.`)
+    : tx(L, `Egress: ${fmt(eg,0,L)} GB − 100 GB frei = ${fmt(egb,0,L)} GB × ${eur(ep,L)} = ${eur(ec,L)}.`, `Egress: ${fmt(eg,0,L)} GB − 100 GB free = ${fmt(egb,0,L)} GB × ${eur(ep,L)} = ${eur(ec,L)}.`);
+  return { t:'in',
+    s: tx(L, `Ein Kunde verlagert seine Test- und Entwicklungsumgebung zu einem IaaS-Anbieter. Geplant sind ${n} VMs zu je ${e3(p)} pro Stunde. ${full ? 'Die VMs laufen rund um die Uhr; der Anbieter rechnet mit 730 Stunden pro Monat ab.' : `Die VMs laufen per Zeitplan nur an ${days} Arbeitstagen je ${hpd} Stunden und sind sonst deallokiert; deallokierte VMs verursachen keine Rechenkosten.`} Hinzu kommen ${fmt(gb,0,L)} GB Speicher (Managed Disks) zu ${e3(sp)} je GB und Monat – der Speicher wird auch bei ausgeschalteten VMs berechnet. Ausgehender Datenverkehr ins Internet: ${fmt(eg,0,L)} GB im Monat; die ersten 100 GB sind frei, danach ${eur(ep,L)} je GB. Eingehender Datenverkehr ist kostenlos. Alle Preise netto.`,
+             `A customer is moving its test and development environment to an IaaS provider. ${n} VMs at ${e3(p)} per hour each are planned. ${full ? 'The VMs run around the clock; the provider bills 730 hours per month.' : `A schedule runs the VMs only on ${days} working days for ${hpd} hours each; otherwise they are deallocated, and deallocated VMs incur no compute costs.`} In addition there are ${fmt(gb,0,L)} GB of storage (managed disks) at ${e3(sp)} per GB and month – storage is charged even while the VMs are switched off. Outbound traffic to the internet: ${fmt(eg,0,L)} GB per month; the first 100 GB are free, then ${eur(ep,L)} per GB. Inbound traffic is free. All prices net.`),
+    q: tx(L, 'Berechnen Sie die monatlichen Rechenkosten der VMs und den Gesamtbetrag der Monatsrechnung. Runden Sie auf ganze Cent.', 'Calculate the monthly compute costs of the VMs and the total amount of the monthly bill. Round to whole cents.'),
+    f: [ {l:tx(L,'Rechenkosten VMs','VM compute costs'), v:vm, tol:0.02, u:'€'}, {l:tx(L,'Monatsrechnung gesamt','Total monthly bill'), v:tot, tol:0.02, u:'€'} ],
+    e: tx(L, `VMs: ${n} × ${fmt(h,0,L)} h × ${e3(p)} = ${eur(vm,L)}${full ? '' : ' ' + hTxt}. Speicher: ${fmt(gb,0,L)} GB × ${e3(sp)} = ${eur(st,L)}. ${egTxt} Gesamt: ${eur(vm,L)} + ${eur(st,L)} + ${eur(ec,L)} = ${eur(tot,L)}.`,
+             `VMs: ${n} × ${fmt(h,0,L)} h × ${e3(p)} = ${eur(vm,L)}${full ? '' : ' ' + hTxt}. Storage: ${fmt(gb,0,L)} GB × ${e3(sp)} = ${eur(st,L)}. ${egTxt} Total: ${eur(vm,L)} + ${eur(st,L)} + ${eur(ec,L)} = ${eur(tot,L)}.`),
+    n: tx(L, full ? 'Typischer Fehler: das Freikontingent beim Egress zu vergessen und alle ausgehenden Gigabyte zu berechnen – oder den eingehenden Verkehr mitzuzählen, der kostenlos ist.'
+                  : 'Typischer Fehler: trotz Zeitplan mit 730 Stunden zu rechnen – oder umgekehrt auch den Speicher nur anteilig anzusetzen. Deallokierte VMs kosten keine Rechenzeit, ihre Datenträger aber schon.',
+             full ? 'Typical mistake: forgetting the free egress allowance and charging all outbound gigabytes – or counting inbound traffic, which is free.'
+                  : 'Typical mistake: using 730 hours despite the schedule – or, conversely, charging storage only pro rata. Deallocated VMs incur no compute time, but their disks still cost money.')
+  };
+};
+
+/* Cloud/Lizenzen: Kernbasierte Lizenzierung mit Mindestmengen */
+GEN.cloudCoreLicence = function(L){
+  let hosts;
+  do { hosts = [...Array(rnd(2, 3))].map(() => ({cpu:pick([1,2,2]), cores:pick([4,6,8,10,12,16,20,24])})); }
+  while (!hosts.some(h => h.cores < 8 || h.cpu * h.cores < 16) || !hosts.some(h => h.cores >= 8 && h.cpu * h.cores >= 16));
+  const price = pick([118,142,165,189,212]);
+  hosts.forEach(h => { h.phys = h.cpu * h.cores; h.perCpu = Math.max(h.cores, 8); h.lic = Math.max(h.cpu * h.perCpu, 16); });
+  const tot = hosts.reduce((s, h) => s + h.lic, 0), phys = hosts.reduce((s, h) => s + h.phys, 0), packs = tot / 2, cost = packs * price;
+  const sep = L === 'en' ? ', ' : '; ';
+  const lines = hosts.map((h, i) => tx(L,
+    `HV${i+1}: ${h.cpu} × max(${h.cores}${sep}8) = ${h.cpu * h.perCpu}, Server-Minimum 16 → ${h.lic} Kerne`,
+    `HV${i+1}: ${h.cpu} × max(${h.cores}${sep}8) = ${h.cpu * h.perCpu}, server minimum 16 → ${h.lic} cores`)).join('. ');
+  return { t:'in',
+    s: tx(L, `Die Virtualisierungshosts im eigenen Rechenzentrum, die im Hybridbetrieb mit der Cloud weiterlaufen, erhalten eine neue Serverlizenz. Laut Lizenzbedingungen gilt: Alle physischen Kerne sind zu lizenzieren, mindestens jedoch 8 Kerne je Prozessor und 16 Kerne je Server. Verkauft wird in 2-Kern-Paketen zu je ${eur(price,L)} netto.`,
+             `The virtualisation hosts in the company's own data centre, which keep running in hybrid operation with the cloud, receive a new server licence. The licence terms state: all physical cores must be licensed, but at least 8 cores per processor and 16 cores per server. Licences are sold in 2-core packs at ${eur(price,L)} net each.`),
+    tb: {h: tx(L, ['Host','Prozessoren','Kerne je Prozessor'], ['Host','Processors','Cores per processor']), r: hosts.map((h, i) => [`HV${i+1}`, h.cpu, h.cores])},
+    q: tx(L, 'Wie viele 2-Kern-Pakete müssen Sie mindestens beschaffen, und wie hoch sind die Lizenzkosten?', 'How many 2-core packs must you buy at least, and what are the licence costs?'),
+    f: [ {l:tx(L,'2-Kern-Pakete','2-core packs'), v:packs, tol:0}, {l:tx(L,'Lizenzkosten','Licence costs'), v:cost, tol:0.01, u:'€'} ],
+    e: tx(L, `${lines}. Summe: ${tot} zu lizenzierende Kerne (physisch nur ${phys}). ${tot} ÷ 2 = ${packs} Pakete × ${eur(price,L)} = ${eur(cost,L)}.`,
+             `${lines}. Total: ${tot} cores to license (only ${phys} physical). ${tot} ÷ 2 = ${packs} packs × ${eur(price,L)} = ${eur(cost,L)}.`),
+    n: tx(L, `Häufiger Fehler: nur die ${phys} physischen Kerne zu zählen – bei kleinen Prozessoren und Einzel-CPU-Servern greifen die Mindestmengen von 8 Kernen je Prozessor und 16 Kernen je Server. Ebenso falsch: die Kernzahl direkt als Paketanzahl zu nehmen.`,
+             `Common mistake: counting only the ${phys} physical cores – for small processors and single-CPU servers the minimums of 8 cores per processor and 16 cores per server apply. Equally wrong: taking the number of cores directly as the number of packs.`)
+  };
+};
+
+Q.push(
+{id:'cloud-06', a:'cloud', t:'mc', c:[0,1,2],
+ de:{s:'Eine IaaS-VM (Windows Server mit Webanwendung) eines Kunden bei einem Public-Cloud-Anbieter wurde kompromittiert. Die Angreifer nutzten eine seit Monaten bekannte Lücke im nicht gepatchten Betriebssystem; zudem war RDP (3389/TCP) in der Netzwerksicherheitsgruppe für das gesamte Internet freigegeben. Der Kunde meint, dafür sei der Anbieter zuständig.',
+     q:'Welche Aufgaben lagen nach dem Modell der geteilten Verantwortung (Shared Responsibility) beim Kunden? (Mehrere Antworten)',
+     o:['Sicherheitsupdates für das Gastbetriebssystem der VM einspielen','Netzwerksicherheitsgruppe bzw. Firewallregeln der VM konfigurieren','Datensicherung der VM-Daten einrichten und überwachen','Hypervisor und Host-Firmware patchen','Zutrittskontrolle und Brandschutz im Rechenzentrum sicherstellen'],
+     e:'Bei IaaS verantwortet der Anbieter Rechenzentrum, physische Hardware und Virtualisierungsschicht. Alles ab dem Gastbetriebssystem – Patches, Netzwerkregeln, Konten, Anwendungen, Daten und deren Sicherung – liegt beim Kunden.',
+     n:'Viele setzen „Cloud“ mit „wird vom Anbieter gewartet“ gleich. Das gilt für SaaS weitgehend, bei IaaS endet die Zuständigkeit des Anbieters aber am Hypervisor.'},
+ en:{s:'A customer\'s IaaS VM (Windows Server with a web application) at a public cloud provider was compromised. The attackers exploited a vulnerability in the unpatched operating system that had been known for months; in addition, RDP (3389/TCP) was open to the entire internet in the network security group. The customer claims this is the provider\'s responsibility.',
+     q:'Which tasks were the customer\'s responsibility under the shared responsibility model? (Multiple answers)',
+     o:['Installing security updates for the guest operating system of the VM','Configuring the network security group or firewall rules of the VM','Setting up and monitoring the backup of the VM data','Patching the hypervisor and host firmware','Ensuring access control and fire protection in the data centre'],
+     e:'With IaaS the provider is responsible for the data centre, physical hardware and virtualisation layer. Everything from the guest operating system upwards – patches, network rules, accounts, applications, data and its backup – is the customer\'s responsibility.',
+     n:'Many equate "cloud" with "maintained by the provider". That largely applies to SaaS, but with IaaS the provider\'s responsibility ends at the hypervisor.'}},
+{id:'cloud-07', a:'cloud', gen:'cloudMonthly'},
+{id:'cloud-08', a:'cloud', gen:'cloudCoreLicence'},
+{id:'cloud-09', a:'cloud', t:'mc', c:[0,1,2],
+ de:{s:'Ein regionaler Hoster bewirbt sein Angebot als „Private Cloud“. Die Geschäftsführung bittet Sie zu prüfen, ob es sich nach der NIST-Definition (SP 800-145) tatsächlich um Cloud Computing handelt. Im Angebot stehen folgende Merkmale.',
+     q:'Welche Merkmale entsprechen den wesentlichen Cloud-Eigenschaften nach NIST? (Mehrere Antworten)',
+     o:['Kunden buchen und ändern VMs selbst über ein Webportal oder eine API, ohne Mitarbeiter des Hosters einzubeziehen','Die Ressourcen vieler Kunden werden auf gemeinsam genutzter Hardware zusammengefasst und dynamisch zugeteilt','Der Verbrauch (CPU-Stunden, Speicher, Datenvolumen) wird gemessen und transparent abgerechnet','Die Server stehen in einem nach ISO/IEC 27001 zertifizierten Rechenzentrum in Frankfurt','Zusätzliche Ressourcen werden per Ticket beantragt und innerhalb von fünf Werktagen bereitgestellt'],
+     e:'NIST nennt fünf Eigenschaften: On-Demand Self-Service, Broad Network Access, Resource Pooling, Rapid Elasticity und Measured Service. Die ersten drei Merkmale entsprechen Self-Service, Resource Pooling und Measured Service.',
+     n:'Die ISO-Zertifizierung und der deutsche Standort sind wichtige Auswahlkriterien, aber keine Cloud-Eigenschaft. Die Bereitstellung per Ticket in fünf Werktagen widerspricht sogar Self-Service und schneller Elastizität.'},
+ en:{s:'A regional hosting company markets its offer as a "private cloud". Management asks you to check whether this really is cloud computing according to the NIST definition (SP 800-145). The offer lists the following features.',
+     q:'Which features correspond to the essential cloud characteristics according to NIST? (Multiple answers)',
+     o:['Customers book and change VMs themselves via a web portal or an API without involving the hoster\'s staff','The resources of many customers are pooled on shared hardware and allocated dynamically','Consumption (CPU hours, storage, data volume) is measured and billed transparently','The servers are located in an ISO/IEC 27001-certified data centre in Frankfurt','Additional resources are requested by ticket and provided within five working days'],
+     e:'NIST names five characteristics: on-demand self-service, broad network access, resource pooling, rapid elasticity and measured service. The first three features correspond to self-service, resource pooling and measured service.',
+     n:'ISO certification and a German location are important selection criteria but not cloud characteristics. Provisioning by ticket within five working days even contradicts self-service and rapid elasticity.'}},
+{id:'cloud-10', a:'cloud', t:'match',
+ de:{s:'Im Rahmen einer Kundenschulung stellen Sie verschiedene Unternehmen mit ihrer Cloud-Nutzung vor.',
+     q:'Ordnen Sie jedem Bereitstellungsmodell das passende Szenario zu.',
+     p:[['Public Cloud','Ein Start-up betreibt seinen Webshop vollständig auf VMs eines Hyperscalers, dessen Infrastruktur sich viele Kunden teilen'],['Private Cloud','Eine Bank betreibt im eigenen Rechenzentrum eine Virtualisierungsplattform mit Self-Service-Portal ausschließlich für ihre Fachabteilungen'],['Hybrid Cloud','Ein Maschinenbauer behält die Fertigungssteuerung im eigenen Rechenzentrum, koppelt sie per VPN an Cloud-VMs und synchronisiert seine Benutzerkonten mit Microsoft 365'],['Community Cloud','Mehrere Stadtverwaltungen nutzen gemeinsam die Plattform ihres kommunalen IT-Dienstleisters, die ihre gemeinsamen rechtlichen Vorgaben erfüllt'],['Multi-Cloud','Ein Onlinehändler verteilt seine Dienste bewusst auf zwei verschiedene Public-Cloud-Anbieter, um nicht von einem einzigen abhängig zu sein']],
+     e:'Entscheidend ist, wer die Infrastruktur nutzt: alle (Public), eine Organisation (Private) oder eine Gruppe mit gleichen Anforderungen (Community). Hybrid verbindet eigene Infrastruktur mit Public Cloud, Multi-Cloud kombiniert mehrere Public-Cloud-Anbieter.',
+     n:'Hybrid und Multi-Cloud werden oft verwechselt: Hybrid heißt „eigenes Rechenzentrum plus Public Cloud“, Multi-Cloud heißt „mehrere Cloud-Anbieter parallel“ – auch ganz ohne eigenes Rechenzentrum.'},
+ en:{s:'During a customer training session you present various companies and their use of the cloud.',
+     q:'Match each deployment model with the appropriate scenario.',
+     p:[['Public cloud','A start-up runs its web shop entirely on VMs of a hyperscaler whose infrastructure is shared by many customers'],['Private cloud','A bank runs a virtualisation platform with a self-service portal in its own data centre exclusively for its business departments'],['Hybrid cloud','A mechanical engineering company keeps its production control in its own data centre, connects it to cloud VMs via VPN and synchronises its user accounts with Microsoft 365'],['Community cloud','Several municipal administrations share the platform of their municipal IT service provider, which meets their common legal requirements'],['Multi-cloud','An online retailer deliberately spreads its services across two different public cloud providers so as not to depend on a single one']],
+     e:'What matters is who uses the infrastructure: everyone (public), one organisation (private) or a group with the same requirements (community). Hybrid connects own infrastructure with the public cloud, multi-cloud combines several public cloud providers.',
+     n:'Hybrid and multi-cloud are often confused: hybrid means "own data centre plus public cloud", multi-cloud means "several cloud providers in parallel" – even without any data centre of one\'s own.'}},
+{id:'cloud-11', a:'cloud', t:'order',
+ de:{s:'Ein Unternehmen mit lokalem Active Directory (Domäne firma.local) führt Microsoft 365 ein. Die Benutzer sollen sich mit ihrem gewohnten Kennwort und der Adresse vorname.nachname@firma.de anmelden. Die Synchronisation soll mit Microsoft Entra Cloud Sync erfolgen und zunächst mit einer Pilotgruppe starten.',
+     q:'Bringen Sie die Einführungsschritte in die richtige Reihenfolge.',
+     o:['Domain firma.de im Entra-Mandanten hinzufügen und per DNS-TXT-Eintrag verifizieren','UPN-Suffix der lokalen Benutzerkonten von @firma.local auf die verifizierte Domain @firma.de umstellen','Cloud-Sync-Agent auf einem Mitgliedsserver der Domäne installieren und mit dem Mandanten registrieren','Synchronisationsbereich auf die Pilot-OU beschränken, Kennwort-Hash-Synchronisierung aktivieren und die Konfiguration starten','Synchronisierte Pilotkonten im Entra Admin Center prüfen, Lizenzen zuweisen und die Anmeldung testen','Synchronisationsbereich schrittweise auf alle Benutzer-OUs erweitern'],
+     e:'Ein UPN-Suffix kann erst sinnvoll genutzt werden, wenn die Domain im Mandanten verifiziert ist – nicht routbare Suffixe wie .local würden sonst zu Anmeldenamen der Form …@firma.onmicrosoft.com. Der Agent muss installiert sein, bevor Bereich und Methode konfiguriert werden; Lizenzen lassen sich erst synchronisierten Konten zuweisen.',
+     n:'Häufig wird zuerst synchronisiert und die UPNs erst danach angepasst. Dann entstehen Cloud-Konten mit …onmicrosoft.com-Namen, die nachträglich umbenannt werden müssen – das verwirrt Benutzer und Anwendungen.'},
+ en:{s:'A company with an on-premises Active Directory (domain firma.local) is introducing Microsoft 365. Users are to sign in with their usual password and the address firstname.lastname@firma.de. Synchronisation is to use Microsoft Entra Cloud Sync and start with a pilot group.',
+     q:'Put the rollout steps in the correct order.',
+     o:['Add the domain firma.de to the Entra tenant and verify it with a DNS TXT record','Change the UPN suffix of the on-premises user accounts from @firma.local to the verified domain @firma.de','Install the Cloud Sync agent on a domain member server and register it with the tenant','Limit the synchronisation scope to the pilot OU, enable password hash synchronisation and start the configuration','Check the synchronised pilot accounts in the Entra admin center, assign licences and test sign-in','Gradually extend the synchronisation scope to all user OUs'],
+     e:'A UPN suffix can only be used meaningfully once the domain is verified in the tenant – non-routable suffixes such as .local would otherwise turn into sign-in names like …@firma.onmicrosoft.com. The agent must be installed before scope and method are configured; licences can only be assigned to synchronised accounts.',
+     n:'People often synchronise first and adjust the UPNs afterwards. This creates cloud accounts with …onmicrosoft.com names that have to be renamed later – confusing users and applications.'}},
+{id:'cloud-12', a:'cloud', t:'sc', c:0,
+ de:{s:'Ein Onlinehändler betreibt seinen Webshop auf einer einzelnen Cloud-VM. Bei Rabattaktionen bricht die Seite unter der Last zusammen, und beim Ausfall eines Rechenzentrums des Anbieters war der Shop im letzten Monat drei Stunden offline. Die Webserver speichern keine Sitzungsdaten lokal, die Datenbank läuft als eigener Dienst.',
+     q:'Welche Architektur empfehlen Sie?',
+     o:['Mehrere gleichartige Webserver-VMs hinter einem Load Balancer, verteilt auf mindestens zwei Availability Zones, mit Autoscaling nach CPU-Last (Scale-out und Scale-in)','Die bestehende VM auf die größte verfügbare VM-Größe hochstufen (vertikale Skalierung)','Eine zweite VM in derselben Availability Zone bereitstellen, die bei Bedarf manuell gestartet wird','Die VM in eine andere Region verlegen, deren Rechenzentren seltener ausfallen'],
+     e:'Horizontale Skalierung fügt bei Last automatisch Instanzen hinzu und entfernt sie danach wieder – das geht, weil die Webserver zustandslos sind. Die Verteilung auf mehrere Availability Zones (getrennte Rechenzentren einer Region) überbrückt den Ausfall eines Standorts; viele Anbieter gewähren ihr höheres VM-SLA ohnehin nur für solche Zonen-redundanten Bereitstellungen.',
+     n:'Vertikale Skalierung ist schnell umgesetzt, erfordert aber meist einen Neustart, stößt an eine Obergrenze und lässt die einzelne VM als Single Point of Failure bestehen – der Rechenzentrumsausfall wäre damit nicht gelöst.'},
+ en:{s:'An online retailer runs its web shop on a single cloud VM. During discount campaigns the site collapses under load, and when one of the provider\'s data centres failed last month the shop was offline for three hours. The web servers store no session data locally; the database runs as a separate service.',
+     q:'Which architecture do you recommend?',
+     o:['Several identical web server VMs behind a load balancer, spread across at least two availability zones, with autoscaling based on CPU load (scale-out and scale-in)','Upgrade the existing VM to the largest available VM size (vertical scaling)','Deploy a second VM in the same availability zone that is started manually when needed','Move the VM to another region whose data centres fail less often'],
+     e:'Horizontal scaling automatically adds instances under load and removes them afterwards – this works because the web servers are stateless. Spreading them across several availability zones (separate data centres within a region) bridges the failure of one site; many providers only grant their higher VM SLA for such zone-redundant deployments anyway.',
+     n:'Vertical scaling is quick to implement, but usually requires a restart, hits an upper limit and leaves the single VM as a single point of failure – the data centre outage would not be solved.'}},
+{id:'cloud-13', a:'cloud', t:'in', f:[{v:40, tol:0},{v:6, tol:0}],
+ de:{s:'Der Dateiserver bleibt im Hybridbetrieb lokal und benötigt Zugriffslizenzen (CALs). 40 Büromitarbeiter greifen jeweils mit Notebook und Smartphone zu. 25 Mitarbeiter in der Produktion teilen sich im Schichtbetrieb 6 Terminal-PCs und nutzen ausschließlich diese. Annahmen laut Lizenzbedingungen: Eine Nutzer-CAL deckt alle Geräte eines Nutzers ab, eine Geräte-CAL alle Nutzer eines Geräts; beide Arten dürfen kombiniert werden und kosten gleich viel.',
+     q:'Wie viele Nutzer- und wie viele Geräte-CALs beschaffen Sie, damit die Gesamtzahl der CALs minimal ist?',
+     l:['Nutzer-CALs','Geräte-CALs'],
+     u:['Stück','Stück'],
+     e:'Büro: 40 Nutzer-CALs statt 80 Geräte-CALs (je 2 Geräte). Produktion: 6 Geräte-CALs statt 25 Nutzer-CALs. Zusammen 46 CALs – reine Nutzer-CALs wären 65, reine Geräte-CALs 86.',
+     n:'Naheliegend ist, einheitlich ein Modell zu wählen (z. B. 65 Nutzer-CALs). Wo mehrere Personen ein Gerät teilen, sind Geräte-CALs günstiger, wo eine Person mehrere Geräte nutzt, Nutzer-CALs.'},
+ en:{s:'The file server stays on-premises in hybrid operation and needs client access licences (CALs). 40 office employees each access it with a notebook and a smartphone. 25 production employees share 6 terminal PCs in shifts and use only these. Assumptions according to the licence terms: a user CAL covers all devices of one user, a device CAL covers all users of one device; both types may be combined and cost the same.',
+     q:'How many user CALs and how many device CALs do you buy so that the total number of CALs is minimal?',
+     l:['User CALs','Device CALs'],
+     u:['pcs','pcs'],
+     e:'Office: 40 user CALs instead of 80 device CALs (2 devices each). Production: 6 device CALs instead of 25 user CALs. Together 46 CALs – user CALs only would be 65, device CALs only 86.',
+     n:'It is tempting to choose one model throughout (e.g. 65 user CALs). Where several people share a device, device CALs are cheaper; where one person uses several devices, user CALs are.'}},
+{id:'cloud-14', a:'cloud', t:'match',
+ de:{s:'Nach der Migration in die Public Cloud sollen die Kosten optimiert werden. Der Anbieter bietet verschiedene Abrechnungsmodelle für VMs an.',
+     q:'Ordnen Sie jedem Abrechnungsmodell den Workload zu, für den es am besten geeignet ist.',
+     p:[['Reservierte Instanz (1 oder 3 Jahre)','Domänencontroller und ERP-Datenbankserver, die planbar drei Jahre rund um die Uhr laufen'],['Spot-Instanz','Videokonvertierung, deren Jobs bei einer Unterbrechung automatisch neu gestartet werden'],['On-Demand (Pay-as-you-go)','Schulungsumgebung für ein sechswöchiges Projekt, die unregelmäßig gestartet und danach gelöscht wird'],['Dedicated Host','Software, deren Lizenzbedingungen an physische Server gebunden sind und die eine physische Trennung von anderen Kunden erfordert']],
+     e:'Reservierungen geben gegen feste Laufzeit hohe Rabatte und passen zu Dauerlast. Spot-Kapazität ist sehr günstig, kann aber jederzeit entzogen werden. On-Demand ist flexibel ohne Bindung, Dedicated Hosts stellen einen ganzen physischen Server exklusiv bereit.',
+     n:'Spot wirkt wegen des Preises auch für Dauerlast attraktiv – der Anbieter kann die VM aber mit kurzer Vorwarnung beenden. Für Domänencontroller oder Datenbanken ist das ungeeignet.'},
+ en:{s:'After migrating to the public cloud, costs are to be optimised. The provider offers various billing models for VMs.',
+     q:'Match each billing model with the workload it is best suited for.',
+     p:[['Reserved instance (1 or 3 years)','Domain controllers and ERP database servers that will predictably run 24/7 for three years'],['Spot instance','Video conversion whose jobs are restarted automatically after an interruption'],['On-demand (pay-as-you-go)','Training environment for a six-week project that is started irregularly and deleted afterwards'],['Dedicated host','Software whose licence terms are tied to physical servers and which requires physical separation from other customers']],
+     e:'Reservations give high discounts in exchange for a fixed term and suit permanent load. Spot capacity is very cheap but can be withdrawn at any time. On-demand is flexible without commitment; dedicated hosts provide an entire physical server exclusively.',
+     n:'Because of its price, spot also looks attractive for permanent load – but the provider can terminate the VM at short notice. That is unsuitable for domain controllers or databases.'}},
+{id:'cloud-15', a:'cloud', t:'sc', c:0,
+ de:{s:'Ein Unternehmen sichert seit einem Jahr 20 TB Daten in die Archivstufe (Archive Tier) eines Cloud-Objektspeichers; die monatliche Speicherrechnung ist gering. Beim ersten vollständigen Wiederherstellungstest ins eigene Rechenzentrum entsteht eine unerwartet hohe Rechnung, und die Daten stehen erst nach vielen Stunden bereit.',
+     q:'Welche Ursache erklärt beide Beobachtungen?',
+     o:['In der Archivstufe fallen Abrufgebühren und eine Wartezeit für das Zurückholen (Rehydrierung) an; zusätzlich wird der ausgehende Datenverkehr (Egress) je GB berechnet.','Der Anbieter berechnet den eingehenden Datenverkehr (Ingress) der hochgeladenen 20 TB nachträglich.','Der Speicherpreis je GB wurde rückwirkend für das gesamte Jahr erhöht.','Die Sicherung war nicht verschlüsselt, weshalb der Anbieter bei der Wiederherstellung einen Sicherheitszuschlag erhebt.'],
+     e:'Archivstufen sind beim Speichern billig, beim Lesen teuer und langsam. Egress-Kosten und Abrufzeiten gehören deshalb in die TCO-Rechnung und müssen zur geforderten Wiederherstellungszeit (RTO) passen.',
+     n:'Ingress ist bei den großen Anbietern in der Regel kostenlos – teuer wird es, wenn Daten die Cloud wieder verlassen.'},
+ en:{s:'For a year, a company has been backing up 20 TB of data to the archive tier of a cloud object storage service; the monthly storage bill is low. During the first full restore test to its own data centre, an unexpectedly high bill arises and the data only becomes available after many hours.',
+     q:'Which cause explains both observations?',
+     o:['The archive tier charges retrieval fees and involves a waiting time for bringing data back (rehydration); in addition, outbound traffic (egress) is charged per GB.','The provider retroactively charges the inbound traffic (ingress) of the uploaded 20 TB.','The storage price per GB was raised retroactively for the whole year.','The backup was not encrypted, so the provider charges a security surcharge for the restore.'],
+     e:'Archive tiers are cheap for storing but expensive and slow for reading. Egress costs and retrieval times therefore belong in the TCO calculation and must match the required recovery time objective (RTO).',
+     n:'Ingress is usually free with the large providers – it gets expensive when data leaves the cloud again.'}},
+{id:'cloud-16', a:'cloud', t:'sc', c:0,
+ de:{s:'Ein Unternehmen mit lokalem Active Directory führt Microsoft 365 ein. Anforderungen der Geschäftsführung: Die Benutzer melden sich mit ihrem gewohnten Kennwort an, die Cloud-Anmeldung muss auch dann funktionieren, wenn das eigene Rechenzentrum oder dessen Internetanbindung ausfällt, und es sollen möglichst keine zusätzlichen Server betrieben werden.',
+     q:'Welche Anmeldemethode für die hybride Identität empfehlen Sie?',
+     o:['Kennwort-Hash-Synchronisierung (Password Hash Sync) mit Microsoft Entra Connect Sync oder Cloud Sync','Passthrough-Authentifizierung (PTA)','Verbund (Föderation) mit AD FS','Separate Cloud-Konten, deren Kennwörter die Benutzer selbst festlegen und pflegen'],
+     e:'Bei Password Hash Sync wird ein Hash des Kennwort-Hashes nach Entra ID synchronisiert; die Anmeldung prüft Entra ID selbst. Sie funktioniert daher auch ohne erreichbares lokales Rechenzentrum und braucht außer dem Synchronisationsdienst keine weitere Infrastruktur.',
+     n:'PTA wirkt attraktiv, weil keine Kennwort-Hashes in die Cloud gelangen. Jede Anmeldung wird aber von Agenten gegen die lokalen Domänencontroller geprüft – fällt das Rechenzentrum aus, ist keine Cloud-Anmeldung mehr möglich.'},
+ en:{s:'A company with an on-premises Active Directory is introducing Microsoft 365. Management\'s requirements: users sign in with their usual password, cloud sign-in must keep working even if the company\'s own data centre or its internet connection fails, and as few additional servers as possible should be operated.',
+     q:'Which sign-in method for the hybrid identity do you recommend?',
+     o:['Password hash synchronisation (password hash sync) with Microsoft Entra Connect Sync or Cloud Sync','Pass-through authentication (PTA)','Federation with AD FS','Separate cloud accounts whose passwords users set and maintain themselves'],
+     e:'With password hash sync, a hash of the password hash is synchronised to Entra ID; Entra ID verifies the sign-in itself. It therefore works even without a reachable on-premises data centre and needs no infrastructure beyond the synchronisation service.',
+     n:'PTA looks attractive because no password hashes reach the cloud. However, every sign-in is validated by agents against the on-premises domain controllers – if the data centre fails, cloud sign-in is no longer possible.'}},
+{id:'cloud-17', a:'cloud', t:'mc', c:[0,1,2],
+ de:{s:'Ein Kunde möchte seine lokalen Server-VMs per Lift-and-Shift zu einem IaaS-Anbieter umziehen. Im Bestand sind OEM-Lizenzen, die mit der Serverhardware gekauft wurden, sowie Volumenlizenzen mit laufendem Wartungsvertrag, der laut Lizenzbedingungen die Nutzung beim Cloud-Anbieter erlaubt (Lizenzmobilität).',
+     q:'Welche Aussagen treffen zu? (Mehrere Antworten)',
+     o:['Die OEM-Lizenzen sind an die Hardware gebunden, mit der sie erworben wurden, und können nicht für die Cloud-VMs verwendet werden.','Für die Volumenlizenzen mit Lizenzmobilität ist Bring Your Own License (BYOL) möglich – die VMs werden dann ohne Lizenzanteil und damit günstiger abgerechnet.','Alternativ lassen sich VMs mit enthaltener Lizenz (License Included) buchen; die Lizenzkosten stecken dann im Stunden- oder Monatspreis.','Beim Anbieter gebuchte VMs sind immer vollständig lizenziert, eigene Lizenzen spielen in der Cloud keine Rolle.','Mit BYOL darf dieselbe Lizenz dauerhaft gleichzeitig lokal und in der Cloud genutzt werden.'],
+     e:'OEM-Lizenzen „leben und sterben“ mit dem Gerät. Für mobile Lizenzen lohnt der Vergleich BYOL gegen License Included – vor der Migration ist zu prüfen, welche Lizenzen welche Rechte haben.',
+     n:'Viele nehmen an, dass in der Cloud alles lizenziert ist. Das gilt nur für License-Included-Angebote; bei BYOL-VMs muss der Kunde die Lizenzierung nachweisen – und eine Lizenz kann (abgesehen von vertraglich geregelten Übergangsfristen) nicht zweimal genutzt werden.'},
+ en:{s:'A customer wants to move its on-premises server VMs to an IaaS provider by lift-and-shift. The inventory contains OEM licences bought with the server hardware and volume licences with an active maintenance agreement that, according to the licence terms, permits use at the cloud provider (licence mobility).',
+     q:'Which statements are correct? (Multiple answers)',
+     o:['The OEM licences are tied to the hardware they were bought with and cannot be used for the cloud VMs.','Bring your own licence (BYOL) is possible for the volume licences with licence mobility – the VMs are then billed without a licence component and therefore more cheaply.','Alternatively, VMs with the licence included can be booked; the licence costs are then part of the hourly or monthly price.','VMs booked with the provider are always fully licensed; own licences play no role in the cloud.','With BYOL, the same licence may be used permanently both on-premises and in the cloud at the same time.'],
+     e:'OEM licences "live and die" with the device. For mobile licences it pays to compare BYOL with licence-included offers – before migrating, check which licences carry which rights.',
+     n:'Many assume that everything in the cloud is licensed. That only applies to licence-included offers; with BYOL VMs the customer must prove licensing – and a licence cannot be used twice (apart from contractually defined transition periods).'}},
+{id:'cloud-18', a:'cloud', t:'order',
+ de:{s:'Der Vertrag mit dem bisherigen IaaS-Anbieter wurde fristgerecht gekündigt; die Workloads sollen zu einem anderen Anbieter umziehen. Die Exit-Klausel im Vertrag sichert den Datenexport in Standardformaten und die Löschung nach Vertragsende zu.',
+     q:'Bringen Sie die Schritte der Exit-Strategie in die richtige Reihenfolge.',
+     o:['Bestand erfassen: VMs, Datenmengen, Abhängigkeiten, Schnittstellen und genutzte anbieterspezifische Dienste','Zielumgebung beim neuen Anbieter aufbauen (Netz, Identitäten, VMs bzw. Ersatzdienste)','Testmigration mit einer Kopie der Daten durchführen und Funktion sowie Dauer prüfen','Produktivmigration im Wartungsfenster: Daten final synchronisieren und DNS bzw. Endpunkte umstellen','Vollständigkeit der Daten und Funktion im Zielsystem durch die Fachabteilungen bestätigen lassen','Löschung aller Daten beim bisherigen Anbieter veranlassen und schriftliche Löschbestätigung einholen'],
+     e:'Ohne Bestandsaufnahme lassen sich Zielumgebung und Ersatz für proprietäre Dienste nicht planen. Die Testmigration liefert die realistische Dauer für das Wartungsfenster. Gelöscht wird erst nach bestätigter Abnahme – sonst gibt es keinen Rückweg.',
+     n:'Häufig wird die Löschung beim alten Anbieter direkt nach dem Umschalten beauftragt. Fehlen dann Daten im Zielsystem, sind sie unwiederbringlich verloren – die Abnahme muss vorher erfolgen.'},
+ en:{s:'The contract with the current IaaS provider has been terminated in due time; the workloads are to move to another provider. The exit clause in the contract guarantees data export in standard formats and deletion after the end of the contract.',
+     q:'Put the steps of the exit strategy in the correct order.',
+     o:['Take inventory: VMs, data volumes, dependencies, interfaces and provider-specific services in use','Build the target environment at the new provider (network, identities, VMs or replacement services)','Perform a test migration with a copy of the data and check functionality and duration','Production migration in the maintenance window: final data synchronisation and switch-over of DNS or endpoints','Have the business departments confirm data completeness and functionality in the target system','Instruct the previous provider to delete all data and obtain written confirmation of deletion'],
+     e:'Without an inventory, neither the target environment nor replacements for proprietary services can be planned. The test migration provides the realistic duration for the maintenance window. Deletion only happens after confirmed acceptance – otherwise there is no way back.',
+     n:'Deletion at the old provider is often ordered right after the switch-over. If data is then missing in the target system, it is irretrievably lost – acceptance must come first.'}},
+{id:'cloud-19', a:'cloud', t:'sc', c:0,
+ de:{s:'Ein Maschinenbauer will Konstruktionsdaten bei einem US-amerikanischen Cloud-Anbieter speichern. Der Vertrieb des Anbieters versichert, die Daten lägen ausschließlich in der Region Frankfurt und seien damit „vollständig vor dem Zugriff von US-Behörden geschützt“. Die Geschäftsführung fragt Sie, ob das stimmt.',
+     q:'Welche Einschätzung ist fachlich richtig?',
+     o:['Nein – der US CLOUD Act kann US-Anbieter verpflichten, Daten herauszugeben, die sie kontrollieren, auch wenn diese in der EU gespeichert sind. Schutz bietet z. B. eine Verschlüsselung mit Schlüsseln, die nur das Unternehmen selbst verwaltet.','Ja – Daten in einem deutschen Rechenzentrum unterliegen ausschließlich deutschem Recht.','Ja, sofern das Rechenzentrum nach ISO/IEC 27001 zertifiziert ist.','Nein – deshalb ist die Nutzung von US-Anbietern nach der DSGVO grundsätzlich verboten.'],
+     e:'Entscheidend ist, wer Zugriff auf die Daten hat, nicht nur, wo sie liegen. Liegen die Schlüssel ausschließlich beim Kunden (z. B. clientseitige Verschlüsselung, eigenes HSM), kann der Anbieter selbst bei einer Anordnung nur verschlüsselte Daten herausgeben.',
+     n:'Die Region Frankfurt klingt nach deutschem Recht – der CLOUD Act knüpft aber an die Kontrolle des US-Unternehmens über die Daten an, nicht an den Speicherort. Ein generelles Verbot gibt es dagegen nicht: Mit Angemessenheitsbeschluss bzw. Standardvertragsklauseln und geeigneten Maßnahmen ist die Nutzung zulässig.'},
+ en:{s:'A mechanical engineering company wants to store design data with a US cloud provider. The provider\'s sales team assures that the data is stored exclusively in the Frankfurt region and is therefore "completely protected against access by US authorities". Management asks you whether that is true.',
+     q:'Which assessment is technically correct?',
+     o:['No – the US CLOUD Act can oblige US providers to hand over data under their control even if it is stored in the EU. Protection is offered, for example, by encryption with keys that only the company itself manages.','Yes – data in a German data centre is subject exclusively to German law.','Yes, provided the data centre is certified to ISO/IEC 27001.','No – which is why the GDPR fundamentally prohibits the use of US providers.'],
+     e:'What matters is who has access to the data, not only where it is stored. If the keys are held exclusively by the customer (e.g. client-side encryption, own HSM), the provider can only hand over encrypted data even when ordered to.',
+     n:'The Frankfurt region sounds like German law – but the CLOUD Act is based on the US company\'s control over the data, not on the storage location. There is no general ban either: with an adequacy decision or standard contractual clauses and suitable measures, use is permitted.'}},
+{id:'cloud-20', a:'cloud', t:'open',
+ de:{s:'Fachgespräch: Der Geschäftsführer eines mittelständischen Unternehmens (80 Mitarbeiter) fragt: „Sollen wir unseren Fileserver und die Warenwirtschaft komplett in die Cloud verlagern?“ Der Prüfer möchte wissen, wie Sie diese Entscheidung vorbereiten.',
+     q:'Nennen und erläutern Sie die Kriterien, die Sie für eine Empfehlung heranziehen.',
+     m:'• Wirtschaftlichkeit: TCO über z. B. 5 Jahre vergleichen – Investitionen (CAPEX) gegen laufende Kosten (OPEX), Lizenzen, Egress, Personal, Strom und Wartung.\n• Verfügbarkeit: SLA des Anbieters, redundante Internetanbindung (sonst Single Point of Failure), Latenz für die Warenwirtschaft.\n• Datenschutz und Recht: Speicherort, Auftragsverarbeitungsvertrag (Art. 28 DSGVO), Drittlandübermittlung/CLOUD Act, Verschlüsselung.\n• Sicherheit: geteilte Verantwortung, Identitäten mit MFA, Rechtekonzept.\n• Abhängigkeit: Vendor-Lock-in, Exit-Strategie, Datenexport in Standardformaten.\n• Datensicherung: Der Anbieter ersetzt kein eigenes Backup (3-2-1-Regel, Wiederherstellung testen).\n• Organisation: Know-how der IT, Migrationsaufwand, Kompatibilität der Warenwirtschaft (SaaS-Angebot des Herstellers?).\n• Empfehlung: Pilot bzw. schrittweiser Hybridbetrieb statt „Big Bang“.',
+     k:['TCO-Vergleich, CAPEX/OPEX','SLA und redundante Internetanbindung','DSGVO: Standort, AVV, Drittland','Shared Responsibility / Sicherheit','Lock-in und Exit-Strategie','Eigene Datensicherung','Schrittweises Vorgehen / Hybrid']},
+ en:{s:'Expert interview: the managing director of a medium-sized company (80 employees) asks: "Should we move our file server and our ERP system completely to the cloud?" The examiner wants to know how you prepare this decision.',
+     q:'Name and explain the criteria you use for a recommendation.',
+     m:'• Economics: compare TCO over e.g. 5 years – investment (CAPEX) versus running costs (OPEX), licences, egress, staff, power and maintenance.\n• Availability: provider SLA, redundant internet connection (otherwise a single point of failure), latency for the ERP system.\n• Data protection and law: storage location, data processing agreement (Art. 28 GDPR), third-country transfer/CLOUD Act, encryption.\n• Security: shared responsibility, identities with MFA, permission concept.\n• Dependency: vendor lock-in, exit strategy, data export in standard formats.\n• Backup: the provider does not replace an own backup (3-2-1 rule, test restores).\n• Organisation: IT know-how, migration effort, compatibility of the ERP system (does the vendor offer SaaS?).\n• Recommendation: pilot or gradual hybrid operation instead of a "big bang".',
+     k:['TCO comparison, CAPEX/OPEX','SLA and redundant internet connection','GDPR: location, DPA, third country','Shared responsibility / security','Lock-in and exit strategy','Own backup','Step-by-step approach / hybrid']}}
+);
+
 </script>
 
 <script>
