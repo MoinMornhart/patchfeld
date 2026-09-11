@@ -10,6 +10,20 @@ All changes to Patchfeld. Version scheme: every digit runs from 0 to 9 –
 
 <!-- releases -->
 
+## 0.1.0 – 2026-09-11
+
+- IT-Sicherheit auf 20 Fragen erweitert
+- Neue Themen: Maximumprinzip (BSI 200-2), TLS-Zertifikat mit CSR, Patchmanagement nach CERT-Warnung, Firewall-Typen und Regelreihenfolge, Angriffsarten, Passwortspeicherung mit Salt, WPA3-Enterprise mit 802.1X, echte Zwei-Faktor-Verfahren, BSI-Passwortregeln, digitale Signatur, VPN-Varianten, Zertifikatsvertrauen
+- Neue Rechenaufgaben mit Zufallswerten: Brute-Force-Dauer aus dem Schlüsselraum, Wochen-Backupvolumen mit Restore-Anzahl
+- Zahleneingabe erkennt Tausendertrennzeichen jetzt je nach Sprache (1.234,5 bzw. 1,234.5)
+
+**English**
+
+- IT security extended to 20 questions
+- New topics: maximum principle (BSI 200-2), TLS certificate with CSR, patch management after a CERT warning, firewall types and rule order, attack types, password storage with salt, WPA3-Enterprise with 802.1X, genuine two-factor methods, BSI password rules, digital signature, VPN variants, certificate trust
+- New random calculations: brute-force time from key space, weekly backup volume with restore count
+- Number input now recognises thousands separators per language (1.234,5 or 1,234.5)
+
 ## 0.0.9 – 2026-09-11
 
 - Ausfallsicherheit & Notfall auf 20 Fragen erweitert

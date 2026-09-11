@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Patchfeld</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<meta name="app-version" content="0.0.9">
+<meta name="app-version" content="0.1.0">
 <meta name="theme-color" content="#1b1f24">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -311,8 +311,11 @@ dialog::backdrop{background:rgba(10,12,14,.55)}
 /* =====================================================================
    PATCHFELD – Kern: Version, Bereiche, Hilfsfunktionen, Generatoren
    ===================================================================== */
-const APP_VERSION = '0.0.9';
+const APP_VERSION = '0.1.0';
 const CHANGELOG = [
+  {v:'0.1.0', d:'2026-09-11',
+   de:['IT-Sicherheit auf 20 Fragen erweitert','Neue Themen: Maximumprinzip (BSI 200-2), TLS-Zertifikat mit CSR, Patchmanagement nach CERT-Warnung, Firewall-Typen und Regelreihenfolge, Angriffsarten, Passwortspeicherung mit Salt, WPA3-Enterprise mit 802.1X, echte Zwei-Faktor-Verfahren, BSI-Passwortregeln, digitale Signatur, VPN-Varianten, Zertifikatsvertrauen','Neue Rechenaufgaben mit Zufallswerten: Brute-Force-Dauer aus dem Schlüsselraum, Wochen-Backupvolumen mit Restore-Anzahl','Zahleneingabe erkennt Tausendertrennzeichen jetzt je nach Sprache (1.234,5 bzw. 1,234.5)'],
+   en:['IT security extended to 20 questions','New topics: maximum principle (BSI 200-2), TLS certificate with CSR, patch management after a CERT warning, firewall types and rule order, attack types, password storage with salt, WPA3-Enterprise with 802.1X, genuine two-factor methods, BSI password rules, digital signature, VPN variants, certificate trust','New random calculations: brute-force time from key space, weekly backup volume with restore count','Number input now recognises thousands separators per language (1.234,5 or 1,234.5)']},
   {v:'0.0.9', d:'2026-09-11',
    de:['Ausfallsicherheit & Notfall auf 20 Fragen erweitert','Neue Themen: LACP statt STP-Blockade, VRRP/HSRP, BSI-200-4-Begriffe, unveränderliche Backups, Aktiv/Aktiv-Kapazität, Backupfenster, Klima und Brandschutz, GFS, USV-Shutdown-Reihenfolge, Georedundanz, Wiederherstellungstests, BCMS-Aufbau, Single Points of Failure','Neue Rechenaufgaben mit Zufallswerten: Verfügbarkeit serieller und paralleler Komponenten, Wochen-Backupvolumen inkrementell/differenziell'],
    en:['Resilience & contingency extended to 20 questions','New topics: LACP instead of STP blocking, VRRP/HSRP, BSI 200-4 terms, immutable backups, active/active capacity, backup window, climate and fire protection, GFS, UPS shutdown order, georedundancy, restore tests, setting up a BCMS, single points of failure','New random calculations: availability of serial and parallel components, weekly backup volume incremental/differential']},
@@ -2317,6 +2320,207 @@ Q.push(
      n:'"Three backups per day" describes frequency, not the number of independent copies – that is not what the rule is about.'}}
 );
 
+/* ----- BEREICH:sec – Erweiterung ----- */
+/* Brute-Force-Dauer aus Zeichenvorrat und Passwortlänge */
+GEN.secKeyspace = function(L){
+  const CS = [[26,'nur Kleinbuchstaben (a–z)','lowercase letters only (a–z)'],[52,'Groß- und Kleinbuchstaben','upper- and lowercase letters'],[62,'Groß-/Kleinbuchstaben und Ziffern','upper-/lowercase letters and digits'],[94,'allen 94 druckbaren ASCII-Zeichen (inkl. Sonderzeichen)','all 94 printable ASCII characters (incl. special characters)']];
+  const U = [[1,'s','s','Sekunden','seconds'],[60,'min','min','Minuten','minutes'],[3600,'h','h','Stunden','hours'],[86400,'Tage','days','Tagen','days'],[31536000,'Jahre','years','Jahren','years']];
+  const sci = x => { let e = Math.floor(Math.log10(x)), m = x / 10**e; if (Math.round(m*100)/100 >= 10){ m /= 10; e++; } return `${fmt(m,2,L)} × 10^${e}`; };
+  let cs, len, rate, ks, sec, u, v;
+  do {
+    cs = pick(CS); len = rnd(6,12); rate = pick([1e9,1e10,5e10,1e11]);
+    ks = cs[0]**len; sec = ks / rate;
+    u = U.filter(x => sec / x[0] >= 1).pop();
+    v = u ? Math.round(sec / u[0] * 10) / 10 : 0;
+  } while (!u || sec < 5 || v >= 1000);
+  const unit = tx(L, u[1], u[2]), rTxt = fmt(rate/1e9,0,L);
+  const secTxt = sec < 1e6 ? fmt(sec,1,L) : sci(sec);
+  const conv = u[0] === 1 ? '' : tx(L, ` ÷ ${fmt(u[0],0,L)} s je ${u[1]==='Jahre'?'Jahr':u[1]==='Tage'?'Tag':u[1]} = ${fmt(v,1,L)} ${unit}.`, ` ÷ ${fmt(u[0],0,L)} s per ${u[2]==='years'?'year':u[2]==='days'?'day':u[2]} = ${fmt(v,1,L)} ${unit}.`);
+  return { t:'in',
+    s: tx(L, `Beim Webshop eines Kunden wurden Passwort-Hashes entwendet, die mit einem schnellen, ungesalzenen Hashverfahren gespeichert waren. Die Passwörter bestehen aus genau ${len} Zeichen aus ${cs[1]} – also ${cs[0]} möglichen Zeichen je Stelle. Ein Angreifer schafft mit einem GPU-Cluster offline ${rTxt} Mrd. Versuche pro Sekunde.`,
+             `Password hashes stored with a fast, unsalted hash algorithm were stolen from a customer's web shop. The passwords consist of exactly ${len} characters drawn from ${cs[2]} – i.e. ${cs[0]} possible characters per position. Using a GPU cluster, an attacker manages ${rTxt} billion guesses per second offline.`),
+    q: tx(L, `Wie lange dauert es im ungünstigsten Fall, alle Kombinationen durchzuprobieren (Brute Force)? Geben Sie das Ergebnis in ${u[3]} an (1 Jahr = 365 Tage) und runden Sie auf eine Nachkommastelle.`,
+             `How long does it take in the worst case to try all combinations (brute force)? Give the result in ${u[4]} (1 year = 365 days) and round to one decimal place.`),
+    f: [ {l:tx(L,'Maximale Dauer','Maximum duration'), v, tol:Math.max(0.051, v*0.005), u:unit} ],
+    e: tx(L, `Schlüsselraum = Zeichenvorrat^Länge = ${cs[0]}^${len} ≈ ${sci(ks)} Kombinationen. Dauer: ${sci(ks)} ÷ ${sci(rate)} pro s ≈ ${secTxt} s.${conv} Im Mittel ist das Passwort schon nach der Hälfte (≈ ${fmt(v/2,1,L)} ${unit}) gefunden.`,
+             `Key space = character set^length = ${cs[0]}^${len} ≈ ${sci(ks)} combinations. Duration: ${sci(ks)} ÷ ${sci(rate)} per s ≈ ${secTxt} s.${conv} On average the password is found after half of that (≈ ${fmt(v/2,1,L)} ${unit}).`),
+    n: tx(L, 'Häufiger Fehler: Länge^Zeichenvorrat statt Zeichenvorrat^Länge rechnen. Jedes zusätzliche Zeichen vervielfacht den Aufwand um den Faktor des Zeichenvorrats – deshalb bringt Länge mehr als Sonderzeichenzwang. Langsame, gesalzene Verfahren (Argon2id, bcrypt) senken zudem die Versuche pro Sekunde drastisch.',
+             'Common mistake: calculating length^character set instead of character set^length. Every additional character multiplies the effort by the size of the character set – which is why length beats forced special characters. Slow, salted algorithms (Argon2id, bcrypt) also cut the guesses per second drastically.')
+  };
+};
+
+/* Speicherbedarf einer Backup-Woche und Anzahl einzuspielender Sicherungen */
+GEN.secBackupVolume = function(L){
+  const full = pick([300,400,500,600,800,1200]), p = pick([1,2,3,4,5]), ch = full * p / 100;
+  const n = pick([5,6]), diff = Math.random() < 0.5, k = rnd(2, n-1);
+  const D = {de:['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'], en:['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']}[L==='en'?'en':'de'];
+  const tri = n*(n+1)/2, sum = diff ? full + ch*tri : full + ch*n, restore = diff ? 2 : 1 + k;
+  const typ = diff ? tx(L,'differenzielle','differential') : tx(L,'inkrementelle','incremental');
+  return { t:'in',
+    s: tx(L, `Der Fileserver einer Steuerberatungskanzlei hält ${full} GB Daten. Sonntags läuft eine Vollsicherung, von Montag bis ${D[n-1]} jede Nacht eine ${typ} Sicherung. Täglich ändern sich ${p} % des Datenbestands (${ch} GB), jeweils andere Dateien. Komprimierung und Deduplizierung bleiben unberücksichtigt.`,
+             `The file server of a tax consultancy holds ${full} GB of data. A full backup runs on Sunday, and ${diff?'a':'an'} ${typ} backup runs every night from Monday to ${D[n-1]}. ${p} % of the data (${ch} GB) changes every day, always different files. Ignore compression and deduplication.`),
+    q: tx(L, `Wie viel Speicherplatz in GB belegen die Sicherungen dieser Woche (Vollsicherung plus ${n} Teilsicherungen)? Der Server fällt am ${D[k]}morgen aus, bevor tagsüber gearbeitet wurde – wie viele Sicherungen müssen Sie für die Wiederherstellung einspielen?`,
+             `How much storage in GB do this week's backups occupy (full backup plus ${n} partial backups)? The server fails on ${D[k]} morning before any work was done that day – how many backups do you have to restore?`),
+    f: [ {l:tx(L,'Speicherbedarf der Woche','Storage for the week'), v:sum, tol:0, u:'GB'}, {l:tx(L,'Einzuspielende Sicherungen','Backups to restore'), v:restore, tol:0} ],
+    e: diff
+      ? tx(L, `Differenziell sichert jede Nacht alle Änderungen seit der letzten Vollsicherung: ${ch} GB, ${2*ch} GB … ${n*ch} GB. Summe: ${full} + ${ch} × (1 + 2 + … + ${n}) = ${full} + ${ch} × ${tri} = ${fmt(sum,0,L)} GB. Wiederherstellung: Vollsicherung vom Sonntag + differenzielle Sicherung vom ${D[k-1]} = 2 Sicherungen.`,
+               `A differential backup saves all changes since the last full backup every night: ${ch} GB, ${2*ch} GB … ${n*ch} GB. Total: ${full} + ${ch} × (1 + 2 + … + ${n}) = ${full} + ${ch} × ${tri} = ${fmt(sum,0,L)} GB. Restore: Sunday's full backup + the differential backup from ${D[k-1]} = 2 backups.`)
+      : tx(L, `Inkrementell sichert jede Nacht nur die Änderungen seit der letzten Sicherung: ${n} × ${ch} GB = ${n*ch} GB, plus Vollsicherung ${full} GB = ${fmt(sum,0,L)} GB. Wiederherstellung: Vollsicherung vom Sonntag + alle ${k} inkrementellen Sicherungen von Montag bis ${D[k-1]} in der richtigen Reihenfolge = ${restore} Sicherungen.`,
+               `An incremental backup saves only the changes since the previous backup every night: ${n} × ${ch} GB = ${n*ch} GB, plus the full backup of ${full} GB = ${fmt(sum,0,L)} GB. Restore: Sunday's full backup + all ${k} incremental backups from Monday to ${D[k-1]} in the correct order = ${restore} backups.`),
+    n: diff
+      ? tx(L, 'Häufiger Fehler: auch bei differenzieller Sicherung nur Anzahl × Tagesänderung zu rechnen – jede differenzielle Sicherung enthält alle Änderungen seit der Vollsicherung und wächst täglich. Dafür genügen zur Wiederherstellung immer zwei Sicherungen.',
+               'Common mistake: calculating number × daily change for differential backups too – each differential backup contains all changes since the full backup and grows every day. In return, a restore always needs just two backups.')
+      : tx(L, 'Häufiger Fehler: nur Vollsicherung plus letzte inkrementelle Sicherung einzuspielen – jede Sicherung der Kette seit der Vollsicherung wird gebraucht. Fehlt oder ist eine defekt, sind alle folgenden wertlos.',
+               'Common mistake: restoring only the full backup plus the latest incremental one – every backup in the chain since the full backup is needed. If one is missing or corrupt, all later ones are useless.')
+  };
+};
+
+Q.push(
+{id:'sec-06', a:'sec', gen:'secKeyspace'},
+{id:'sec-07', a:'sec', gen:'secBackupVolume'},
+{id:'sec-08', a:'sec', t:'sc', c:0,
+ de:{s:'Eine Steuerberatungskanzlei betreibt auf einem Virtualisierungshost drei VMs. In der Schutzbedarfsfeststellung nach BSI-Standard 200-2 wurde der Schutzbedarf für Vertraulichkeit so eingestuft: Intranet-Wiki „normal“, Fileserver mit Mandantenunterlagen „hoch“, Lohnbuchhaltung „sehr hoch“.',
+     q:'Welchen Schutzbedarf hinsichtlich Vertraulichkeit erhält der Virtualisierungshost?',
+     o:['„sehr hoch“ – nach dem Maximumprinzip erbt der Host den höchsten Schutzbedarf der auf ihm betriebenen Anwendungen','„hoch“ – es wird der Mittelwert der drei Einstufungen gebildet','„normal“ – der Host speichert selbst keine Fachdaten, das tun nur die VMs','„hoch“ – wegen des Verteilungseffekts wird der Schutzbedarf eines Hosts immer um eine Stufe abgesenkt'],
+     e:'Ein IT-System ist so schutzbedürftig wie die kritischste Anwendung, die es trägt: Wer den Host kompromittiert, erreicht alle VMs. Der Schutzbedarf wird daher vom Maximum abgeleitet; ein Kumulationseffekt kann ihn sogar erhöhen.',
+     n:'Mittelwertbildung wirkt fair, unterschätzt aber das Risiko: Ein Angriff auf den Host legt auch die Lohndaten offen. Ein Verteilungseffekt darf nur mit Begründung angesetzt werden, nicht pauschal.'},
+ en:{s:'A tax consultancy runs three VMs on one virtualisation host. In the protection needs assessment according to BSI Standard 200-2, the confidentiality requirement was rated as follows: intranet wiki "normal", file server with client documents "high", payroll accounting "very high".',
+     q:'Which protection requirement regarding confidentiality does the virtualisation host receive?',
+     o:['"Very high" – according to the maximum principle the host inherits the highest protection requirement of the applications it runs','"High" – the average of the three ratings is taken','"Normal" – the host itself stores no business data, only the VMs do','"High" – due to the distribution effect a host\'s protection requirement is always lowered by one level'],
+     e:'An IT system needs as much protection as the most critical application it carries: whoever compromises the host reaches all VMs. The requirement is therefore derived from the maximum; a cumulative effect can even raise it.',
+     n:'Averaging seems fair but underestimates the risk: an attack on the host also exposes the payroll data. A distribution effect may only be applied with justification, never across the board.'}},
+{id:'sec-09', a:'sec', t:'order',
+ de:{s:'Der Webshop eines Möbelhändlers soll ein TLS-Zertifikat einer öffentlichen Zertifizierungsstelle erhalten.',
+     q:'Bringen Sie die Schritte in die richtige Reihenfolge.',
+     o:['Schlüsselpaar auf dem Webserver erzeugen (privater Schlüssel bleibt dort)','Certificate Signing Request (CSR) mit Domainnamen und öffentlichem Schlüssel erstellen','CSR bei der Zertifizierungsstelle (CA) einreichen','CA prüft die Kontrolle über die Domain bzw. die Identität des Antragstellers','CA signiert das Zertifikat mit ihrem Schlüssel und stellt es aus','Zertifikat samt Zwischenzertifikat (Intermediate) auf dem Webserver installieren','Ablaufdatum überwachen und rechtzeitig erneuern, am besten automatisiert (z. B. ACME)'],
+     e:'Der CSR enthält den öffentlichen Schlüssel und ist mit dem privaten Schlüssel signiert – deshalb muss das Schlüsselpaar zuerst existieren. Ohne Zwischenzertifikat können Clients die Kette bis zur Root-CA nicht bilden. Da die maximale Laufzeit öffentlicher Zertifikate schrittweise sinkt (seit März 2026 höchstens 200 Tage), ist Automatisierung Pflicht.',
+     n:'Oft wird angenommen, die CA erzeuge den privaten Schlüssel und schicke ihn mit – das wäre ein Sicherheitsrisiko. Der private Schlüssel verlässt den Server nie, die CA sieht nur den öffentlichen Schlüssel im CSR.'},
+ en:{s:'A furniture retailer\'s web shop is to receive a TLS certificate from a public certificate authority.',
+     q:'Put the steps in the correct order.',
+     o:['Generate a key pair on the web server (the private key stays there)','Create a certificate signing request (CSR) containing the domain name and the public key','Submit the CSR to the certificate authority (CA)','The CA validates control of the domain or the applicant\'s identity','The CA signs the certificate with its key and issues it','Install the certificate together with the intermediate certificate on the web server','Monitor the expiry date and renew in time, ideally automated (e.g. ACME)'],
+     e:'The CSR contains the public key and is signed with the private key – so the key pair must exist first. Without the intermediate certificate, clients cannot build the chain up to the root CA. As the maximum lifetime of public certificates keeps shrinking (at most 200 days since March 2026), automation is a must.',
+     n:'People often assume the CA generates the private key and sends it along – that would be a security risk. The private key never leaves the server; the CA only sees the public key in the CSR.'}},
+{id:'sec-10', a:'sec', t:'order',
+ de:{s:'Das CERT-Bund des BSI warnt vor einer kritischen, bereits ausgenutzten Schwachstelle im VPN-Gateway und in einer Serversoftware, die bei einem Maschinenbauer mit 150 Arbeitsplätzen eingesetzt werden.',
+     q:'Bringen Sie die Schritte des Patchmanagements in eine sinnvolle Reihenfolge.',
+     o:['Sicherheitsmeldung auswerten und betroffene Systeme anhand der Inventarisierung ermitteln','Kritikalität bewerten und priorisieren (z. B. CVSS-Wert, Erreichbarkeit aus dem Internet)','Patch in einer Testumgebung bzw. auf Pilotsystemen prüfen','Freigabe über das (Notfall-)Change-Management einholen, Backup und Rollback vorbereiten','Patch gestaffelt ausrollen – zuerst exponierte Systeme wie das VPN-Gateway','Erfolg kontrollieren (Patchstand, Funktion) und dokumentieren'],
+     e:'Ohne aktuelles Inventar weiß niemand, welche Systeme betroffen sind. Priorisierung entscheidet, was sofort gepatcht wird; Test, Freigabe und Rollback-Plan verhindern, dass der Patch selbst den Betrieb stört. Die Kontrolle schließt Lücken bei Systemen, auf denen die Installation fehlgeschlagen ist.',
+     n:'Bei aktiv ausgenutzten Lücken ist der Reflex „sofort überall installieren“ – auch dann wird aber (verkürzt) getestet und ein Rollback vorbereitet, sonst droht ein selbstverschuldeter Ausfall der Produktion.'},
+ en:{s:'The BSI\'s CERT-Bund warns of a critical, already exploited vulnerability in the VPN gateway and in a server application used by a mechanical engineering company with 150 workstations.',
+     q:'Put the patch management steps in a sensible order.',
+     o:['Evaluate the advisory and identify affected systems using the asset inventory','Assess criticality and prioritise (e.g. CVSS score, exposure to the internet)','Test the patch in a test environment or on pilot systems','Obtain approval via (emergency) change management, prepare backup and rollback','Roll out the patch in stages – exposed systems such as the VPN gateway first','Verify success (patch level, functionality) and document'],
+     e:'Without an up-to-date inventory nobody knows which systems are affected. Prioritisation decides what is patched immediately; testing, approval and a rollback plan prevent the patch itself from disrupting operations. Verification closes gaps on systems where the installation failed.',
+     n:'With actively exploited vulnerabilities the reflex is "install everywhere now" – but even then a (shortened) test is done and a rollback prepared, otherwise you risk a self-inflicted production outage.'}},
+{id:'sec-11', a:'sec', t:'match',
+ de:{s:'Ein Systemhaus berät ein Logistikunternehmen bei der Auswahl von Firewall-Lösungen. Sie erläutern dem Kunden die Firewall-Arten anhand von Beispielen.',
+     q:'Ordnen Sie jedem Beispiel die passende Firewall-Art zu.',
+     p:[['Ein Router lässt Pakete nur anhand von Quell-/Ziel-IP und Port durch, ohne Verbindungen zu verfolgen','Paketfilter (zustandslos)'],['Die Firewall merkt sich ausgehende Verbindungen in einer Tabelle und lässt nur passende Antwortpakete herein','Stateful Inspection'],['Ein Proxy nimmt die HTTP-Verbindungen der Clients entgegen, prüft die Inhalte und baut eigene Verbindungen zum Ziel auf','Application-Level-Gateway (Proxy-Firewall)'],['Vor dem Kundenportal werden SQL-Injection- und Cross-Site-Scripting-Versuche in HTTP-Anfragen erkannt und blockiert','Web Application Firewall (WAF)'],['Die Firewall erkennt Anwendungen wie Teams oder BitTorrent unabhängig vom Port, enthält ein IPS und bindet Regeln an AD-Benutzer','Next-Generation Firewall (NGFW)']],
+     e:'Paketfilter prüfen nur Header-Daten einzelner Pakete, Stateful Inspection zusätzlich den Verbindungszustand. Proxy und NGFW arbeiten bis zur Anwendungsschicht; die WAF ist speziell auf den Schutz von Webanwendungen vor Angriffen auf HTTP-Ebene ausgerichtet.',
+     n:'WAF und Proxy werden oft verwechselt: Der Proxy vermittelt ausgehende Verbindungen der eigenen Clients, die WAF schützt eingehend eine bestimmte Webanwendung auf dem eigenen Server.'},
+ en:{s:'An IT service provider advises a logistics company on selecting firewall solutions. You explain the firewall types to the customer using examples.',
+     q:'Match each example to the appropriate firewall type.',
+     p:[['A router forwards packets based only on source/destination IP and port, without tracking connections','Packet filter (stateless)'],['The firewall records outgoing connections in a table and only lets matching reply packets in','Stateful inspection'],['A proxy accepts the clients\' HTTP connections, inspects the content and opens its own connections to the destination','Application-level gateway (proxy firewall)'],['In front of the customer portal, SQL injection and cross-site scripting attempts in HTTP requests are detected and blocked','Web application firewall (WAF)'],['The firewall identifies applications such as Teams or BitTorrent regardless of port, includes an IPS and ties rules to AD users','Next-generation firewall (NGFW)']],
+     e:'Packet filters only check header data of individual packets; stateful inspection also checks the connection state. Proxy and NGFW work up to the application layer; the WAF is specialised in protecting web applications against HTTP-level attacks.',
+     n:'WAF and proxy are often confused: the proxy relays outgoing connections of your own clients, the WAF protects a specific web application on your own server against incoming traffic.'}},
+{id:'sec-12', a:'sec', t:'match',
+ de:{s:'Für eine Awareness-Schulung in einem Autohaus sammeln Sie reale Vorfälle aus der Region.',
+     q:'Ordnen Sie jedem Vorfall die Angriffsart zu.',
+     p:[['Auf dem Kundenparkplatz liegt ein USB-Stick mit der Aufschrift „Gehälter 2026“; ein Mitarbeiter steckt ihn am Arbeitsplatz ein','Baiting (Köder)'],['Ein Schadprogramm verbreitet sich selbstständig über eine ungepatchte SMB-Lücke von Rechner zu Rechner','Wurm'],['Ein kostenloser „PDF-Konverter“ funktioniert, öffnet im Hintergrund aber eine Hintertür für Angreifer','Trojaner'],['Im Hotel-WLAN leitet ein Angreifer den Datenverkehr über sein Notebook und liest unverschlüsselte Anmeldungen mit','Man-in-the-Middle'],['Tausende gekaperte Überwachungskameras überfluten die Online-Terminbuchung mit Anfragen','DDoS über ein Botnetz'],['Ein Anrufer gibt sich als Microsoft-Support aus und bittet um Fernwartungszugriff','Vishing (Social Engineering am Telefon)']],
+     e:'Baiting und Vishing nutzen menschliche Neugier bzw. Autoritätsgläubigkeit aus, Wurm und Trojaner sind Schadsoftware, MITM und DDoS greifen die Kommunikation bzw. die Verfügbarkeit an. Gegenmaßnahmen: Schulung, USB-Richtlinien, Patchen, VPN/TLS, DDoS-Schutz beim Provider.',
+     n:'Wurm und Trojaner werden oft verwechselt: Der Wurm verbreitet sich ohne Zutun des Nutzers selbst, der Trojaner tarnt sich als nützliches Programm und muss vom Nutzer ausgeführt werden.'},
+ en:{s:'For an awareness training at a car dealership you collect real incidents from the region.',
+     q:'Match each incident to the type of attack.',
+     p:[['A USB stick labelled "Salaries 2026" lies in the customer car park; an employee plugs it into his workstation','Baiting'],['Malware spreads by itself from computer to computer via an unpatched SMB vulnerability','Worm'],['A free "PDF converter" works, but secretly opens a backdoor for attackers','Trojan horse'],['In a hotel Wi-Fi, an attacker routes traffic through his notebook and reads unencrypted logins','Man-in-the-middle'],['Thousands of hijacked surveillance cameras flood the online appointment booking with requests','DDoS via a botnet'],['A caller poses as Microsoft support and asks for remote maintenance access','Vishing (voice phishing)']],
+     e:'Baiting and vishing exploit human curiosity and trust in authority; worm and trojan are malware; MITM and DDoS attack communication and availability respectively. Countermeasures: training, USB policies, patching, VPN/TLS, DDoS protection at the provider.',
+     n:'Worm and trojan are often confused: a worm spreads by itself without user action, a trojan disguises itself as a useful program and has to be run by the user.'}},
+{id:'sec-13', a:'sec', t:'sc', c:0,
+ de:{s:'Der Administrator eines Onlinehändlers (Admin-PC 192.168.10.50 im LAN 192.168.10.0/24) kann sich nicht per SSH mit dem Webserver 172.16.1.10 in der DMZ verbinden. Die zustandsorientierte Firewall prüft ihre Regeln von oben nach unten, die erste passende Regel gilt (First Match).',
+     q:'Wie beheben Sie das Problem, ohne die Sicherheit zu verschlechtern?',
+     tb:{h:['Nr.','Quelle','Ziel','Dienst','Aktion'], r:[['1','any','172.16.1.10','TCP 443','erlauben'],['2','192.168.10.0/24','any','TCP 80, 443','erlauben'],['3','192.168.10.0/24','172.16.1.0/24','any','verwerfen'],['4','192.168.10.50','172.16.1.10','TCP 22','erlauben'],['5','any','any','any','verwerfen']]},
+     o:['Regel 4 vor Regel 3 verschieben','Regel 5 löschen, weil die Default-Deny-Regel die SSH-Verbindung blockiert','Am Ende des Regelwerks eine Regel „any → any, TCP 22, erlauben“ ergänzen','Eine zusätzliche Regel für die Antwortpakete von 172.16.1.10 zum Admin-PC anlegen'],
+     e:'Das SSH-Paket passt nicht zu Regel 1 und 2 (falscher Port), aber zu Regel 3 (LAN → DMZ, jeder Dienst) und wird verworfen – Regel 4 wird nie erreicht. Spezielle Ausnahmen gehören deshalb vor die allgemeinen Sperrregeln.',
+     n:'Regel 5 ist nicht die Ursache, das Paket erreicht sie gar nicht. Ohne Default Deny wäre alles erlaubt, was nicht ausdrücklich verboten ist – ein gravierender Rückschritt.'},
+ en:{s:'The administrator of an online retailer (admin PC 192.168.10.50 in the LAN 192.168.10.0/24) cannot connect via SSH to the web server 172.16.1.10 in the DMZ. The stateful firewall checks its rules from top to bottom; the first matching rule applies (first match).',
+     q:'How do you fix the problem without weakening security?',
+     tb:{h:['No.','Source','Destination','Service','Action'], r:[['1','any','172.16.1.10','TCP 443','allow'],['2','192.168.10.0/24','any','TCP 80, 443','allow'],['3','192.168.10.0/24','172.16.1.0/24','any','drop'],['4','192.168.10.50','172.16.1.10','TCP 22','allow'],['5','any','any','any','drop']]},
+     o:['Move rule 4 above rule 3','Delete rule 5, because the default deny rule blocks the SSH connection','Add a rule "any → any, TCP 22, allow" at the end of the rule set','Create an additional rule for the reply packets from 172.16.1.10 to the admin PC'],
+     e:'The SSH packet does not match rules 1 and 2 (wrong port) but does match rule 3 (LAN → DMZ, any service) and is dropped – rule 4 is never reached. Specific exceptions therefore belong above general deny rules.',
+     n:'Rule 5 is not the cause; the packet never reaches it. Without default deny everything not explicitly forbidden would be allowed – a serious step backwards.'}},
+{id:'sec-14', a:'sec', t:'sc', c:0,
+ de:{s:'Für den neuen Webshop eines Sportartikelhändlers legen Sie fest, wie die Passwörter der Kundenkonten in der Datenbank gespeichert werden.',
+     q:'Welches Verfahren entspricht dem Stand der Technik?',
+     o:['Ein langsames Passwort-Hashverfahren wie Argon2id oder bcrypt mit einem zufälligen, individuellen Salt je Konto','SHA-256 ohne Salt, da SHA-256 als sicher gilt und nicht umkehrbar ist','Verschlüsselung mit AES-256, der Schlüssel liegt in der Konfigurationsdatei des Shops','MD5 mit einem für alle Konten gleichen Salt, der im Quellcode hinterlegt ist'],
+     e:'Passwörter müssen nur geprüft, nie entschlüsselt werden – daher Hash statt Verschlüsselung. Der individuelle Salt verhindert vorberechnete Tabellen (Rainbow Tables) und gleiche Hashes bei gleichen Passwörtern; ein bewusst langsames, speicherintensives Verfahren bremst Brute-Force-Angriffe massiv.',
+     n:'SHA-256 ist zwar nicht umkehrbar, aber auf Geschwindigkeit optimiert: GPUs berechnen Milliarden Hashes pro Sekunde, und ohne Salt helfen vorberechnete Tabellen – schwache Passwörter sind schnell gefunden.'},
+ en:{s:'For a sporting goods retailer\'s new web shop you specify how customer account passwords are stored in the database.',
+     q:'Which method reflects the state of the art?',
+     o:['A slow password hashing algorithm such as Argon2id or bcrypt with a random, individual salt per account','SHA-256 without salt, since SHA-256 is considered secure and cannot be reversed','Encryption with AES-256, the key is stored in the shop\'s configuration file','MD5 with the same salt for all accounts, stored in the source code'],
+     e:'Passwords only need to be verified, never decrypted – hence hashing instead of encryption. The individual salt defeats precomputed tables (rainbow tables) and identical hashes for identical passwords; a deliberately slow, memory-hard algorithm slows brute-force attacks massively.',
+     n:'SHA-256 cannot be reversed, but it is optimised for speed: GPUs compute billions of hashes per second, and without salt precomputed tables work – weak passwords are found quickly.'}},
+{id:'sec-15', a:'sec', t:'sc', c:0,
+ de:{s:'Ein Maschinenbauer mit 200 Beschäftigten nutzt im Mitarbeiter-WLAN WPA2-PSK. Das Passwort steht auf einem Whiteboard und ist auch ehemaligen Mitarbeitern bekannt. Die Geräte sind Mitglied im Active Directory.',
+     q:'Welche Lösung empfehlen Sie für das Mitarbeiter-WLAN?',
+     o:['WPA3-Enterprise mit IEEE 802.1X: Anmeldung mit persönlichen Zugangsdaten oder Gerätezertifikaten, Prüfung über einen RADIUS-Server','WPA3-Personal (SAE) mit einem neuen 20-stelligen Passwort, das jedes Quartal gewechselt wird','SSID verstecken und nur freigegebene MAC-Adressen zulassen','WPA2-PSK beibehalten, das Passwort aber nur noch mündlich weitergeben'],
+     e:'Mit 802.1X meldet sich jede Person bzw. jedes Gerät einzeln an. Scheidet jemand aus, wird nur sein AD-Konto oder Zertifikat gesperrt; zusätzlich sind Protokollierung und dynamische VLAN-Zuweisung möglich. Am sichersten ist EAP-TLS mit Gerätezertifikaten.',
+     n:'WPA3-Personal schützt dank SAE besser gegen Offline-Wörterbuchangriffe, bleibt aber ein gemeinsamer Schlüssel: Wer ihn kennt, behält Zugang bis zum nächsten Wechsel, und einzelne Personen lassen sich nicht gezielt sperren.'},
+ en:{s:'A mechanical engineering company with 200 employees uses WPA2-PSK for its staff Wi-Fi. The password is written on a whiteboard and is also known to former employees. The devices are members of the Active Directory.',
+     q:'Which solution do you recommend for the staff Wi-Fi?',
+     o:['WPA3-Enterprise with IEEE 802.1X: login with personal credentials or device certificates, verified by a RADIUS server','WPA3-Personal (SAE) with a new 20-character password that is changed every quarter','Hide the SSID and only allow approved MAC addresses','Keep WPA2-PSK but pass the password on verbally only'],
+     e:'With 802.1X every person or device authenticates individually. When someone leaves, only their AD account or certificate is disabled; logging and dynamic VLAN assignment are also possible. EAP-TLS with device certificates is the most secure option.',
+     n:'Thanks to SAE, WPA3-Personal resists offline dictionary attacks better, but it is still a shared key: anyone who knows it keeps access until the next change, and individual people cannot be locked out selectively.'}},
+{id:'sec-16', a:'sec', t:'mc', c:[0,1,2],
+ de:{s:'Eine Steuerberatungskanzlei führt für den Fernzugriff auf die Mandantendaten eine Zwei-Faktor-Authentisierung ein. Der Anbieter stellt mehrere Anmeldeverfahren zur Wahl.',
+     q:'Welche Verfahren sind echte Zwei-Faktor-Authentisierungen? (Mehrere Antworten)',
+     o:['Passwort plus Einmalcode (TOTP) aus einer Authenticator-App auf dem Diensthandy','Smartcard, die im Kartenleser mit einer PIN freigeschaltet wird','FIDO2-Sicherheitsschlüssel (Passkey), der per Fingerabdruck entsperrt wird','Passwort plus Antwort auf eine Sicherheitsfrage („Name des ersten Haustiers“)','Zwei verschiedene Passwörter, die nacheinander abgefragt werden'],
+     e:'Echte 2FA kombiniert Faktoren aus zwei verschiedenen Kategorien: Wissen (Passwort, PIN), Besitz (Handy, Smartcard, Sicherheitsschlüssel) und Inhärenz (Fingerabdruck). Phishing-resistent sind vor allem FIDO2/Passkeys, weil die Anmeldung an die echte Domain gebunden ist.',
+     n:'Die Sicherheitsfrage wirkt wie ein zweiter Faktor, ist aber ebenfalls Wissen – oft sogar über soziale Netzwerke recherchierbar. Zwei Faktoren derselben Kategorie ergeben keine Zwei-Faktor-Authentisierung.'},
+ en:{s:'A tax consultancy introduces two-factor authentication for remote access to client data. The provider offers several login methods.',
+     q:'Which methods are genuine two-factor authentication? (Multiple answers)',
+     o:['Password plus one-time code (TOTP) from an authenticator app on the company phone','Smart card that is unlocked with a PIN in the card reader','FIDO2 security key (passkey) that is unlocked by fingerprint','Password plus the answer to a security question ("name of your first pet")','Two different passwords requested one after the other'],
+     e:'Genuine 2FA combines factors from two different categories: knowledge (password, PIN), possession (phone, smart card, security key) and inherence (fingerprint). FIDO2/passkeys are particularly phishing-resistant because the login is bound to the genuine domain.',
+     n:'The security question looks like a second factor but is also knowledge – often even researchable on social networks. Two factors of the same category do not make two-factor authentication.'}},
+{id:'sec-17', a:'sec', t:'mc', c:[0,1,2,3],
+ de:{s:'Eine Arztpraxis überarbeitet ihre Passwortrichtlinie. Die Praxisinhaberin möchte sich an den aktuellen Empfehlungen des BSI (IT-Grundschutz, Baustein ORP.4) orientieren.',
+     q:'Welche Regeln entsprechen den aktuellen BSI-Empfehlungen? (Mehrere Antworten)',
+     o:['Passwörter nur bei Anlass wechseln, etwa bei Verdacht auf Kompromittierung – nicht pauschal alle 90 Tage','Lange Passwörter bzw. Passphrasen zulassen; Länge ist wichtiger als komplizierte Zeichenregeln','Neue Passwörter gegen Listen bekannter, kompromittierter Passwörter prüfen','Wo möglich zusätzlich einen zweiten Faktor verlangen, insbesondere für Fernzugriff und Administratorkonten','Alle 30 Tage einen Wechsel erzwingen, damit gestohlene Passwörter schnell wertlos werden','Passwortmanager verbieten, weil sie ein lohnendes Angriffsziel sind'],
+     e:'Das BSI verlangt seit 2020 keinen regelmäßigen Zwangswechsel mehr: Er führt zu schwachen, vorhersehbaren Mustern („Praxis2026!“, „Praxis2027!“). Stattdessen zählen Länge, der Abgleich mit geleakten Passwörtern, MFA und Passwortmanager, die lange, einzigartige Passwörter erst praktikabel machen.',
+     n:'Häufiger Zwangswechsel wirkt sicher, ist aber kontraproduktiv – Nutzer zählen nur eine Ziffer hoch oder notieren das Passwort. Gewechselt wird, wenn ein konkreter Anlass besteht.'},
+ en:{s:'A medical practice is revising its password policy. The practice owner wants to follow the current recommendations of the German BSI (IT-Grundschutz, module ORP.4).',
+     q:'Which rules are in line with the current BSI recommendations? (Multiple answers)',
+     o:['Change passwords only when there is a reason, e.g. suspected compromise – not routinely every 90 days','Allow long passwords or passphrases; length matters more than complicated character rules','Check new passwords against lists of known compromised passwords','Where possible, require a second factor as well, especially for remote access and administrator accounts','Force a change every 30 days so that stolen passwords quickly become worthless','Ban password managers because they are a lucrative target for attacks'],
+     e:'Since 2020 the BSI no longer requires routine forced changes: they lead to weak, predictable patterns ("Practice2026!", "Practice2027!"). What counts instead is length, checking against leaked passwords, MFA and password managers, which make long, unique passwords practical in the first place.',
+     n:'Frequent forced changes seem secure but are counter-productive – users just increment a digit or write the password down. A change is made when there is a concrete reason.'}},
+{id:'sec-18', a:'sec', t:'mc', c:[0,2,4],
+ de:{s:'Ein Werkzeughersteller versendet Angebote künftig als digital signierte PDF-Dateien. Ein Auszubildender im Vertrieb fragt, was dabei technisch passiert.',
+     q:'Welche Aussagen zur digitalen Signatur sind richtig? (Mehrere Antworten)',
+     o:['Der Absender bildet einen Hashwert des Dokuments und signiert ihn mit seinem privaten Schlüssel','Die Signatur verschlüsselt den Inhalt, sodass Dritte das Angebot nicht lesen können','Der Empfänger prüft die Signatur mit dem öffentlichen Schlüssel des Absenders aus dessen Zertifikat','Zum Prüfen benötigt der Empfänger den privaten Schlüssel des Absenders','Wird das Dokument nach dem Signieren verändert, schlägt die Prüfung fehl'],
+     e:'Die Signatur sichert Integrität (jede Änderung verändert den Hashwert) und Authentizität (nur der Inhaber des privaten Schlüssels kann signieren), dazu Nichtabstreitbarkeit. Das Zertifikat einer vertrauenswürdigen CA bestätigt, wem der öffentliche Schlüssel gehört.',
+     n:'Die Signatur wird oft mit Verschlüsselung gleichgesetzt – das signierte PDF bleibt aber für jeden lesbar. Soll der Inhalt vertraulich sein, muss zusätzlich mit dem öffentlichen Schlüssel des Empfängers verschlüsselt werden.'},
+ en:{s:'A tool manufacturer will send quotations as digitally signed PDF files in future. A sales trainee asks what happens technically.',
+     q:'Which statements about the digital signature are correct? (Multiple answers)',
+     o:['The sender calculates a hash of the document and signs it with his private key','The signature encrypts the content so that third parties cannot read the quotation','The recipient verifies the signature with the sender\'s public key taken from the sender\'s certificate','To verify, the recipient needs the sender\'s private key','If the document is changed after signing, verification fails'],
+     e:'The signature ensures integrity (any change alters the hash) and authenticity (only the holder of the private key can sign), plus non-repudiation. The certificate from a trusted CA confirms who the public key belongs to.',
+     n:'A signature is often confused with encryption – but the signed PDF remains readable by anyone. If the content is to be confidential, it must additionally be encrypted with the recipient\'s public key.'}},
+{id:'sec-19', a:'sec', t:'open',
+ de:{s:'Ein Maschinenbauer mit Zentrale in Stuttgart eröffnet eine Niederlassung in Leipzig mit 12 Arbeitsplätzen. Außerdem sollen 20 Servicetechniker von unterwegs mit ihren Notebooks auf ERP-System und Fileserver in der Zentrale zugreifen.',
+     q:'Fachgespräch: Welche VPN-Lösungen empfehlen Sie für die Niederlassung und für den Außendienst? Begründen Sie Ihre Wahl und nennen Sie Protokolle und begleitende Sicherheitsmaßnahmen.',
+     m:'• Niederlassung: Site-to-Site-VPN zwischen den Firewalls der beiden Standorte (IPsec mit IKEv2 oder WireGuard) – dauerhaft aktiv, für die Clients transparent, keine Software auf den PCs\n• Außendienst: Client-to-Site-VPN (Remote Access) mit VPN-Client auf dem Notebook (IPsec/IKEv2, WireGuard oder SSL/TLS-VPN)\n• Authentisierung: Zertifikate bzw. persönliche Konten mit MFA statt gemeinsamer Pre-Shared Keys\n• Aktuelle Kryptografie (z. B. AES-GCM, ChaCha20-Poly1305) mit Perfect Forward Secrecy\n• Firewall-Regeln: VPN-Zugriffe nur auf die benötigten Dienste (ERP, Fileserver) – Least Privilege\n• Betrieb: VPN-Gateway zeitnah patchen (exponiert, häufiges Angriffsziel), Anmeldungen protokollieren, Split- oder Full-Tunnel bewusst festlegen',
+     k:['Site-to-Site für die Niederlassung, Client-VPN für den Außendienst','Konkrete Protokolle genannt (IPsec/IKEv2, WireGuard, SSL-VPN)','Starke Authentisierung (Zertifikate, MFA)','Zugriffe per Firewall auf das Nötige beschränkt','Betriebsaspekte: Patchen, Protokollierung, Split-/Full-Tunnel']},
+ en:{s:'A mechanical engineering company headquartered in Stuttgart opens a branch in Leipzig with 12 workstations. In addition, 20 service technicians are to access the ERP system and file server at headquarters from the road with their notebooks.',
+     q:'Expert interview: Which VPN solutions do you recommend for the branch and for the field staff? Justify your choice and name protocols and accompanying security measures.',
+     m:'• Branch: site-to-site VPN between the firewalls of both sites (IPsec with IKEv2 or WireGuard) – permanently active, transparent to the clients, no software on the PCs\n• Field staff: client-to-site VPN (remote access) with a VPN client on the notebook (IPsec/IKEv2, WireGuard or SSL/TLS VPN)\n• Authentication: certificates or personal accounts with MFA instead of shared pre-shared keys\n• Current cryptography (e.g. AES-GCM, ChaCha20-Poly1305) with perfect forward secrecy\n• Firewall rules: VPN access only to the services needed (ERP, file server) – least privilege\n• Operations: patch the VPN gateway promptly (exposed, frequent target), log logins, decide deliberately on split or full tunnel',
+     k:['Site-to-site for the branch, client VPN for field staff','Specific protocols named (IPsec/IKEv2, WireGuard, SSL VPN)','Strong authentication (certificates, MFA)','Access restricted to what is needed via firewall','Operational aspects: patching, logging, split/full tunnel']}},
+{id:'sec-20', a:'sec', t:'open',
+ de:{s:'Im Fachgespräch zu Ihrem Projekt „Umstellung des Kundenportals auf HTTPS“ fragt der Prüfungsausschuss nach den Grundlagen.',
+     q:'Erklären Sie, wie der Browser prüft, ob er dem Serverzertifikat vertrauen kann, und wie anschließend die Verbindung verschlüsselt wird.',
+     m:'• Der Server sendet im TLS-Handshake sein Zertifikat samt Zwischenzertifikat(en)\n• Der Browser bildet die Zertifikatskette bis zu einer Root-CA in seinem Trust Store und prüft jede Signatur\n• Er prüft den Gültigkeitszeitraum, ob der Domainname (Subject Alternative Name) zur aufgerufenen Adresse passt und den Sperrstatus (CRL bzw. OCSP)\n• Der Server beweist mit einer Signatur im Handshake, dass er den passenden privaten Schlüssel besitzt\n• Per (EC)DHE-Schlüsselaustausch vereinbaren beide einen Sitzungsschlüssel – Perfect Forward Secrecy\n• Die Nutzdaten werden symmetrisch verschlüsselt (z. B. AES-GCM): hybrides Verfahren – asymmetrisch für Authentisierung und Schlüsselaustausch, symmetrisch für Tempo\n• Empfehlung: TLS 1.3, TLS 1.2 nur mit sicheren Cipher Suites, ältere Versionen deaktivieren',
+     k:['Kette bis zur vertrauenswürdigen Root-CA','Gültigkeit, Domainname und Sperrstatus geprüft','Besitz des privaten Schlüssels nachgewiesen','Hybrides Verfahren erklärt (asymmetrisch + symmetrisch)','Aktuelle TLS-Version genannt']},
+ en:{s:'In the expert interview on your project "Switching the customer portal to HTTPS", the examination board asks about the fundamentals.',
+     q:'Explain how the browser checks whether it can trust the server certificate and how the connection is then encrypted.',
+     m:'• In the TLS handshake the server sends its certificate together with the intermediate certificate(s)\n• The browser builds the certificate chain up to a root CA in its trust store and verifies every signature\n• It checks the validity period, whether the domain name (subject alternative name) matches the requested address, and the revocation status (CRL or OCSP)\n• The server proves with a signature in the handshake that it holds the matching private key\n• Using an (EC)DHE key exchange both sides agree on a session key – perfect forward secrecy\n• Payload data is encrypted symmetrically (e.g. AES-GCM): a hybrid scheme – asymmetric for authentication and key exchange, symmetric for speed\n• Recommendation: TLS 1.3, TLS 1.2 only with secure cipher suites, disable older versions',
+     k:['Chain up to a trusted root CA','Validity, domain name and revocation status checked','Possession of the private key proven','Hybrid scheme explained (asymmetric + symmetric)','Current TLS version named']}}
+);
+
 /* ===== BEREICH:ds – Datenschutz (2. Lehrjahr) ===== */
 Q.push(
 {id:'ds-01', a:'ds', t:'mc', c:[0,1,2],
@@ -3272,8 +3476,9 @@ const normTxt = s => String(s ?? '').trim().replace(/\s+/g,'').replace(/^\//,'')
 function parseNum(s){
   s = String(s ?? '').trim().replace(/[\s€%]/g,'').replace(/[a-z]+$/i,'');
   if (!s) return NaN;
-  if (s.includes(',')) s = s.replace(/\./g,'').replace(',','.');
-  else if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g,'');
+  if (/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s) && (L !== 'en' || s.includes(','))) s = s.replace(/\./g,'').replace(',','.');   // 1.234,5
+  else if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(s) && (L === 'en' || s.includes('.'))) s = s.replace(/,/g,'');              // 1,234.5
+  else if (s.includes(',') && !s.includes('.')) s = s.replace(',','.');                                                     // 3,75
   return Number(s);
 }
 function fieldOk(f, val){

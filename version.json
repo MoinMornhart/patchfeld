@@ -1,17 +1,19 @@
 {
-  "version": "0.0.9",
+  "version": "0.1.0",
   "date": "2026-09-11",
   "file": "index.html",
   "notes": {
     "de": [
-      "Ausfallsicherheit & Notfall auf 20 Fragen erweitert",
-      "Neue Themen: LACP statt STP-Blockade, VRRP/HSRP, BSI-200-4-Begriffe, unveränderliche Backups, Aktiv/Aktiv-Kapazität, Backupfenster, Klima und Brandschutz, GFS, USV-Shutdown-Reihenfolge, Georedundanz, Wiederherstellungstests, BCMS-Aufbau, Single Points of Failure",
-      "Neue Rechenaufgaben mit Zufallswerten: Verfügbarkeit serieller und paralleler Komponenten, Wochen-Backupvolumen inkrementell/differenziell"
+      "IT-Sicherheit auf 20 Fragen erweitert",
+      "Neue Themen: Maximumprinzip (BSI 200-2), TLS-Zertifikat mit CSR, Patchmanagement nach CERT-Warnung, Firewall-Typen und Regelreihenfolge, Angriffsarten, Passwortspeicherung mit Salt, WPA3-Enterprise mit 802.1X, echte Zwei-Faktor-Verfahren, BSI-Passwortregeln, digitale Signatur, VPN-Varianten, Zertifikatsvertrauen",
+      "Neue Rechenaufgaben mit Zufallswerten: Brute-Force-Dauer aus dem Schlüsselraum, Wochen-Backupvolumen mit Restore-Anzahl",
+      "Zahleneingabe erkennt Tausendertrennzeichen jetzt je nach Sprache (1.234,5 bzw. 1,234.5)"
     ],
     "en": [
-      "Resilience & contingency extended to 20 questions",
-      "New topics: LACP instead of STP blocking, VRRP/HSRP, BSI 200-4 terms, immutable backups, active/active capacity, backup window, climate and fire protection, GFS, UPS shutdown order, georedundancy, restore tests, setting up a BCMS, single points of failure",
-      "New random calculations: availability of serial and parallel components, weekly backup volume incremental/differential"
+      "IT security extended to 20 questions",
+      "New topics: maximum principle (BSI 200-2), TLS certificate with CSR, patch management after a CERT warning, firewall types and rule order, attack types, password storage with salt, WPA3-Enterprise with 802.1X, genuine two-factor methods, BSI password rules, digital signature, VPN variants, certificate trust",
+      "New random calculations: brute-force time from key space, weekly backup volume with restore count",
+      "Number input now recognises thousands separators per language (1.234,5 or 1,234.5)"
     ]
   }
 }
