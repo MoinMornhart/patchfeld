@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Patchfeld</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<meta name="app-version" content="0.1.2">
+<meta name="app-version" content="0.1.3">
 <meta name="theme-color" content="#1b1f24">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -311,8 +311,11 @@ dialog::backdrop{background:rgba(10,12,14,.55)}
 /* =====================================================================
    PATCHFELD – Kern: Version, Bereiche, Hilfsfunktionen, Generatoren
    ===================================================================== */
-const APP_VERSION = '0.1.2';
+const APP_VERSION = '0.1.3';
 const CHANGELOG = [
+  {v:'0.1.3', d:'2026-09-11',
+   de:['Projektmanagement & Wirtschaftlichkeit auf 20 Fragen erweitert','Neue Themen: Projektmerkmale, magisches Dreieck, Stakeholder-Analyse, Kanban vs. Scrum, Risikobewertung, Ablauf der Nutzwertanalyse, TCO, Kostenvergleichsrechnung, Planungswerkzeuge, Soll-Ist-Vergleich mit Fertigstellungsgrad, Projektabschluss, Gesamt- vs. freier Puffer, Risikoanalyse einer Migration','Neue Rechenaufgaben mit Zufallswerten: Amortisationsdauer, Netzplan mit SAZ, Gesamtpuffer und freiem Puffer'],
+   en:['Project management & economics extended to 20 questions','New topics: project characteristics, magic triangle, stakeholder analysis, Kanban vs Scrum, risk assessment, steps of a weighted scoring model, TCO, cost comparison, planning tools, plan vs actual with completion rate, project closure, total vs free float, risk analysis of a migration','New random calculations: payback period, network plan with latest start, total and free float']},
   {v:'0.1.2', d:'2026-09-11',
    de:['Kaufmännische Grundlagen auf 20 Fragen erweitert','Neue Themen: verspätete Annahme, Mahnverfahren, Nacherfüllung, Gewährleistung vs. Garantie und Beweislast, Rechtsformen, Ausbildungsvertrag nach BBiG, Lieferverzug und Deckungskauf, Zahlungs- und Lieferbedingungen, Leasing, qualitativer Angebotsvergleich, Beschaffungsprozess, Werk- vs. Dienstvertrag','Neue Rechenaufgaben mit Zufallswerten: Angebotskalkulation bis zum Listenverkaufspreis, Skonto vs. Kontokorrentkredit; Verzugszinsen'],
    en:['Business basics extended to 20 questions','New topics: late acceptance, dunning procedure, supplementary performance, warranty vs guarantee and burden of proof, legal forms, training contract under BBiG, late delivery and cover purchase, payment and delivery terms, leasing, qualitative comparison of offers, procurement process, contract for work vs service contract','New random calculations: sales price calculation up to list price, cash discount vs overdraft; default interest']},
@@ -3632,6 +3635,203 @@ Q.push(
      o:['Initiation: project mandate, objectives, constraints','Analysis/definition: as-is analysis, target concept, requirements','Planning: work breakdown structure, schedule and resources, costs','Execution and control: implementation, plan vs. actual comparison','Closure: test, acceptance, documentation, handover'],
      e:'This structure is also reflected in the IHK project documentation. Control accompanies execution through continuous plan-vs-actual comparison.',
      n:'Planning often starts before the as-is analysis is done – then you plan past the actual requirements.'}}
+);
+
+/* ----- BEREICH:pm – Erweiterung ----- */
+/* Statische Amortisationsrechnung: Kapitaleinsatz ÷ jährlicher Rückfluss */
+GEN.pmAmortisation = function(L){
+  const tool = pick([['eine Softwareverteilung (automatisches Client-Deployment)','a software distribution system (automated client deployment)'],['ein Self-Service-Portal zur Passwortrücksetzung','a self-service password reset portal'],['ein zentrales Monitoring-System','a central monitoring system'],['ein Ticketsystem mit Automatisierungsregeln','a ticket system with automation rules']]);
+  const hw = pick([12000,18000,24000,30000]), ein = pick([4000,6000,8000,9500]), h = pick([40,60,80,100,120]), ss = pick([35,40,45,50]), lk = pick([2400,3600,4800,6000]), nd = pick([3,4,5]);
+  const inv = hw+ein, ers = h*ss*12, rf = ers-lk, t = r2(inv/rf), mon = inv/rf*12;
+  const ok = inv/rf <= nd;
+  return { t:'in',
+    s: tx(L, `Ein Kunde (Logistikunternehmen) plant ${tool[0]}. Einmalige Kosten: Hardware und Lizenzen ${eur(hw,L)}, Einrichtung und Schulung ${eur(ein,L)}. Dadurch spart die IT-Abteilung monatlich ${h} Arbeitsstunden zu je ${eur(ss,L)}. Für Wartung und Support fallen jährlich ${eur(lk,L)} an. Die geplante Nutzungsdauer beträgt ${nd} Jahre.`,
+             `A customer (logistics company) is planning ${tool[1]}. One-off costs: hardware and licences ${eur(hw,L)}, set-up and training ${eur(ein,L)}. As a result the IT department saves ${h} working hours per month at ${eur(ss,L)} each. Maintenance and support cost ${eur(lk,L)} per year. The planned useful life is ${nd} years.`),
+    q: tx(L, 'Berechnen Sie den jährlichen Rückfluss (Einsparung abzüglich laufender Kosten) und die statische Amortisationsdauer in Jahren. Runden Sie auf zwei Nachkommastellen.', 'Calculate the annual cash return (savings minus running costs) and the static payback period (Amortisationsdauer) in years. Round to two decimal places.'),
+    f: [ {l:tx(L,'Jährlicher Rückfluss','Annual cash return'), v:rf, tol:0.05, u:'€'}, {l:tx(L,'Amortisationsdauer','Payback period'), v:t, tol:0.011, u:tx(L,'Jahre','years')} ],
+    e: tx(L, `Kapitaleinsatz: ${eur(hw,L)} + ${eur(ein,L)} = ${eur(inv,L)}. Einsparung: ${h} h × ${eur(ss,L)} × 12 = ${eur(ers,L)}; − laufende Kosten ${eur(lk,L)} = Rückfluss ${eur(rf,L)} pro Jahr. Amortisationsdauer: ${eur(inv,L)} ÷ ${eur(rf,L)} = ${fmt(t,2,L)} Jahre (≈ ${fmt(mon,1,L)} Monate). ${ok ? `Das liegt innerhalb der Nutzungsdauer von ${nd} Jahren – die Investition hat sich vor ihrem Ende bezahlt gemacht.` : `Das ist länger als die Nutzungsdauer von ${nd} Jahren – die Investition amortisiert sich nicht rechtzeitig.`}`,
+             `Capital employed: ${eur(hw,L)} + ${eur(ein,L)} = ${eur(inv,L)}. Savings: ${h} h × ${eur(ss,L)} × 12 = ${eur(ers,L)}; − running costs ${eur(lk,L)} = cash return ${eur(rf,L)} per year. Payback period: ${eur(inv,L)} ÷ ${eur(rf,L)} = ${fmt(t,2,L)} years (≈ ${fmt(mon,1,L)} months). ${ok ? `That is within the useful life of ${nd} years – the investment pays for itself before the end of its life.` : `That is longer than the useful life of ${nd} years – the investment does not pay back in time.`}`),
+    n: tx(L, `Häufiger Fehler: die laufenden Kosten zu vergessen und ${eur(inv,L)} ÷ ${eur(ers,L)} = ${fmt(inv/ers,2,L)} Jahre zu rechnen – das lässt die Investition günstiger erscheinen, als sie ist.`,
+             `Common mistake: forgetting the running costs and calculating ${eur(inv,L)} ÷ ${eur(ers,L)} = ${fmt(inv/ers,2,L)} years – that makes the investment look better than it is.`)
+  };
+};
+
+/* Netzplan mit Vorwärts-/Rückwärtsrechnung: SAZ, Gesamtpuffer und freier Puffer */
+GEN.pmNetzPuffer = function(L){
+  const N = ['A','B','C','D','E','F'], P = {A:[],B:['A'],C:['A'],D:['B','C'],E:['C'],F:['D','E']}, S = {A:['B','C'],B:['D'],C:['D','E'],D:['F'],E:['F'],F:[]};
+  let d, faz, fez, saz, sez, gp, fp, tot, cand;
+  do {
+    d = {A:rnd(2,4), B:rnd(3,9), C:rnd(2,6), D:rnd(2,5), E:rnd(2,9), F:rnd(2,4)};
+    faz = {}; fez = {}; saz = {}; sez = {}; gp = {}; fp = {};
+    for (const k of N){ faz[k] = P[k].length ? Math.max(...P[k].map(p=>fez[p])) : 0; fez[k] = faz[k] + d[k]; }
+    tot = fez.F;
+    for (const k of N.slice().reverse()){ sez[k] = S[k].length ? Math.min(...S[k].map(s=>saz[s])) : tot; saz[k] = sez[k] - d[k]; }
+    for (const k of N){ gp[k] = saz[k] - faz[k]; fp[k] = (S[k].length ? Math.min(...S[k].map(s=>faz[s])) : tot) - fez[k]; }
+    cand = N.filter(k => gp[k] > 0);
+  } while (!cand.length);
+  const diff = cand.filter(k => fp[k] !== gp[k]);
+  const X = diff.length && Math.random() < 0.7 ? pick(diff) : pick(cand);
+  const nf = S[X].length ? Math.min(...S[X].map(s=>faz[s])) : tot;
+  const crit = N.filter(k => gp[k] === 0).join(', ');
+  const names = {de:['Anforderungen aufnehmen','Testgeräte beschaffen','MDM-Server einrichten','Pilotgeräte registrieren und testen','Richtlinien und App-Profile erstellen','Rollout und Abnahme'], en:['Gather requirements','Procure test devices','Set up MDM server','Enrol and test pilot devices','Create policies and app profiles','Rollout and acceptance']}[L];
+  const vw = N.map(k=>`${k} ${faz[k]}–${fez[k]}`).join(', '), rw = N.map(k=>`${k} ${saz[k]}–${sez[k]}`).join(', ');
+  return { t:'in',
+    s: tx(L, 'Sie planen die Einführung eines Mobile-Device-Managements (MDM) für die Smartphones eines Kunden. Es liegt folgende Vorgangsliste vor (Dauer in Arbeitstagen).', 'You are planning the introduction of mobile device management (MDM) for a customer\'s smartphones. The following activity list is available (duration in working days).'),
+    tb: {h: tx(L,['Vorgang','Beschreibung','Dauer','Vorgänger'],['Activity','Description','Duration','Predecessors']), r: N.map((k,i)=>[k, names[i], d[k], P[k].length ? P[k].join(', ') : '–'])},
+    q: tx(L, `Der Projektstart ist Zeitpunkt 0 (FAZ von A = 0). Ermitteln Sie die Projektdauer sowie für Vorgang ${X} den spätesten Anfangszeitpunkt (SAZ), den Gesamtpuffer (GP) und den freien Puffer (FP).`, `The project starts at time 0 (earliest start of A = 0). Determine the project duration and, for activity ${X}, the latest start (SAZ), the total float (GP) and the free float (FP).`),
+    f: [ {l:tx(L,'Projektdauer','Project duration'), v:tot, tol:0, u:tx(L,'Tage','days')}, {l:tx(L,`SAZ ${X}`,`Latest start ${X}`), v:saz[X], tol:0}, {l:tx(L,`Gesamtpuffer ${X}`,`Total float ${X}`), v:gp[X], tol:0, u:tx(L,'Tage','days')}, {l:tx(L,`Freier Puffer ${X}`,`Free float ${X}`), v:fp[X], tol:0, u:tx(L,'Tage','days')} ],
+    e: tx(L, `Vorwärtsrechnung (FAZ–FEZ): ${vw} → Projektdauer ${tot} Tage. Rückwärtsrechnung (SAZ–SEZ): ${rw}. Kritische Vorgänge (GP = 0): ${crit}. ${X}: GP = SAZ − FAZ = ${saz[X]} − ${faz[X]} = ${gp[X]}; FP = frühester FAZ der Nachfolger − FEZ = ${nf} − ${fez[X]} = ${fp[X]}.`,
+             `Forward pass (ES–EF): ${vw} → project duration ${tot} days. Backward pass (LS–LF): ${rw}. Critical activities (total float = 0): ${crit}. ${X}: total float = LS − ES = ${saz[X]} − ${faz[X]} = ${gp[X]}; free float = earliest ES of the successors − EF = ${nf} − ${fez[X]} = ${fp[X]}.`),
+    n: tx(L, 'Häufiger Fehler: freien Puffer und Gesamtpuffer gleichzusetzen. Der freie Puffer wird mit dem frühesten Anfang (FAZ) der Nachfolger berechnet – nur um ihn kann sich ein Vorgang verschieben, ohne irgendeinen Nachfolger zu verschieben. Beim Gesamtpuffer verbraucht man ggf. den Puffer der Nachfolger mit.', 'Common mistake: treating free float and total float as the same. Free float is calculated with the earliest start of the successors – only by this amount can an activity slip without delaying any successor. Using total float may consume the successors\' float as well.')
+  };
+};
+
+Q.push(
+{id:'pm-06', a:'pm', t:'mc', c:[0,2,4],
+ de:{s:'Die IT-Leiterin eines mittelständischen Maschinenbauers möchte klären, welche anstehenden Vorhaben als Projekt mit eigener Projektorganisation geführt werden und welche als Routineaufgaben in der Linie bleiben.',
+     q:'Welche Vorhaben erfüllen die Merkmale eines Projekts?',
+     o:['Migration von 250 Postfächern nach Exchange Online bis zum 31. Dezember mit festem Budget','Tägliche Kontrolle der Datensicherungsprotokolle','Einführung eines ISMS nach ISO/IEC 27001 einschließlich Zertifizierung bis Ende des zweiten Quartals','Monatliche Installation der Sicherheitsupdates auf allen Clients','Umzug des Serverraums an den neuen Firmenstandort','Bearbeitung eingehender Störungsmeldungen im Service Desk'],
+     e:'Ein Projekt ist nach DIN 69901 durch die Einmaligkeit der Bedingungen gekennzeichnet: klares Ziel, zeitliche, finanzielle und personelle Begrenzung, Abgrenzung gegenüber anderen Vorhaben und eine projektspezifische Organisation. Wiederkehrende Tätigkeiten sind Linien- bzw. Routineaufgaben.',
+     n:'Das monatliche Patchen wirkt wegen der vielen Geräte komplex und aufwendig – es wiederholt sich aber regelmäßig und ist daher eine Routineaufgabe, kein Projekt.'},
+ en:{s:'The IT manager of a medium-sized mechanical engineering company wants to clarify which upcoming undertakings are run as projects with their own project organisation and which remain routine tasks in the line organisation.',
+     q:'Which undertakings meet the characteristics of a project?',
+     o:['Migration of 250 mailboxes to Exchange Online by 31 December with a fixed budget','Daily check of the backup logs','Introduction of an ISMS according to ISO/IEC 27001 including certification by the end of the second quarter','Monthly installation of security updates on all clients','Relocation of the server room to the new company site','Handling incoming incident reports in the service desk'],
+     e:'According to DIN 69901 a project is characterised by the uniqueness of its conditions: a clear objective, limits on time, budget and staff, delimitation from other undertakings and a project-specific organisation. Recurring activities are line or routine tasks.',
+     n:'Monthly patching seems complex and laborious because of the many devices – but it recurs regularly and is therefore a routine task, not a project.'}},
+{id:'pm-07', a:'pm', gen:'pmAmortisation'},
+{id:'pm-08', a:'pm', t:'sc', c:0,
+ de:{s:'Sie leiten die Einführung eines neuen WLAN in einem Hotel. Zwei Wochen vor dem fest vereinbarten Go-Live wünscht der Hoteldirektor zusätzlich ein Gäste-Portal mit Zugangscodes über die Rezeption. Budget und Termin sollen laut Direktor „natürlich“ unverändert bleiben.',
+     q:'Wie reagieren Sie als Projektleiter richtig?',
+     o:['Einen Änderungsantrag (Change Request) mit den Auswirkungen auf Kosten, Termin und Qualität erstellen und vom Auftraggeber entscheiden lassen','Das Gäste-Portal ohne Mehrkosten umsetzen, weil die Kundenzufriedenheit Vorrang hat','Die geplanten Abnahmetests kürzen, damit Termin und Budget trotz Zusatzleistung eingehalten werden','Den Go-Live-Termin eigenständig um zwei Wochen verschieben und den Kunden anschließend informieren'],
+     e:'Leistungsumfang, Zeit und Kosten hängen im magischen Dreieck zusammen: Mehr Leistung bei festem Termin und Budget geht zu Lasten der Qualität. Änderungen werden deshalb über ein geregeltes Änderungsmanagement bewertet und vom Auftraggeber freigegeben.',
+     n:'Tests zu kürzen hält zwar Termin und Budget – es senkt aber unbemerkt die Qualität, die ebenfalls vereinbart ist. Solche Zielkonflikte muss der Auftraggeber bewusst entscheiden.'},
+ en:{s:'You are managing the introduction of a new Wi-Fi network in a hotel. Two weeks before the firmly agreed go-live, the hotel director additionally wants a guest portal with access codes issued by reception. According to the director, budget and deadline should "of course" remain unchanged.',
+     q:'How do you respond correctly as project manager?',
+     o:['Prepare a change request showing the effects on cost, schedule and quality and let the client decide','Implement the guest portal at no extra cost because customer satisfaction has priority','Shorten the planned acceptance tests so that deadline and budget are met despite the extra scope','Postpone the go-live by two weeks on your own authority and inform the customer afterwards'],
+     e:'Scope, time and cost are linked in the magic triangle (magisches Dreieck): more scope with a fixed deadline and budget comes at the expense of quality. Changes are therefore assessed through controlled change management and approved by the client.',
+     n:'Shortening tests does keep deadline and budget – but it silently reduces the quality, which has also been agreed. The client must decide such trade-offs consciously.'}},
+{id:'pm-09', a:'pm', t:'match',
+ de:{s:'Für die Einführung eines Dokumentenmanagementsystems bei einem Kunden haben Sie eine Stakeholderanalyse erstellt und die Stakeholder in eine Einfluss-Interesse-Matrix eingeordnet.',
+     q:'Ordnen Sie jedem Stakeholder die passende Strategie zu.',
+     p:[['Geschäftsführung als Auftraggeberin (hoher Einfluss, hohes Interesse)','Eng einbinden: an Entscheidungen beteiligen und regelmäßig abstimmen'],['Datenschutzbeauftragter des Konzerns, der nur die Freigabe erteilt (hoher Einfluss, geringes Interesse)','Zufriedenstellen: gezielt zu relevanten Punkten konsultieren, nicht mit Details überfrachten'],['Sachbearbeiterinnen der Buchhaltung als künftige Anwender (geringer Einfluss, hohes Interesse)','Aktiv informieren: Newsletter, Demo-Termine, Schulungen'],['Mitarbeitende einer Niederlassung, die erst in zwei Jahren umstellt (geringer Einfluss, geringes Interesse)','Beobachten: mit geringem Aufwand im Blick behalten']],
+     e:'Die Matrix bestimmt, wie viel Kommunikationsaufwand ein Stakeholder erhält: Wer viel Einfluss hat, muss zufriedengestellt bzw. eingebunden werden, wer stark betroffen ist, will informiert sein. So werden Widerstände früh erkannt.',
+     n:'Die künftigen Anwender werden oft nur „beobachtet“, weil sie wenig entscheiden können – ihr hohes Interesse macht sie aber zu wichtigen Multiplikatoren; ohne Information drohen Akzeptanzprobleme.'},
+ en:{s:'For the introduction of a document management system at a customer you have carried out a stakeholder analysis and placed the stakeholders in a power-interest grid.',
+     q:'Match each stakeholder with the appropriate strategy.',
+     p:[['Management as the client (high power, high interest)','Manage closely: involve in decisions and coordinate regularly'],['Group data protection officer who only gives approval (high power, low interest)','Keep satisfied: consult specifically on relevant points, do not overload with details'],['Accounting clerks as future users (low power, high interest)','Keep informed: newsletter, demo sessions, training'],['Staff of a branch office that will only switch over in two years (low power, low interest)','Monitor: keep an eye on them with little effort']],
+     e:'The grid determines how much communication effort a stakeholder receives: those with a lot of power must be kept satisfied or involved, those strongly affected want to be informed. This way resistance is recognised early.',
+     n:'Future users are often only "monitored" because they have little decision-making power – but their high interest makes them important multipliers; without information, acceptance problems loom.'}},
+{id:'pm-10', a:'pm', t:'sc', c:0,
+ de:{s:'Das Team „Arbeitsplatz-Services“ eines IT-Dienstleisters bearbeitet laufend kleine Kundenaufträge (Softwareinstallationen, Rechteänderungen, Hardwaretausch). Die Aufträge kommen unvorhersehbar und mit wechselnder Priorität herein; dringende Aufgaben müssen sofort starten können. Der Teamleiter möchte ein agiles Vorgehen einführen.',
+     q:'Welche Methode empfehlen Sie?',
+     o:['Kanban – Aufgaben fließen kontinuierlich über ein Board, WIP-Limits begrenzen die parallele Arbeit','Scrum mit zweiwöchigen Sprints und festem Sprint Backlog','Das Wasserfallmodell mit strikt aufeinanderfolgenden Phasen','Das V-Modell mit einer Testebene je Entwicklungsstufe'],
+     e:'Kanban kommt ohne feste Iterationen aus: Neue Aufgaben werden jederzeit nach Priorität in den Fluss aufgenommen, WIP-Limits verhindern Überlastung, Durchlaufzeiten werden gemessen und verbessert. Das passt zu unterbrechungsgetriebener Betriebsarbeit.',
+     n:'Scrum ist ebenfalls agil, plant aber pro Sprint ein festes Ziel und Backlog – ständig hereinkommende dringende Aufgaben würden den Sprint immer wieder durchbrechen.'},
+ en:{s:'The "workplace services" team of an IT service provider continuously handles small customer orders (software installations, permission changes, hardware replacement). The orders arrive unpredictably and with changing priorities; urgent tasks must be able to start immediately. The team lead wants to introduce an agile approach.',
+     q:'Which method do you recommend?',
+     o:['Kanban – tasks flow continuously across a board, WIP limits restrict parallel work','Scrum with two-week sprints and a fixed sprint backlog','The waterfall model with strictly sequential phases','The V-model with one test level per development stage'],
+     e:'Kanban works without fixed iterations: new tasks are pulled into the flow at any time according to priority, WIP limits prevent overload, and lead times are measured and improved. This suits interrupt-driven operations work.',
+     n:'Scrum is also agile, but it plans a fixed goal and backlog per sprint – constantly arriving urgent tasks would break the sprint again and again.'}},
+{id:'pm-11', a:'pm', gen:'pmNetzPuffer'},
+{id:'pm-12', a:'pm', t:'mc', c:[0,2,4],
+ de:{s:'Für die Erneuerung der Netzwerkinfrastruktur eines Kunden hat Ihr Projektteam folgende Risiken bewertet. Laut Risikomanagement-Richtlinie erhalten alle Risiken mit einem Risikowert (Eintrittswahrscheinlichkeit × Schadenshöhe) ab 5.000 € einen eigenen Maßnahmenplan.',
+     tb:{h:['Risiko','Eintrittswahrscheinlichkeit','Schadenshöhe'], r:[['Lieferverzug der Switches','40 %','15.000 €'],['Ausfall des Projektleiters','10 %','30.000 €'],['Datenverlust bei der Migration','5 %','120.000 €'],['Geringe Akzeptanz bei den Anwendern','60 %','7.500 €'],['Steigende Lizenzkosten','25 %','22.000 €']]},
+     q:'Für welche Risiken muss ein Maßnahmenplan erstellt werden?',
+     o:['Lieferverzug der Switches','Ausfall des Projektleiters','Datenverlust bei der Migration','Geringe Akzeptanz bei den Anwendern','Steigende Lizenzkosten'],
+     e:'Risikowerte: Lieferverzug 0,40 × 15.000 € = 6.000 €; Projektleiter 0,10 × 30.000 € = 3.000 €; Datenverlust 0,05 × 120.000 € = 6.000 €; Akzeptanz 0,60 × 7.500 € = 4.500 €; Lizenzkosten 0,25 × 22.000 € = 5.500 €. Drei Risiken liegen bei 5.000 € oder darüber.',
+     n:'Die geringe Akzeptanz hat mit 60 % die höchste Eintrittswahrscheinlichkeit und wirkt deshalb am dringendsten – wegen des geringen Schadens liegt ihr Risikowert mit 4.500 € aber unter der Schwelle.'},
+ en:{s:'For the renewal of a customer\'s network infrastructure your project team has assessed the following risks. According to the risk management policy, every risk with a risk value (probability × impact) of €5,000 or more gets its own action plan.',
+     tb:{h:['Risk','Probability','Impact'], r:[['Delivery delay of the switches','40 %','€15,000'],['Project manager unavailable','10 %','€30,000'],['Data loss during migration','5 %','€120,000'],['Low user acceptance','60 %','€7,500'],['Rising licence costs','25 %','€22,000']]},
+     q:'For which risks must an action plan be created?',
+     o:['Delivery delay of the switches','Project manager unavailable','Data loss during migration','Low user acceptance','Rising licence costs'],
+     e:'Risk values: delivery delay 0.40 × €15,000 = €6,000; project manager 0.10 × €30,000 = €3,000; data loss 0.05 × €120,000 = €6,000; acceptance 0.60 × €7,500 = €4,500; licence costs 0.25 × €22,000 = €5,500. Three risks are at €5,000 or above.',
+     n:'Low acceptance has the highest probability at 60 % and therefore seems most urgent – but because of the low impact its risk value of €4,500 is below the threshold.'}},
+{id:'pm-13', a:'pm', t:'order',
+ de:{s:'Für die Auswahl eines neuen Backup-Systems liegen drei Angebote vor. Ihr Projektleiter bittet Sie, die Entscheidung mit einer Nutzwertanalyse vorzubereiten.',
+     q:'Bringen Sie die Arbeitsschritte der Nutzwertanalyse in die richtige Reihenfolge.',
+     o:['Entscheidungskriterien aus den Anforderungen ableiten (z. B. Preis, Wiederherstellungszeit, Support)','Kriterien gewichten, sodass die Gewichte zusammen 100 % ergeben','Jedes Angebot je Kriterium mit Punkten bewerten (z. B. 1–10)','Teilnutzwerte berechnen: Gewichtung × Punkte','Teilnutzwerte je Angebot zum Gesamtnutzwert addieren und eine Rangfolge bilden','Ergebnis auf Plausibilität prüfen und die Entscheidung dokumentieren'],
+     e:'Die Gewichtung wird festgelegt, bevor die Angebote bewertet werden – so kann sie nicht nachträglich zugunsten eines Wunschangebots angepasst werden. Erst danach werden Teilnutzwerte berechnet und summiert.',
+     n:'Häufig werden zuerst die Angebote bepunktet und dann gewichtet – dabei besteht die Gefahr, die Gewichte unbewusst so zu wählen, dass der Favorit gewinnt. Das macht die Analyse angreifbar.'},
+ en:{s:'Three offers are available for selecting a new backup system. Your project manager asks you to prepare the decision with a weighted scoring model (Nutzwertanalyse).',
+     q:'Put the steps of the weighted scoring model in the correct order.',
+     o:['Derive decision criteria from the requirements (e.g. price, recovery time, support)','Weight the criteria so that the weights add up to 100 %','Rate each offer per criterion with points (e.g. 1–10)','Calculate partial scores: weight × points','Add the partial scores per offer to a total score and rank the offers','Check the result for plausibility and document the decision'],
+     e:'The weighting is fixed before the offers are rated – so it cannot be adjusted afterwards in favour of a preferred offer. Only then are partial scores calculated and added up.',
+     n:'Offers are often rated first and weighted afterwards – this risks unconsciously choosing weights so that the favourite wins, which makes the analysis open to challenge.'}},
+{id:'pm-14', a:'pm', t:'mc', c:[0,1,2],
+ de:{s:'Eine Anwaltskanzlei (vorsteuerabzugsberechtigt) will 60 Notebooks beschaffen und vergleicht zwei Modelle über eine Nutzungsdauer von vier Jahren. Das günstigere Modell hat einen um 90 € niedrigeren Stückpreis. Sie sollen eine TCO-Betrachtung (Total Cost of Ownership) erstellen.',
+     q:'Welche Positionen gehören in die TCO-Betrachtung?',
+     o:['Kosten für Rollout, Installation und Schulung der Mitarbeitenden','Laufende Kosten für Support, Wartung, Softwarelizenzen und Energie während der Nutzungsdauer','Kosten für sichere Datenlöschung und Entsorgung am Ende der Nutzung','Die Umsatzsteuer auf den Kaufpreis','Die Abschreibung der Geräte zusätzlich zum vollen Anschaffungspreis'],
+     e:'Die TCO erfassen alle direkten und indirekten Kosten über den gesamten Lebenszyklus – von der Beschaffung über Betrieb und Support bis zur Außerbetriebnahme. Ein niedriger Kaufpreis kann durch höhere Folgekosten mehr als aufgezehrt werden.',
+     n:'Die Abschreibung wirkt wie ein zusätzlicher Kostenblock – sie verteilt aber nur den Anschaffungspreis auf die Jahre. Beides zu addieren, würde die Anschaffung doppelt zählen. Die Umsatzsteuer ist für die Kanzlei ein durchlaufender Posten (Vorsteuerabzug).'},
+ en:{s:'A law firm (entitled to deduct input tax) wants to buy 60 notebooks and compares two models over a useful life of four years. The cheaper model has a unit price that is €90 lower. You are to prepare a TCO (total cost of ownership) analysis.',
+     q:'Which items belong in the TCO analysis?',
+     o:['Costs for rollout, installation and staff training','Running costs for support, maintenance, software licences and energy during the useful life','Costs for secure data erasure and disposal at the end of use','The VAT on the purchase price','The depreciation of the devices in addition to the full purchase price'],
+     e:'TCO covers all direct and indirect costs over the entire life cycle – from procurement through operation and support to decommissioning. A low purchase price can be more than eaten up by higher follow-up costs.',
+     n:'Depreciation looks like an additional cost block – but it only spreads the purchase price over the years. Adding both would count the purchase twice. For the law firm, VAT is a transitory item (input tax deduction).'}},
+{id:'pm-15', a:'pm', t:'in', f:[{v:14600, tol:0.05, u:'€'},{v:2200, tol:0.05, u:'€'}],
+ de:{s:'Ein Kunde möchte seine Anwendungsserver entweder selbst betreiben oder zu einem IaaS-Anbieter verlagern. Eigenbetrieb: Anschaffungskosten 36.000 €, Nutzungsdauer 4 Jahre, Restwert 4.000 €, kalkulatorischer Zinssatz 6 %, Betriebskosten (Strom, Wartung, Klimatisierung) 5.400 € pro Jahr. Cloud: 1.400 € pro Monat einschließlich Betrieb.',
+     q:'Führen Sie eine Kostenvergleichsrechnung durch: Berechnen Sie die jährlichen Gesamtkosten des Eigenbetriebs (lineare kalkulatorische Abschreibung, kalkulatorische Zinsen auf das durchschnittlich gebundene Kapital) und die jährliche Kostendifferenz zur Cloud-Lösung (Betrag). Runden Sie auf ganze Euro.',
+     l:['Jährliche Kosten Eigenbetrieb','Jährliche Kostendifferenz'],
+     e:'Kalk. Abschreibung: (36.000 € − 4.000 €) ÷ 4 = 8.000 €. Kalk. Zinsen: (36.000 € + 4.000 €) ÷ 2 × 6 % = 1.200 €. Eigenbetrieb: 8.000 € + 1.200 € + 5.400 € = 14.600 € pro Jahr. Cloud: 1.400 € × 12 = 16.800 €. Differenz: 2.200 € pro Jahr zugunsten des Eigenbetriebs.',
+     n:'Häufig werden die Zinsen auf die vollen Anschaffungskosten berechnet (2.160 € statt 1.200 €) – durch die Abschreibung ist im Durchschnitt aber nur (AK + Restwert) ÷ 2 gebunden.'},
+ en:{s:'A customer wants to either run their application servers in-house or move them to an IaaS provider. In-house: acquisition cost €36,000, useful life 4 years, residual value €4,000, imputed interest rate 6 %, operating costs (power, maintenance, air conditioning) €5,400 per year. Cloud: €1,400 per month including operation.',
+     q:'Carry out a cost comparison calculation (Kostenvergleichsrechnung): calculate the annual total cost of in-house operation (straight-line imputed depreciation, imputed interest on the average capital employed) and the annual cost difference from the cloud solution (absolute amount). Round to whole euros.',
+     l:['Annual cost in-house','Annual cost difference'],
+     e:'Imputed depreciation: (€36,000 − €4,000) ÷ 4 = €8,000. Imputed interest: (€36,000 + €4,000) ÷ 2 × 6 % = €1,200. In-house: €8,000 + €1,200 + €5,400 = €14,600 per year. Cloud: €1,400 × 12 = €16,800. Difference: €2,200 per year in favour of in-house operation.',
+     n:'Interest is often calculated on the full acquisition cost (€2,160 instead of €1,200) – but because of depreciation only (acquisition cost + residual value) ÷ 2 is tied up on average.'}},
+{id:'pm-16', a:'pm', t:'match',
+ de:{s:'Sie bereiten die Planung für die Einführung einer neuen Telefonanlage (VoIP) vor. Ihre Ausbilderin möchte, dass Sie für jede Fragestellung das passende Planungswerkzeug wählen.',
+     q:'Ordnen Sie jedem Werkzeug seinen Zweck zu.',
+     p:[['Projektstrukturplan (PSP)','Hierarchische Zerlegung des Projekts in Teilaufgaben und Arbeitspakete'],['Netzplan','Abhängigkeiten, kritischer Pfad und Pufferzeiten der Vorgänge'],['Gantt-Diagramm (Balkenplan)','Lage und Dauer der Vorgänge als Balken auf einer Zeitachse'],['Meilensteinplan','Termine überprüfbarer Zwischenergebnisse ohne eigene Dauer'],['Kanban-Board','Visualisierung des Arbeitsflusses mit begrenzter paralleler Arbeit (WIP-Limit)'],['Burndown-Chart','Verbleibender Aufwand im Sprint im Zeitverlauf']],
+     e:'Der PSP beantwortet „Was ist zu tun?“ ohne Zeitbezug. Netzplan und Gantt-Diagramm planen die zeitliche Abfolge; nur der Netzplan berechnet Puffer und kritischen Pfad. Meilensteine sind Prüfpunkte, Kanban-Board und Burndown-Chart stammen aus dem agilen Umfeld.',
+     n:'Der PSP wird oft als Ablaufplan verstanden – er legt aber keine Reihenfolge und keine Abhängigkeiten fest. Das leisten erst Netzplan bzw. Gantt-Diagramm.'},
+ en:{s:'You are preparing the planning for the introduction of a new telephone system (VoIP). Your trainer wants you to pick the right planning tool for each question.',
+     q:'Match each tool with its purpose.',
+     p:[['Work breakdown structure (Projektstrukturplan, PSP)','Hierarchical breakdown of the project into subtasks and work packages'],['Network plan (Netzplan)','Dependencies, critical path and float of the activities'],['Gantt chart (bar chart)','Timing and duration of the activities as bars on a time axis'],['Milestone plan','Dates of verifiable interim results without a duration of their own'],['Kanban board','Visualisation of the workflow with limited parallel work (WIP limit)'],['Burndown chart','Remaining effort in the sprint over time']],
+     e:'The WBS answers "what has to be done?" without any time reference. The network plan and the Gantt chart plan the sequence over time; only the network plan calculates float and the critical path. Milestones are checkpoints; the Kanban board and burndown chart come from agile practice.',
+     n:'The WBS is often taken for a sequence plan – but it defines neither order nor dependencies. Only the network plan or Gantt chart does that.'}},
+{id:'pm-17', a:'pm', t:'sc', c:0,
+ de:{s:'Das Projekt „Standortvernetzung“ hat ein Budget von 50.000 € und eine Laufzeit von 10 Wochen. Nach 6 Wochen zeigt der Statusbericht: geplante Kosten bis heute 30.000 €, tatsächliche Kosten 27.000 €. Geplant war zu diesem Zeitpunkt ein Fertigstellungsgrad von 60 %, erreicht sind 40 %.',
+     q:'Wie beurteilen Sie den Projektstand im Soll-Ist-Vergleich?',
+     o:['Das Projekt liegt zeitlich zurück und ist gemessen an der erbrachten Leistung teurer als geplant','Das Projekt liegt 3.000 € unter Plan und ist damit auf Kurs','Das Projekt liegt im Zeitplan, ist aber teurer als geplant','Das Projekt liegt zeitlich zurück, ist aber günstiger als geplant'],
+     e:'Wert der erbrachten Leistung (Fertigstellungswert): 40 % × 50.000 € = 20.000 €. Geplant waren 30.000 € → Terminverzug (−10.000 €). Für diese Leistung wurden 27.000 € ausgegeben → Kostenüberschreitung (−7.000 €).',
+     n:'Der reine Vergleich Plan- gegen Istkosten (27.000 € statt 30.000 €) täuscht Einsparungen vor. Ohne den Fertigstellungsgrad wird übersehen, dass für weniger Leistung schon fast das geplante Geld verbraucht ist.'},
+ en:{s:'The "site networking" project has a budget of €50,000 and a duration of 10 weeks. After 6 weeks the status report shows: planned costs to date €30,000, actual costs €27,000. A completion rate of 60 % was planned at this point; 40 % has been reached.',
+     q:'How do you assess the project status in the plan-vs-actual comparison (Soll-Ist-Vergleich)?',
+     o:['The project is behind schedule and, measured by the work done, more expensive than planned','The project is €3,000 under plan and therefore on track','The project is on schedule but more expensive than planned','The project is behind schedule but cheaper than planned'],
+     e:'Value of the work done (earned value): 40 % × €50,000 = €20,000. €30,000 was planned → schedule delay (−€10,000). €27,000 was spent for this work → cost overrun (−€7,000).',
+     n:'Simply comparing planned and actual costs (€27,000 instead of €30,000) suggests savings. Without the completion rate you overlook that almost the planned money has been spent for less work.'}},
+{id:'pm-18', a:'pm', t:'order',
+ de:{s:'Die Einführung eines neuen Monitoring-Systems bei einem Kunden ist technisch abgeschlossen. Als Projektleiter/in sollen Sie das Projekt nun ordnungsgemäß beenden.',
+     q:'Bringen Sie die Schritte des Projektabschlusses in die richtige Reihenfolge.',
+     o:['Abnahmetest gemeinsam mit dem Auftraggeber anhand der Kriterien aus dem Pflichtenheft durchführen','Abnahmeprotokoll erstellen und unterschreiben lassen (ggf. mit Restmängelliste)','System mit Betriebsdokumentation an den IT-Betrieb übergeben','Nachkalkulation: Soll-Ist-Vergleich von Kosten, Terminen und Leistung','Lessons Learned im Team auswerten und Abschlussbericht erstellen','Projektorganisation auflösen und das Team formal entlasten'],
+     e:'Die Abnahme ist der rechtlich wichtige Schritt: Sie bestätigt die vertragsgemäße Leistung und ist z. B. beim Werkvertrag Voraussetzung für die Schlussrechnung. Erst danach wird übergeben, nachkalkuliert und das Wissen gesichert, bevor das Team aufgelöst wird.',
+     n:'Häufig wird das System schon vor der formalen Abnahme an den Betrieb übergeben – dann fehlt die dokumentierte Bestätigung des Kunden, und spätere Mängeldiskussionen sind schwer zu klären.'},
+ en:{s:'The introduction of a new monitoring system at a customer is technically complete. As project manager you now have to close the project properly.',
+     q:'Put the steps of project closure in the correct order.',
+     o:['Carry out the acceptance test together with the client based on the criteria in the functional specification (Pflichtenheft)','Prepare the acceptance protocol and have it signed (with a list of remaining defects if necessary)','Hand the system over to IT operations with the operating documentation','Post-calculation: plan-vs-actual comparison of costs, dates and scope','Evaluate lessons learned in the team and prepare the final report','Dissolve the project organisation and formally discharge the team'],
+     e:'Acceptance (Abnahme) is the legally important step: it confirms performance in accordance with the contract and, for a contract for work, is a precondition for the final invoice. Only then is the system handed over, the post-calculation done and the knowledge secured before the team is dissolved.',
+     n:'The system is often handed over to operations before formal acceptance – then the customer\'s documented confirmation is missing and later disputes about defects are hard to settle.'}},
+{id:'pm-19', a:'pm', t:'sc', c:0,
+ de:{s:'Im Netzplan Ihres Rollout-Projekts hat der Vorgang „Clients vorbereiten“ einen Gesamtpuffer von 3 Tagen und einen freien Puffer von 1 Tag. Wegen eines Lieferengpasses beginnt der Vorgang 2 Tage später als zum frühesten Anfangszeitpunkt geplant.',
+     q:'Welche Auswirkung hat die Verzögerung?',
+     o:['Das Projektende bleibt unverändert, aber der nachfolgende Vorgang kann frühestens 1 Tag später beginnen und verliert Puffer','Die Verzögerung hat keinerlei Auswirkungen auf andere Vorgänge, weil der Gesamtpuffer 3 Tage beträgt','Das Projektende verschiebt sich um 1 Tag','Das Projektende verschiebt sich um 2 Tage'],
+     e:'Solange die Verzögerung den Gesamtpuffer (3 Tage) nicht übersteigt, bleibt das Projektende gleich. Der freie Puffer (1 Tag) wird aber um 1 Tag überschritten – der Nachfolger verschiebt sich also um 1 Tag und verbraucht dabei eigenen Puffer.',
+     n:'Der Gesamtpuffer schützt nur das Projektende, nicht die Nachfolger. Ohne Auswirkung auf andere Vorgänge darf sich der Vorgang nur um den freien Puffer verschieben.'},
+ en:{s:'In the network plan of your rollout project, the activity "prepare clients" has a total float of 3 days and a free float of 1 day. Because of a supply shortage, the activity starts 2 days later than its planned earliest start.',
+     q:'What effect does the delay have?',
+     o:['The project end remains unchanged, but the following activity can start 1 day later at the earliest and loses float','The delay has no effect at all on other activities because the total float is 3 days','The project end is postponed by 1 day','The project end is postponed by 2 days'],
+     e:'As long as the delay does not exceed the total float (3 days), the project end stays the same. However, the free float (1 day) is exceeded by 1 day – so the successor is postponed by 1 day and uses up float of its own.',
+     n:'Total float only protects the project end, not the successors. The activity may only slip by its free float without affecting other activities.'}},
+{id:'pm-20', a:'pm', t:'open',
+ de:{s:'Sie leiten die Migration des Fileservers eines Architekturbüros (25 Mitarbeitende) auf einen neuen Server mit neuer Freigabe- und Rechtestruktur. Die Umstellung soll an einem Wochenende erfolgen, am Montag muss wieder gearbeitet werden können.',
+     q:'Führen Sie eine kurze Risikoanalyse durch: Nennen Sie drei projektbezogene Risiken, bewerten Sie diese nach Eintrittswahrscheinlichkeit und Auswirkung, und nennen Sie je eine Gegenmaßnahme mit der zugehörigen Risikostrategie.',
+     m:'• Datenverlust oder unvollständige Kopie bei der Migration – Wahrscheinlichkeit gering, Auswirkung sehr hoch → vollständige Sicherung vor der Migration, Rücksicherung testen, Kopierprotokolle prüfen (vermindern).\n• Falsche Berechtigungen nach der Umstellung (Zugriff auf fremde Projektordner oder fehlender Zugriff) – Wahrscheinlichkeit mittel, Auswirkung hoch (Datenschutz, Arbeitsausfall) → Rechtekonzept vorab abstimmen, Test mit Pilotnutzern (vermeiden bzw. vermindern).\n• Migration dauert länger als das Wochenende – Wahrscheinlichkeit mittel, Auswirkung mittel → Testlauf zur Zeitmessung, Daten vorab synchronisieren und am Wochenende nur das Delta kopieren, Rückfallplan auf den alten Server (vermindern).\n• Hardwaredefekt am neuen Server – Wahrscheinlichkeit gering → Herstellerservice mit Vor-Ort-Austausch vertraglich vereinbaren (übertragen).\n• Bewertung: Risikowert = Wahrscheinlichkeit × Auswirkung, Einordnung in eine Risikomatrix; Restrisiken werden bewusst akzeptiert und dokumentiert.',
+     k:['Drei konkrete, projektbezogene Risiken','Bewertung nach Wahrscheinlichkeit und Auswirkung (Risikowert bzw. Matrix)','Je eine passende Gegenmaßnahme','Zuordnung zu Strategien: vermeiden, vermindern, übertragen, akzeptieren','Rückfallplan (Fallback) auf das Altsystem']},
+ en:{s:'You are managing the migration of an architecture firm\'s file server (25 employees) to a new server with a new share and permission structure. The switchover is to take place over a weekend; work must be possible again on Monday.',
+     q:'Carry out a short risk analysis: name three project-related risks, assess them by probability and impact, and give one countermeasure for each together with the corresponding risk strategy.',
+     m:'• Data loss or incomplete copy during migration – probability low, impact very high → full backup before migration, test the restore, check the copy logs (mitigate).\n• Wrong permissions after the switchover (access to other teams\' project folders or missing access) – probability medium, impact high (data protection, downtime) → agree the permission concept in advance, test with pilot users (avoid or mitigate).\n• Migration takes longer than the weekend – probability medium, impact medium → trial run to measure the time, synchronise data in advance and only copy the delta at the weekend, fallback plan to the old server (mitigate).\n• Hardware defect in the new server – probability low → contractually agree manufacturer service with on-site replacement (transfer).\n• Assessment: risk value = probability × impact, placed in a risk matrix; residual risks are consciously accepted and documented.',
+     k:['Three concrete, project-related risks','Assessment by probability and impact (risk value or matrix)','One suitable countermeasure each','Assignment to strategies: avoid, mitigate, transfer, accept','Fallback plan to the old system']}}
 );
 
 /* ===== BEREICH:fg – Präsentation & Fachgespräch (AP 2) ===== */

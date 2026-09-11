@@ -1,17 +1,17 @@
 {
-  "version": "0.1.2",
+  "version": "0.1.3",
   "date": "2026-09-11",
   "file": "index.html",
   "notes": {
     "de": [
-      "Kaufmännische Grundlagen auf 20 Fragen erweitert",
-      "Neue Themen: verspätete Annahme, Mahnverfahren, Nacherfüllung, Gewährleistung vs. Garantie und Beweislast, Rechtsformen, Ausbildungsvertrag nach BBiG, Lieferverzug und Deckungskauf, Zahlungs- und Lieferbedingungen, Leasing, qualitativer Angebotsvergleich, Beschaffungsprozess, Werk- vs. Dienstvertrag",
-      "Neue Rechenaufgaben mit Zufallswerten: Angebotskalkulation bis zum Listenverkaufspreis, Skonto vs. Kontokorrentkredit; Verzugszinsen"
+      "Projektmanagement & Wirtschaftlichkeit auf 20 Fragen erweitert",
+      "Neue Themen: Projektmerkmale, magisches Dreieck, Stakeholder-Analyse, Kanban vs. Scrum, Risikobewertung, Ablauf der Nutzwertanalyse, TCO, Kostenvergleichsrechnung, Planungswerkzeuge, Soll-Ist-Vergleich mit Fertigstellungsgrad, Projektabschluss, Gesamt- vs. freier Puffer, Risikoanalyse einer Migration",
+      "Neue Rechenaufgaben mit Zufallswerten: Amortisationsdauer, Netzplan mit SAZ, Gesamtpuffer und freiem Puffer"
     ],
     "en": [
-      "Business basics extended to 20 questions",
-      "New topics: late acceptance, dunning procedure, supplementary performance, warranty vs guarantee and burden of proof, legal forms, training contract under BBiG, late delivery and cover purchase, payment and delivery terms, leasing, qualitative comparison of offers, procurement process, contract for work vs service contract",
-      "New random calculations: sales price calculation up to list price, cash discount vs overdraft; default interest"
+      "Project management & economics extended to 20 questions",
+      "New topics: project characteristics, magic triangle, stakeholder analysis, Kanban vs Scrum, risk assessment, steps of a weighted scoring model, TCO, cost comparison, planning tools, plan vs actual with completion rate, project closure, total vs free float, risk analysis of a migration",
+      "New random calculations: payback period, network plan with latest start, total and free float"
     ]
   }
 }

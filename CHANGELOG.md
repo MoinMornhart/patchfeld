@@ -10,6 +10,18 @@ All changes to Patchfeld. Version scheme: every digit runs from 0 to 9 –
 
 <!-- releases -->
 
+## 0.1.3 – 2026-09-11
+
+- Projektmanagement & Wirtschaftlichkeit auf 20 Fragen erweitert
+- Neue Themen: Projektmerkmale, magisches Dreieck, Stakeholder-Analyse, Kanban vs. Scrum, Risikobewertung, Ablauf der Nutzwertanalyse, TCO, Kostenvergleichsrechnung, Planungswerkzeuge, Soll-Ist-Vergleich mit Fertigstellungsgrad, Projektabschluss, Gesamt- vs. freier Puffer, Risikoanalyse einer Migration
+- Neue Rechenaufgaben mit Zufallswerten: Amortisationsdauer, Netzplan mit SAZ, Gesamtpuffer und freiem Puffer
+
+**English**
+
+- Project management & economics extended to 20 questions
+- New topics: project characteristics, magic triangle, stakeholder analysis, Kanban vs Scrum, risk assessment, steps of a weighted scoring model, TCO, cost comparison, planning tools, plan vs actual with completion rate, project closure, total vs free float, risk analysis of a migration
+- New random calculations: payback period, network plan with latest start, total and free float
+
 ## 0.1.2 – 2026-09-11
 
 - Kaufmännische Grundlagen auf 20 Fragen erweitert
