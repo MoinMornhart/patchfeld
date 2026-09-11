@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Patchfeld</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<meta name="app-version" content="0.1.6">
+<meta name="app-version" content="0.1.7">
 <meta name="theme-color" content="#1b1f24">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -311,8 +311,11 @@ dialog::backdrop{background:rgba(10,12,14,.55)}
 /* =====================================================================
    PATCHFELD – Kern: Version, Bereiche, Hilfsfunktionen, Generatoren
    ===================================================================== */
-const APP_VERSION = '0.1.6';
+const APP_VERSION = '0.1.7';
 const CHANGELOG = [
+  {v:'0.1.7', d:'2026-09-11',
+   de:['Skripting & SQL auf 20 Fragen erweitert','Neue Themen: UPDATE ohne WHERE, Normalisierung und Anomalien, Datentypen, logische Auswertungsreihenfolge, cron, CSV-Benutzerimport per PowerShell, COUNT und NULL, Skriptvariablen und Exit-Codes, DELETE in Transaktionen, Unterabfragen, LIKE, Fremdschlüssel und ON DELETE, robuste Aufräumskripte','Neue Rechenaufgaben mit Zufallswerten: Ergebniszeilen einer Abfrage zählen, WHILE-Schleife nachvollziehen'],
+   en:['Scripting & SQL extended to 20 questions','New topics: UPDATE without WHERE, normalisation and anomalies, data types, logical evaluation order, cron, CSV user import with PowerShell, COUNT and NULL, script variables and exit codes, DELETE in transactions, subqueries, LIKE, foreign keys and ON DELETE, robust cleanup scripts','New random calculations: count result rows of a query, trace a WHILE loop']},
   {v:'0.1.6', d:'2026-09-11',
    de:['Glossar auf 118 Fachbegriffe erweitert','Neu u. a.: 802.1X, APIPA, BIA, CAB, CMDB, DIN 66399, DSFA, GFS, IPv6, LACP, MTBF/MTTR, OLA, OSPF, PoE, Projektantrag, PSP, RADIUS, Scrum, Kanban, SNMP, Syslog, Thin Provisioning, TLS, umask, VRRP, WPA3'],
    en:['Glossary extended to 118 terms','New incl.: 802.1X, APIPA, BIA, CAB, CMDB, DIN 66399, DPIA, GFS, IPv6, LACP, MTBF/MTTR, OLA, OSPF, PoE, project application, WBS, RADIUS, Scrum, Kanban, SNMP, syslog, thin provisioning, TLS, umask, VRRP, WPA3']},
@@ -2993,6 +2996,335 @@ Q.push(
      e:'The LEFT JOIN returns all rows of the left table (employees); where the department is missing, NULL appears.',
      n:'INNER JOIN is the default join but only returns employees with a matching department – the new ones are missing.'}}
 );
+/* ----- BEREICH:sql – Erweiterung ----- */
+/* SQL: Wie viele Zeilen liefert die Abfrage? (Zufallstabelle) */
+GEN.sqlRows = function(L){
+  const TYP = ['Notebook','PC','Monitor','Tablet'], CODE = {Notebook:'NB', PC:'PC', Monitor:'MON', Tablet:'TAB'};
+  const PRICE = {Notebook:[899,1049,1199,1349], PC:[649,799,899,1049], Monitor:[179,249,299,349], Tablet:[399,499,649,799]};
+  const SITE = ['KOE','BN','AC'], USERS = ['meier','kaya','schulz','novak','becker','yilmaz','wolf','lange'];
+  let rows;
+  do {
+    rows = [...Array(8)].map((_, i) => { const t = pick(TYP); return {name:`${pick(SITE)}-${CODE[t]}-${String(i+1).padStart(2,'0')}`, site:'', typ:t, preis:pick(PRICE[t]), nutzer: Math.random() < 0.35 ? null : pick(USERS)}; });
+    rows.forEach(r => { r.site = r.name.split('-')[0]; });
+  } while (new Set(rows.map(r => r.typ)).size < 3 || !rows.some(r => r.nutzer === null) || !rows.some(r => r.nutzer !== null));
+  const prices = [...new Set(rows.map(r => r.preis))].sort((a, b) => a - b);
+  const typs = [...new Set(rows.map(r => r.typ))];
+  const T = [
+    () => { const P = prices.length; let i, j; do { i = rnd(0, P - 2); j = rnd(i + 1, P - 1); } while (P > 2 && i === 0 && j === P - 1); const a = prices[i], b = prices[j];
+      return {sql:`SELECT name\nFROM geraete\nWHERE preis BETWEEN ${a} AND ${b};`, f:r => r.preis >= a && r.preis <= b,
+        hint:tx(L, `BETWEEN ${a} AND ${b} schließt beide Grenzwerte ein (preis ≥ ${a} und preis ≤ ${b}).`, `BETWEEN ${a} AND ${b} includes both limits (preis ≥ ${a} and preis ≤ ${b}).`),
+        n:tx(L, 'Häufiger Fehler: BETWEEN als „echt dazwischen“ zu lesen – die Grenzwerte selbst gehören zum Ergebnis.', 'Common mistake: reading BETWEEN as "strictly between" – the limit values themselves are part of the result.')}; },
+    () => { const [a, b] = shuffle(TYP).slice(0, 2);
+      return {sql:`SELECT name\nFROM geraete\nWHERE typ IN ('${a}', '${b}') AND nutzer IS NULL;`, f:r => (r.typ === a || r.typ === b) && r.nutzer === null,
+        hint:tx(L, `Gesucht sind Geräte vom Typ ${a} oder ${b}, die zugleich keinem Nutzer zugeordnet sind (IS NULL).`, `The query looks for devices of type ${a} or ${b} that are also not assigned to a user (IS NULL).`),
+        n:tx(L, 'Naheliegend, aber falsch: alle Geräte der beiden Typen zu zählen und die zweite Bedingung „nutzer IS NULL“ zu übersehen – beide Bedingungen sind mit AND verknüpft.', 'Tempting but wrong: counting all devices of both types and overlooking the second condition "nutzer IS NULL" – both conditions are combined with AND.')}; },
+    () => { const s = pick(SITE), [a, b] = shuffle(TYP).slice(0, 2);
+      return {sql:`SELECT name\nFROM geraete\nWHERE name LIKE '${s}-%' AND typ = '${a}' OR typ = '${b}';`, f:r => (r.site === s && r.typ === a) || r.typ === b,
+        hint:tx(L, `AND bindet stärker als OR: (name LIKE '${s}-%' AND typ = '${a}') OR typ = '${b}' – also alle ${a}-Geräte am Standort ${s} plus alle Geräte vom Typ ${b}, egal wo.`, `AND binds more strongly than OR: (name LIKE '${s}-%' AND typ = '${a}') OR typ = '${b}' – i.e. all ${a} devices at site ${s} plus all devices of type ${b}, wherever they are.`),
+        n:tx(L, `Typischer Fehler: die Bedingung als name LIKE '${s}-%' AND (typ = '${a}' OR typ = '${b}') zu lesen. Ohne Klammern wird AND vor OR ausgewertet.`, `Typical mistake: reading the condition as name LIKE '${s}-%' AND (typ = '${a}' OR typ = '${b}'). Without parentheses AND is evaluated before OR.`)}; },
+    () => { const x = pick(prices.slice(1));
+      return {sql:`SELECT name\nFROM geraete\nWHERE nutzer IS NOT NULL AND preis >= ${x};`, f:r => r.nutzer !== null && r.preis >= x,
+        hint:tx(L, `Gesucht sind ausgegebene Geräte (nutzer IS NOT NULL) mit einem Preis von mindestens ${x} € (>= schließt ${x} ein).`, `The query looks for issued devices (nutzer IS NOT NULL) with a price of at least €${x} (>= includes ${x}).`),
+        n:tx(L, `Häufiger Fehler: >= wie > zu behandeln und Geräte mit genau ${x} € wegzulassen – oder Lagergeräte (NULL) mitzuzählen.`, `Common mistake: treating >= like > and leaving out devices at exactly €${x} – or counting devices in stock (NULL).`)}; },
+    () => { const a = pick(typs);
+      return {sql:`SELECT name\nFROM geraete\nWHERE typ = '${a}' OR nutzer = NULL;`, f:r => r.typ === a,
+        hint:tx(L, `Der Vergleich nutzer = NULL ergibt nie TRUE, sondern immer UNKNOWN – er trifft keine Zeile. Übrig bleiben nur die Geräte vom Typ ${a}.`, `The comparison nutzer = NULL never yields TRUE but always UNKNOWN – it matches no row. Only the devices of type ${a} remain.`),
+        n:tx(L, 'Naheliegend, aber falsch: die Lagergeräte (NULL) mitzuzählen. Auf NULL prüft man nur mit IS NULL, ein Vergleich mit = NULL ist nie wahr.', 'Tempting but wrong: counting the devices in stock (NULL). NULL can only be tested with IS NULL; a comparison with = NULL is never true.')}; },
+    () => ({sql:`SELECT typ, COUNT(*) AS anzahl\nFROM geraete\nGROUP BY typ\nHAVING COUNT(*) >= 2;`, grp:true,
+        n:tx(L, 'Häufiger Fehler: die Anzahl der Geräte statt der Anzahl der Gruppen anzugeben – GROUP BY liefert je Typ genau eine Ergebniszeile.', 'Common mistake: giving the number of devices instead of the number of groups – GROUP BY returns exactly one result row per type.')})
+  ];
+  const t = pick(T)();
+  let v, expl;
+  if (t.grp){
+    const cnt = TYP.filter(x => typs.includes(x)).map(x => [x, rows.filter(r => r.typ === x).length]);
+    const keep = cnt.filter(c => c[1] >= 2);
+    v = keep.length;
+    expl = tx(L, `GROUP BY typ bildet je Typ eine Gruppe: ${cnt.map(c => `${c[0]} ${c[1]}`).join(', ')}. HAVING COUNT(*) >= 2 behält ${keep.length ? keep.map(c => c[0]).join(', ') : 'keine Gruppe'} → ${v} Zeile${v === 1 ? '' : 'n'}.`,
+                 `GROUP BY typ forms one group per type: ${cnt.map(c => `${c[0]} ${c[1]}`).join(', ')}. HAVING COUNT(*) >= 2 keeps ${keep.length ? keep.map(c => c[0]).join(', ') : 'no group'} → ${v} row${v === 1 ? '' : 's'}.`);
+  } else {
+    const hit = rows.filter(t.f).map(r => r.name);
+    v = hit.length;
+    expl = t.hint + ' ' + tx(L, `Treffer: ${hit.length ? hit.join(', ') : 'keine'} → ${v} Zeile${v === 1 ? '' : 'n'}.`, `Matches: ${hit.length ? hit.join(', ') : 'none'} → ${v} row${v === 1 ? '' : 's'}.`);
+  }
+  return { t:'in', code:t.sql,
+    s: tx(L, 'Die Inventardatenbank enthält die Tabelle geraete (Auszug). Die ersten Zeichen des Gerätenamens stehen für den Standort (KOE = Köln, BN = Bonn, AC = Aachen). NULL in der Spalte nutzer bedeutet, dass das Gerät im Lager liegt.',
+             'The inventory database contains the table geraete (devices; excerpt): name, typ (type), preis (price in €), nutzer (assigned user). The first characters of the name denote the site (KOE = Cologne, BN = Bonn, AC = Aachen). NULL in the column nutzer means the device is in stock.'),
+    tb: {h:['name','typ','preis','nutzer'], r:rows.map(r => [r.name, r.typ, r.preis, r.nutzer === null ? 'NULL' : r.nutzer])},
+    q: tx(L, 'Wie viele Zeilen liefert die folgende Abfrage?', 'How many rows does the following query return?'),
+    f: [ {l:tx(L,'Anzahl Ergebniszeilen','Number of result rows'), v, tol:0} ],
+    e: expl, n: t.n
+  };
+};
+
+/* Pseudocode mit SOLANGE-Schleife und Array nachvollziehen */
+GEN.sqlTrace = function(L){
+  if (Math.random() < 0.5){
+    const len = rnd(6, 7), w = [...Array(len)].map(() => rnd(4, 38));
+    const pre = [0]; w.forEach(x => pre.push(pre[pre.length - 1] + x));
+    const k = rnd(2, len - 2), g = rnd(pre[k - 1] + 1, pre[k]);
+    const code = tx(L,
+`mengen ← [${w.join(', ')}]
+grenze ← ${g}
+summe ← 0
+i ← 0
+SOLANGE i < LÄNGE(mengen) UND summe < grenze
+    summe ← summe + mengen[i]
+    i ← i + 1
+ENDE SOLANGE
+AUSGABE i, summe`,
+`volumes ← [${w.join(', ')}]
+limit ← ${g}
+sum ← 0
+i ← 0
+WHILE i < LENGTH(volumes) AND sum < limit
+    sum ← sum + volumes[i]
+    i ← i + 1
+END WHILE
+OUTPUT i, sum`);
+    const steps = pre.slice(1, k + 1).join(' → ');
+    return { t:'in', code,
+      s: tx(L, 'Ein Skript soll ermitteln, nach wie vielen Tagen die täglichen Sicherungsmengen (in GB) ein Kontingent erreichen. Ein Kollege hat dazu folgenden Pseudocode entworfen. Arrays beginnen mit dem Index 0.',
+               'A script is to determine after how many days the daily backup volumes (in GB) reach a quota. A colleague drafted the following pseudocode. Arrays start at index 0.'),
+      q: tx(L, 'Welche Werte werden für i und summe ausgegeben?', 'Which values are output for i and sum?'),
+      f: [ {l:'i', v:k, tol:0}, {l:tx(L,'summe','sum'), v:pre[k], tol:0} ],
+      e: tx(L, `Die Bedingung wird vor jedem Durchlauf geprüft. summe entwickelt sich: ${steps}. Nach ${k} Durchläufen ist summe = ${pre[k]} ≥ ${g}, die Schleife endet → i = ${k}, summe = ${pre[k]}.`,
+               `The condition is checked before every pass. sum develops: ${steps}. After ${k} passes sum = ${pre[k]} ≥ ${g}, so the loop ends → i = ${k}, sum = ${pre[k]}.`),
+      n: tx(L, `Häufiger Fehler: vor dem Wert aufzuhören, der die Grenze überschreitet (summe = ${pre[k - 1]}). Die Prüfung erfolgt erst am Anfang des nächsten Durchlaufs – der letzte Wert wird also noch addiert.`,
+               `Common mistake: stopping before the value that exceeds the limit (sum = ${pre[k - 1]}). The check only happens at the start of the next pass – so the last value is still added.`)
+    };
+  }
+  const len = 7, w = [...Array(len)].map(() => rnd(18, 94));
+  let mx = Math.max(...w), first = w.indexOf(mx);
+  if (first < len - 1 && Math.random() < 0.6){ w[rnd(first + 1, len - 1)] = mx; }
+  const code = tx(L,
+`last ← [${w.join(', ')}]
+max ← last[0]
+pos ← 0
+i ← 1
+SOLANGE i < LÄNGE(last)
+    WENN last[i] > max DANN
+        max ← last[i]
+        pos ← i
+    ENDE WENN
+    i ← i + 1
+ENDE SOLANGE
+AUSGABE pos, max`,
+`load ← [${w.join(', ')}]
+max ← load[0]
+pos ← 0
+i ← 1
+WHILE i < LENGTH(load)
+    IF load[i] > max THEN
+        max ← load[i]
+        pos ← i
+    END IF
+    i ← i + 1
+END WHILE
+OUTPUT pos, max`);
+  const ch = []; let m = w[0];
+  for (let i = 1; i < len; i++) if (w[i] > m){ m = w[i]; ch.push(i); }
+  const dup = w.lastIndexOf(mx) !== first;
+  const chTxt = ch.length ? ch.map(i => tx(L, `i = ${i}: ${w[i]}`, `i = ${i}: ${w[i]}`)).join(', ') : tx(L, 'keine', 'none');
+  return { t:'in', code,
+    s: tx(L, 'Ein Monitoring-Skript wertet die stündlichen CPU-Auslastungen (in %) eines Servers aus. Ein Kollege hat dazu folgenden Pseudocode entworfen. Arrays beginnen mit dem Index 0.',
+             'A monitoring script evaluates the hourly CPU loads (in %) of a server. A colleague drafted the following pseudocode. Arrays start at index 0.'),
+    q: tx(L, 'Welche Werte werden für pos und max ausgegeben?', 'Which values are output for pos and max?'),
+    f: [ {l:'pos', v:first, tol:0}, {l:'max', v:mx, tol:0} ],
+    e: tx(L, `Startwert max = ${w[0]} (pos 0). Neue Maxima: ${chTxt}. Ergebnis: pos = ${first}, max = ${mx}.${dup ? ` Der spätere gleich große Wert ${mx} ändert nichts, weil ${mx} > ${mx} falsch ist.` : ''}`,
+             `Start value max = ${w[0]} (pos 0). New maxima: ${chTxt}. Result: pos = ${first}, max = ${mx}.${dup ? ` The later equal value ${mx} changes nothing because ${mx} > ${mx} is false.` : ''}`),
+    n: tx(L, dup ? 'Häufiger Fehler: bei gleich großen Werten die letzte Position anzugeben – mit „>“ (statt „≥“) bleibt die erste Fundstelle stehen. Außerdem beginnt die Zählung bei 0, nicht bei 1.'
+                 : 'Häufiger Fehler: die Position ab 1 zu zählen – der erste Wert steht an Index 0.',
+             dup ? 'Common mistake: giving the last position for equal values – with ">" (instead of "≥") the first occurrence is kept. Also, counting starts at 0, not 1.'
+                 : 'Common mistake: counting positions from 1 – the first value is at index 0.')
+  };
+};
+
+Q.push(
+{id:'sql-06', a:'sql', t:'sc', c:0,
+ de:{s:'Das Notebook mit der Inventarnummer INV-0815 ist vom Standort Köln nach Bonn umgezogen. Ein Kollege möchte das in der Tabelle geraete(inventar_nr, typ, standort) nachtragen und hat folgende Anweisung vorbereitet.',
+     code:"UPDATE geraete SET standort = 'Bonn';",
+     q:'Was bewirkt die Anweisung, und wie lautet sie korrekt?',
+     o:["Sie setzt bei allen Datensätzen der Tabelle den Standort auf Bonn; korrekt: UPDATE geraete SET standort = 'Bonn' WHERE inventar_nr = 'INV-0815';","Sie ändert nur den ersten Datensatz der Tabelle; korrekt wäre, die Zeile vorher mit ORDER BY auszuwählen.","Sie wird von der Datenbank als ungültig abgelehnt, weil eine WHERE-Klausel bei UPDATE Pflicht ist.","Sie ändert nur Datensätze, bei denen der Standort bisher leer (NULL) ist."],
+     e:'Ohne WHERE gilt ein UPDATE für jede Zeile der Tabelle – danach stünden alle Geräte in Bonn. Erst die WHERE-Bedingung auf den Primärschlüssel inventar_nr grenzt die Änderung auf genau einen Datensatz ein.',
+     n:'Viele erwarten eine Fehlermeldung. Standard-SQL erlaubt UPDATE und DELETE ohne WHERE aber ausdrücklich – die Anweisung läuft ohne Rückfrage auf der ganzen Tabelle.'},
+ en:{s:'The notebook with inventory number INV-0815 has moved from the Cologne site to Bonn. A colleague wants to record this in the table geraete(inventar_nr, typ, standort) – devices(inventory no., type, site) – and has prepared the following statement.',
+     code:"UPDATE geraete SET standort = 'Bonn';",
+     q:'What does the statement do, and what is the correct version?',
+     o:["It sets the site to Bonn for every row of the table; correct: UPDATE geraete SET standort = 'Bonn' WHERE inventar_nr = 'INV-0815';","It only changes the first row of the table; the row should be selected beforehand using ORDER BY.","The database rejects it as invalid because a WHERE clause is mandatory for UPDATE.","It only changes rows whose site has been empty (NULL) so far."],
+     e:'Without WHERE, an UPDATE applies to every row of the table – afterwards all devices would be in Bonn. Only the WHERE condition on the primary key inventar_nr limits the change to exactly one row.',
+     n:'Many expect an error message. Standard SQL explicitly allows UPDATE and DELETE without WHERE – the statement runs on the whole table without asking.'}},
+{id:'sql-07', a:'sql', gen:'sqlRows'},
+{id:'sql-08', a:'sql', gen:'sqlTrace'},
+{id:'sql-09', a:'sql', t:'mc', c:[0,1,2],
+ de:{s:'Ein Kunde verwaltet seine Bestellungen bisher in einer einzigen Tabelle (Auszug siehe unten). Sie sollen die Struktur vor der Migration in eine neue Datenbank bewerten. Primärschlüssel ist best_nr.',
+     tb:{h:['best_nr','datum','kunden_nr','kunde','ort','artikel'], r:[['1001','2026-03-02','K17','Müller GmbH','Köln','Maus, Tastatur'],['1002','2026-03-02','K08','Schmidt KG','Bonn','Monitor'],['1003','2026-03-05','K17','Müller GmbH','Köln','Headset, Maus, Dockingstation']]},
+     q:'Welche Aussagen treffen zu? (Mehrere Antworten)',
+     o:['Die Spalte artikel enthält mehrere Werte in einem Feld – die Tabelle verletzt bereits die 1. Normalform.','kunde und ort hängen von kunden_nr ab und damit nur transitiv von best_nr – ein Verstoß gegen die 3. Normalform.','Zieht die Müller GmbH um, muss der Ort in mehreren Zeilen geändert werden, sonst entstehen widersprüchliche Daten (Änderungsanomalie).','Weil best_nr eindeutig ist, befindet sich die Tabelle automatisch in der 3. Normalform.','Für die 1. Normalform genügt es, artikel in die Spalten artikel1, artikel2 und artikel3 aufzuteilen.'],
+     e:'1. NF verlangt atomare Werte, 3. NF verbietet transitive Abhängigkeiten von Nichtschlüsselattributen. Die Lösung sind eigene Tabellen kunde (PK kunden_nr), artikel und eine Positionstabelle bestellposition(best_nr, art_nr, menge) mit Fremdschlüsseln.',
+     n:'Die Spalten artikel1 bis artikel3 wirken atomar, sind aber eine Wiederholungsgruppe: Die vierte Position passt nicht hinein, und die Suche nach „Maus“ muss drei Spalten prüfen.'},
+ en:{s:'A customer has so far managed orders in a single table (excerpt below; kunde = customer, ort = town, artikel = items). Before migrating to a new database you are to assess the structure. The primary key is best_nr (order no.).',
+     tb:{h:['best_nr','datum','kunden_nr','kunde','ort','artikel'], r:[['1001','2026-03-02','K17','Müller GmbH','Köln','Maus, Tastatur'],['1002','2026-03-02','K08','Schmidt KG','Bonn','Monitor'],['1003','2026-03-05','K17','Müller GmbH','Köln','Headset, Maus, Dockingstation']]},
+     q:'Which statements are correct? (Multiple answers)',
+     o:['The column artikel contains several values in one field – the table already violates the first normal form.','kunde and ort depend on kunden_nr and therefore only transitively on best_nr – a violation of the third normal form.','If Müller GmbH moves, the town must be changed in several rows, otherwise contradictory data arise (update anomaly).','Because best_nr is unique, the table is automatically in the third normal form.','For the first normal form it is enough to split artikel into the columns artikel1, artikel2 and artikel3.'],
+     e:'1NF requires atomic values, 3NF forbids transitive dependencies of non-key attributes. The solution is separate tables kunde (PK kunden_nr), artikel and a line-item table bestellposition(best_nr, art_nr, menge) with foreign keys.',
+     n:'The columns artikel1 to artikel3 look atomic but form a repeating group: a fourth item does not fit, and a search for "Maus" has to check three columns.'}},
+{id:'sql-10', a:'sql', t:'match',
+ de:{s:'Für die neue Tabelle standorte_geraete legen Sie mit CREATE TABLE die Datentypen fest. Die Datenbank soll Standard-SQL-Datentypen verwenden.',
+     q:'Ordnen Sie jeder Spalte den passenden Datentyp zu.',
+     p:[['kaufdatum','DATE'],['preis (Euro-Betrag, centgenau)','DECIMAL(10,2)'],['plz (z. B. „01067“)','CHAR(5)'],['anzahl_ports (ganze Zahl)','INTEGER'],['bemerkung (Freitext, bis 200 Zeichen)','VARCHAR(200)']],
+     e:'DECIMAL speichert Beträge exakt mit fester Nachkommastellenzahl, DATE erlaubt Datumsvergleiche und -rechnungen. Postleitzahlen haben immer genau fünf Zeichen und sind trotz Ziffern Text.',
+     n:'Die PLZ als INTEGER zu speichern ist verlockend, macht aus „01067“ aber 1067 – führende Nullen gehen verloren, und mit einer PLZ rechnet man nie.'},
+ en:{s:'For the new table standorte_geraete (site devices) you define the data types with CREATE TABLE. The database is to use standard SQL data types.',
+     q:'Match each column with the appropriate data type.',
+     p:[['kaufdatum (purchase date)','DATE'],['preis (euro amount, exact to the cent)','DECIMAL(10,2)'],['plz (German postcode, e.g. "01067")','CHAR(5)'],['anzahl_ports (whole number of ports)','INTEGER'],['bemerkung (free-text note, up to 200 characters)','VARCHAR(200)']],
+     e:'DECIMAL stores amounts exactly with a fixed number of decimal places, DATE allows date comparisons and calculations. German postcodes always have exactly five characters and are text despite consisting of digits.',
+     n:'Storing the postcode as INTEGER is tempting but turns "01067" into 1067 – leading zeros are lost, and you never calculate with a postcode.'}},
+{id:'sql-11', a:'sql', t:'order',
+ de:{s:'Eine Kollegin möchte alle Standorte mit mehr als fünf Geräten ermitteln. Ihre Abfrage bricht mit der Meldung „Spalte anzahl unbekannt“ ab. Sie erklären ihr, in welcher Reihenfolge die Datenbank eine Abfrage logisch auswertet.',
+     code:'SELECT standort, COUNT(*) AS anzahl\nFROM geraete\nWHERE anzahl > 5\nGROUP BY standort;',
+     q:'Bringen Sie die Klauseln in die Reihenfolge ihrer logischen Auswertung.',
+     o:['FROM – Quelltabelle(n) bestimmen und ggf. per JOIN verknüpfen','WHERE – einzelne Zeilen filtern','GROUP BY – Zeilen zu Gruppen zusammenfassen','HAVING – Gruppen filtern','SELECT – Ausgabespalten und Aliase bilden','ORDER BY – Ergebnis sortieren'],
+     e:'WHERE wird ausgewertet, bevor SELECT den Alias anzahl bildet, und bevor überhaupt Gruppen existieren. Richtig ist deshalb GROUP BY standort HAVING COUNT(*) > 5. ORDER BY folgt erst nach SELECT und darf den Alias verwenden.',
+     n:'Naheliegend ist, die Schreibreihenfolge (SELECT … FROM … WHERE) für die Auswertungsreihenfolge zu halten – tatsächlich wird SELECT fast zuletzt ausgewertet.'},
+ en:{s:'A colleague wants to find all sites with more than five devices. Her query aborts with the message "unknown column anzahl" (anzahl = count). You explain the order in which the database logically evaluates a query.',
+     code:'SELECT standort, COUNT(*) AS anzahl\nFROM geraete\nWHERE anzahl > 5\nGROUP BY standort;',
+     q:'Put the clauses in the order of their logical evaluation.',
+     o:['FROM – determine the source table(s) and join them if necessary','WHERE – filter individual rows','GROUP BY – combine rows into groups','HAVING – filter groups','SELECT – build the output columns and aliases','ORDER BY – sort the result'],
+     e:'WHERE is evaluated before SELECT creates the alias anzahl, and before any groups exist. The correct form is therefore GROUP BY standort HAVING COUNT(*) > 5. ORDER BY only follows SELECT and may use the alias.',
+     n:'It is tempting to take the written order (SELECT … FROM … WHERE) as the evaluation order – in fact SELECT is evaluated almost last.'}},
+{id:'sql-12', a:'sql', t:'sc', c:0,
+ de:{s:'Auf dem Linux-Backupserver soll das Skript /opt/skripte/backup.sh von montags bis freitags jeweils um 22:30 Uhr automatisch starten. Sie legen den Auftrag mit crontab -e an.',
+     q:'Welcher Eintrag ist korrekt?',
+     o:['30 22 * * 1-5 /opt/skripte/backup.sh','22 30 * * 1-5 /opt/skripte/backup.sh','30 22 1-5 * * /opt/skripte/backup.sh','30 22 * * 0-4 /opt/skripte/backup.sh'],
+     e:'Die fünf Zeitfelder lauten Minute, Stunde, Tag des Monats, Monat, Wochentag. „30 22“ bedeutet 22:30 Uhr, „1-5“ im Wochentagsfeld steht für Montag bis Freitag (0 bzw. 7 = Sonntag).',
+     n:'„30 22 1-5 * *“ sieht fast gleich aus, startet das Skript aber am 1. bis 5. Tag jedes Monats – unabhängig vom Wochentag.'},
+ en:{s:'On the Linux backup server the script /opt/skripte/backup.sh is to start automatically at 22:30 every Monday to Friday. You create the job with crontab -e.',
+     q:'Which entry is correct?',
+     o:['30 22 * * 1-5 /opt/skripte/backup.sh','22 30 * * 1-5 /opt/skripte/backup.sh','30 22 1-5 * * /opt/skripte/backup.sh','30 22 * * 0-4 /opt/skripte/backup.sh'],
+     e:'The five time fields are minute, hour, day of month, month, day of week. "30 22" means 22:30, "1-5" in the day-of-week field stands for Monday to Friday (0 or 7 = Sunday).',
+     n:'"30 22 1-5 * *" looks almost the same but starts the script on the 1st to 5th day of every month – regardless of the weekday.'}},
+{id:'sql-13', a:'sql', t:'mc', c:[0,1,2],
+ de:{s:'Die Personalabteilung liefert zum Monatsanfang eine CSV-Datei mit neuen Mitarbeitern (Spalten: Vorname;Nachname;Abteilung;Startpasswort). Ein Kollege hat zur automatischen Anlage der AD-Konten folgendes PowerShell-Skript geschrieben.',
+     code:`$liste = Import-Csv -Path 'C:\\Skripte\\neue_mitarbeiter.csv' -Delimiter ';'
+foreach ($m in $liste) {
+    $sam = ($m.Vorname.Substring(0,1) + $m.Nachname).ToLower()
+    $pw  = ConvertTo-SecureString $m.Startpasswort -AsPlainText -Force
+    $param = @{
+        Name                  = "$($m.Vorname) $($m.Nachname)"
+        SamAccountName        = $sam
+        Path                  = "OU=$($m.Abteilung),OU=Benutzer,DC=firma,DC=local"
+        AccountPassword       = $pw
+        ChangePasswordAtLogon = $true
+        Enabled               = $true
+    }
+    New-ADUser @param
+}`,
+     q:'Welche Aussagen zum Skript treffen zu? (Mehrere Antworten)',
+     o:['Die Spaltenüberschriften der CSV-Datei werden zu Eigenschaften der Objekte in $liste, z. B. $m.Nachname.','Heißen zwei neue Mitarbeiter Max Müller und Monika Müller, schlägt New-ADUser beim zweiten fehl, weil der Anmeldename mmüller schon existiert – eine Prüfung (z. B. mit Get-ADUser) und eine Fehlerbehandlung mit try/catch fehlen.','Durch ChangePasswordAtLogon = $true muss jeder Benutzer das Startpasswort bei der ersten Anmeldung ändern.','Die Klartext-Passwörter in der CSV-Datei sind unbedenklich, weil ConvertTo-SecureString sie verschlüsselt.','Der Parameter -Delimiter \';\' ist überflüssig, weil Import-Csv das Semikolon automatisch erkennt.'],
+     e:'Import-Csv erzeugt je Zeile ein Objekt mit den Spaltennamen als Eigenschaften. Das Skript prüft aber nicht auf Namensdubletten und fängt Fehler nicht ab – für den Produktivbetrieb gehören Get-ADUser-Prüfung, try/catch und ein Protokoll dazu.',
+     n:'ConvertTo-SecureString schützt das Passwort nur im Arbeitsspeicher für die Übergabe an New-ADUser. Die CSV-Datei liegt weiter im Klartext auf der Platte und muss geschützt und nach dem Import gelöscht werden.'},
+ en:{s:'At the start of each month HR supplies a CSV file with new employees (columns: Vorname;Nachname;Abteilung;Startpasswort – first name, last name, department, initial password). A colleague has written the following PowerShell script to create the AD accounts automatically.',
+     code:`$liste = Import-Csv -Path 'C:\\Skripte\\neue_mitarbeiter.csv' -Delimiter ';'
+foreach ($m in $liste) {
+    $sam = ($m.Vorname.Substring(0,1) + $m.Nachname).ToLower()
+    $pw  = ConvertTo-SecureString $m.Startpasswort -AsPlainText -Force
+    $param = @{
+        Name                  = "$($m.Vorname) $($m.Nachname)"
+        SamAccountName        = $sam
+        Path                  = "OU=$($m.Abteilung),OU=Benutzer,DC=firma,DC=local"
+        AccountPassword       = $pw
+        ChangePasswordAtLogon = $true
+        Enabled               = $true
+    }
+    New-ADUser @param
+}`,
+     q:'Which statements about the script are correct? (Multiple answers)',
+     o:['The column headers of the CSV file become properties of the objects in $liste, e.g. $m.Nachname.','If two new employees are called Max Müller and Monika Müller, New-ADUser fails for the second one because the logon name mmüller already exists – a check (e.g. with Get-ADUser) and error handling with try/catch are missing.','Because of ChangePasswordAtLogon = $true, every user must change the initial password at first logon.','The plain-text passwords in the CSV file are harmless because ConvertTo-SecureString encrypts them.','The parameter -Delimiter \';\' is unnecessary because Import-Csv detects the semicolon automatically.'],
+     e:'Import-Csv creates one object per row with the column names as properties. However, the script does not check for duplicate names and does not catch errors – for production use, a Get-ADUser check, try/catch and a log are required.',
+     n:'ConvertTo-SecureString only protects the password in memory while it is passed to New-ADUser. The CSV file remains in plain text on disk and must be protected and deleted after the import.'}},
+{id:'sql-14', a:'sql', t:'in', f:[{v:5, tol:0},{v:3, tol:0},{v:40, tol:0, u:'min'}],
+ de:{s:'Die Teamleitung Support möchte wissen, wie lange Drucker-Tickets im Schnitt dauern. In der Tabelle tickets steht bei noch offenen Tickets NULL in der Spalte dauer_min.',
+     tb:{h:['id','kategorie','dauer_min'], r:[['1','Drucker','30'],['2','Netzwerk','45'],['3','Drucker','NULL'],['4','Drucker','50'],['5','Software','20'],['6','Drucker','40'],['7','Netzwerk','NULL'],['8','Drucker','NULL']]},
+     code:"SELECT COUNT(*) AS anzahl,\n       COUNT(dauer_min) AS erledigt,\n       AVG(dauer_min) AS schnitt\nFROM tickets\nWHERE kategorie = 'Drucker';",
+     q:'Welche Werte liefert die Abfrage?',
+     l:['anzahl','erledigt','schnitt'],
+     e:'Die WHERE-Bedingung trifft die Tickets 1, 3, 4, 6 und 8 → COUNT(*) = 5. COUNT(dauer_min) zählt nur Werte ungleich NULL → 3. AVG ignoriert NULL ebenfalls: (30 + 50 + 40) ÷ 3 = 40.',
+     n:'Häufiger Fehler: bei AVG durch alle fünf Zeilen zu teilen (120 ÷ 5 = 24). Aggregatfunktionen außer COUNT(*) übergehen NULL-Werte.'},
+ en:{s:'The support team lead wants to know how long printer tickets take on average. In the table tickets (kategorie = category, Drucker = printer), open tickets have NULL in the column dauer_min (duration in minutes).',
+     tb:{h:['id','kategorie','dauer_min'], r:[['1','Drucker','30'],['2','Netzwerk','45'],['3','Drucker','NULL'],['4','Drucker','50'],['5','Software','20'],['6','Drucker','40'],['7','Netzwerk','NULL'],['8','Drucker','NULL']]},
+     code:"SELECT COUNT(*) AS anzahl,\n       COUNT(dauer_min) AS erledigt,\n       AVG(dauer_min) AS schnitt\nFROM tickets\nWHERE kategorie = 'Drucker';",
+     q:'Which values does the query return?',
+     l:['anzahl (count)','erledigt (closed)','schnitt (average)'],
+     e:'The WHERE condition matches tickets 1, 3, 4, 6 and 8 → COUNT(*) = 5. COUNT(dauer_min) only counts non-NULL values → 3. AVG ignores NULL as well: (30 + 50 + 40) ÷ 3 = 40.',
+     n:'Common mistake: dividing by all five rows for AVG (120 ÷ 5 = 24). Aggregate functions other than COUNT(*) skip NULL values.'}},
+{id:'sql-15', a:'sql', t:'match',
+ de:{s:'Sie überarbeiten zwei Wartungsskripte – eines in Bash auf dem Linux-Backupserver, eines in PowerShell auf dem Fileserver – und stoßen auf mehrere spezielle Variablen.',
+     q:'Ordnen Sie jeder Variablen ihre Bedeutung zu.',
+     p:[['$1 (Bash)','Erster beim Aufruf übergebener Parameter'],['$# (Bash)','Anzahl der übergebenen Parameter'],['$? (Bash)','Exit-Code des zuletzt ausgeführten Befehls (0 = Erfolg)'],['$LASTEXITCODE (PowerShell)','Numerischer Exit-Code des zuletzt ausgeführten externen Programms, z. B. robocopy.exe'],['$_ (PowerShell)','Aktuelles Objekt in der Pipeline, z. B. innerhalb von Where-Object']],
+     e:'Bash-Skripte werten Parameter über $1, $2 … und $# aus und prüfen mit $? den Erfolg des letzten Befehls. In PowerShell steht $_ (bzw. $PSItem) für das aktuelle Pipeline-Objekt, $LASTEXITCODE für den Rückgabewert externer Programme.',
+     n:'Verwechslungsgefahr: Auch PowerShell kennt $?, liefert dort aber nur True oder False. Den numerischen Exit-Code eines externen Programms enthält $LASTEXITCODE.'},
+ en:{s:'You are revising two maintenance scripts – one in Bash on the Linux backup server, one in PowerShell on the file server – and come across several special variables.',
+     q:'Match each variable with its meaning.',
+     p:[['$1 (Bash)','First parameter passed when the script is called'],['$# (Bash)','Number of parameters passed'],['$? (Bash)','Exit code of the last command executed (0 = success)'],['$LASTEXITCODE (PowerShell)','Numeric exit code of the last external program executed, e.g. robocopy.exe'],['$_ (PowerShell)','Current object in the pipeline, e.g. inside Where-Object']],
+     e:'Bash scripts evaluate parameters via $1, $2 … and $# and check the success of the last command with $?. In PowerShell, $_ (or $PSItem) stands for the current pipeline object and $LASTEXITCODE for the return value of external programs.',
+     n:'Risk of confusion: PowerShell also has $?, but there it only returns True or False. The numeric exit code of an external program is held in $LASTEXITCODE.'}},
+{id:'sql-16', a:'sql', t:'order',
+ de:{s:'Aus der Inventardatenbank sollen alle ausgesonderten Geräte mit Kaufdatum vor 2020 gelöscht werden. Eine aktuelle Sicherung liegt vor. Das Datenbankwerkzeug arbeitet standardmäßig mit Autocommit, d. h., jede Anweisung wird sofort dauerhaft gespeichert.',
+     q:'Bringen Sie die Arbeitsschritte in eine fachgerechte Reihenfolge.',
+     o:["Mit SELECT * FROM geraete WHERE status = 'ausgesondert' AND kaufdatum < '2020-01-01' die betroffenen Datensätze anzeigen und die Bedingung prüfen","Transaktion starten (START TRANSACTION) und DELETE FROM geraete mit genau derselben WHERE-Bedingung ausführen","Die gemeldete Anzahl gelöschter Zeilen mit dem Ergebnis des SELECT vergleichen","Bei Übereinstimmung COMMIT, bei Abweichung ROLLBACK ausführen","Die Löschung mit Datum, Bedingung und Zeilenanzahl im Änderungsprotokoll dokumentieren"],
+     e:'Das SELECT mit derselben WHERE-Bedingung zeigt vorab, was gelöscht würde. Die explizite Transaktion hebt das Autocommit auf: Erst COMMIT macht die Löschung dauerhaft, ROLLBACK nimmt sie vollständig zurück.',
+     n:'Verlockend ist, direkt zu löschen und erst danach zu prüfen. Mit Autocommit ist ein DELETE mit fehlerhafter oder fehlender WHERE-Bedingung dann aber nur noch über die Rücksicherung zu reparieren.'},
+ en:{s:'All retired devices (status = \'ausgesondert\') purchased before 2020 are to be deleted from the inventory database. A current backup exists. The database tool works in autocommit mode by default, i.e. every statement is saved permanently at once.',
+     q:'Put the work steps into a professional order.',
+     o:["Use SELECT * FROM geraete WHERE status = 'ausgesondert' AND kaufdatum < '2020-01-01' to display the affected rows and check the condition","Start a transaction (START TRANSACTION) and run DELETE FROM geraete with exactly the same WHERE condition","Compare the reported number of deleted rows with the result of the SELECT","If they match, run COMMIT; if not, run ROLLBACK","Document the deletion with date, condition and row count in the change log"],
+     e:'The SELECT with the same WHERE condition shows in advance what would be deleted. The explicit transaction suspends autocommit: only COMMIT makes the deletion permanent, ROLLBACK undoes it completely.',
+     n:'It is tempting to delete straight away and check afterwards. In autocommit mode, however, a DELETE with a wrong or missing WHERE condition can then only be repaired by restoring the backup.'}},
+{id:'sql-17', a:'sql', t:'sc', c:0,
+ de:{s:'Für die Elektronikversicherung benötigt das Controlling alle Geräte, deren Preis über dem Durchschnittspreis aller Geräte liegt. Tabelle: geraete(name, typ, preis).',
+     q:'Welche Abfrage liefert das gewünschte Ergebnis?',
+     o:['SELECT name, preis FROM geraete WHERE preis > (SELECT AVG(preis) FROM geraete);','SELECT name, preis FROM geraete WHERE preis > AVG(preis);','SELECT name, preis FROM geraete GROUP BY name, preis HAVING preis > AVG(preis);','SELECT name, preis FROM geraete WHERE preis IN (SELECT AVG(preis) FROM geraete);'],
+     e:'Die Unterabfrage berechnet einmal den Durchschnitt über die ganze Tabelle und liefert einen einzelnen Wert, mit dem jede Zeile verglichen wird.',
+     n:'WHERE preis > AVG(preis) wirkt naheliegend, ist aber ungültig: Aggregatfunktionen sind in WHERE nicht erlaubt. Die HAVING-Variante ist zwar gültig, bildet den Durchschnitt aber je Gruppe (name, preis) – er entspricht dort immer dem eigenen Preis, sodass kein Gerät „teurer als der Durchschnitt“ ist.'},
+ en:{s:'For the electronics insurance, controlling needs all devices whose price is above the average price of all devices. Table: geraete(name, typ, preis) – devices(name, type, price).',
+     q:'Which query returns the desired result?',
+     o:['SELECT name, preis FROM geraete WHERE preis > (SELECT AVG(preis) FROM geraete);','SELECT name, preis FROM geraete WHERE preis > AVG(preis);','SELECT name, preis FROM geraete GROUP BY name, preis HAVING preis > AVG(preis);','SELECT name, preis FROM geraete WHERE preis IN (SELECT AVG(preis) FROM geraete);'],
+     e:'The subquery calculates the average over the whole table once and returns a single value with which every row is compared.',
+     n:'WHERE preis > AVG(preis) seems obvious but is invalid: aggregate functions are not allowed in WHERE. The HAVING variant is valid but computes the average per group (name, preis) – there it always equals the device\'s own price, so no device is "more expensive than average".'}},
+{id:'sql-18', a:'sql', t:'sc', c:0,
+ de:{s:'Nach der Umfirmierung sollen alle noch aktiven Benutzerkonten mit einer E-Mail-Adresse der alten Domain @altfirma.de umgestellt werden. Tabelle: benutzer(login, email, austritt); bei aktiven Mitarbeitern ist austritt NULL.',
+     q:'Mit welcher Abfrage ermitteln Sie die betroffenen Konten?',
+     o:["SELECT login FROM benutzer WHERE email LIKE '%@altfirma.de' AND austritt IS NULL;","SELECT login FROM benutzer WHERE email LIKE '%@altfirma.de' AND austritt = NULL;","SELECT login FROM benutzer WHERE email LIKE '*@altfirma.de' AND austritt IS NULL;","SELECT login FROM benutzer WHERE email = '%@altfirma.de' AND austritt IS NULL;"],
+     e:'LIKE mit dem Platzhalter % steht für beliebig viele Zeichen vor der Domain. NULL wird ausschließlich mit IS NULL bzw. IS NOT NULL geprüft.',
+     n:'austritt = NULL liefert keinen Fehler, aber auch keine einzige Zeile: Jeder Vergleich mit NULL ergibt UNKNOWN. Der Stern * ist ein Platzhalter der Windows-Kommandozeile, in SQL steht er für ein gewöhnliches Zeichen.'},
+ en:{s:'After the company was renamed, all still active user accounts with an e-mail address of the old domain @altfirma.de are to be migrated. Table: benutzer(login, email, austritt) – users(login, e-mail, leaving date); for active employees austritt is NULL.',
+     q:'Which query finds the affected accounts?',
+     o:["SELECT login FROM benutzer WHERE email LIKE '%@altfirma.de' AND austritt IS NULL;","SELECT login FROM benutzer WHERE email LIKE '%@altfirma.de' AND austritt = NULL;","SELECT login FROM benutzer WHERE email LIKE '*@altfirma.de' AND austritt IS NULL;","SELECT login FROM benutzer WHERE email = '%@altfirma.de' AND austritt IS NULL;"],
+     e:'LIKE with the wildcard % stands for any number of characters before the domain. NULL is only tested with IS NULL or IS NOT NULL.',
+     n:'austritt = NULL does not raise an error but returns no rows at all: every comparison with NULL yields UNKNOWN. The asterisk * is a wildcard of the Windows command line; in SQL it is an ordinary character.'}},
+{id:'sql-19', a:'sql', t:'mc', c:[0,1,2],
+ de:{s:'Für die Leihgeräteverwaltung (Notebooks, Beamer) hat ein Kollege die folgende Tabelle angelegt. Die Tabellen geraete und mitarbeiter existieren bereits, jeweils mit dem Primärschlüssel id.',
+     code:'CREATE TABLE ausleihe (\n  ausleihe_id  INTEGER  PRIMARY KEY,\n  geraet_id    INTEGER  NOT NULL,\n  ma_id        INTEGER  NOT NULL,\n  von          DATE     NOT NULL,\n  bis          DATE,\n  FOREIGN KEY (geraet_id) REFERENCES geraete(id),\n  FOREIGN KEY (ma_id)     REFERENCES mitarbeiter(id)\n);',
+     q:'Welche Aussagen treffen zu? (Mehrere Antworten)',
+     o:['Die Tabelle löst die n:m-Beziehung zwischen geraete und mitarbeiter auf: Ein Gerät kann nacheinander von vielen Mitarbeitern ausgeliehen werden, ein Mitarbeiter kann viele Geräte ausleihen.','Ein INSERT mit einer geraet_id, die in geraete nicht existiert, wird von der Datenbank abgelehnt.','Die Spalte bis darf leer (NULL) bleiben, z. B. solange das Gerät noch nicht zurückgegeben wurde.','Ein Mitarbeiter kann nur ein Gerät gleichzeitig ausleihen, weil ma_id ein Fremdschlüssel ist.','Wird ein Mitarbeiter gelöscht, der noch Ausleihen hat, löscht die Datenbank dessen Ausleihen automatisch mit.'],
+     e:'Die Fremdschlüssel sichern die referenzielle Integrität: Es können nur vorhandene Geräte und Mitarbeiter eingetragen werden. Ohne NOT NULL darf bis leer bleiben – das ist hier gewollt.',
+     n:'Das automatische Mitlöschen gibt es nur mit ON DELETE CASCADE. Ohne diese Angabe gilt NO ACTION: Die Datenbank verweigert das Löschen des Mitarbeiters, solange Ausleihen auf ihn verweisen.'},
+ en:{s:'For managing loan equipment (notebooks, projectors), a colleague has created the following table ausleihe (loan). The tables geraete (devices) and mitarbeiter (employees) already exist, each with the primary key id.',
+     code:'CREATE TABLE ausleihe (\n  ausleihe_id  INTEGER  PRIMARY KEY,\n  geraet_id    INTEGER  NOT NULL,\n  ma_id        INTEGER  NOT NULL,\n  von          DATE     NOT NULL,\n  bis          DATE,\n  FOREIGN KEY (geraet_id) REFERENCES geraete(id),\n  FOREIGN KEY (ma_id)     REFERENCES mitarbeiter(id)\n);',
+     q:'Which statements are correct? (Multiple answers)',
+     o:['The table resolves the n:m relationship between geraete and mitarbeiter: a device can be borrowed by many employees one after another, and an employee can borrow many devices.','An INSERT with a geraet_id that does not exist in geraete is rejected by the database.','The column bis (until) may remain empty (NULL), e.g. as long as the device has not yet been returned.','An employee can only borrow one device at a time because ma_id is a foreign key.','If an employee who still has loans is deleted, the database automatically deletes those loans too.'],
+     e:'The foreign keys ensure referential integrity: only existing devices and employees can be entered. Without NOT NULL, bis may remain empty – which is intended here.',
+     n:'Automatic cascading deletion only happens with ON DELETE CASCADE. Without it, NO ACTION applies: the database refuses to delete the employee as long as loans refer to him or her.'}},
+{id:'sql-20', a:'sql', t:'open',
+ de:{s:'Fachgespräch: Sie haben ein PowerShell-Skript geschrieben, das jede Nacht als geplante Aufgabe verwaiste Benutzerprofile und alte Protokolldateien auf den Terminalservern löscht. Der Prüfer fragt: „Wie stellen Sie sicher, dass dieses Skript im Produktivbetrieb zuverlässig und sicher läuft?“',
+     q:'Beschreiben Sie die Maßnahmen, die Sie vorsehen.',
+     m:'• Testlauf im Testsystem bzw. mit -WhatIf, bevor produktiv gelöscht wird.\n• Parameter statt fest eingetragener Pfade und Fristen; Plausibilitätsprüfungen (z. B. Pfad existiert, nicht leer).\n• Fehlerbehandlung mit try/catch und definierten Exit-Codes, damit die geplante Aufgabe bzw. das Monitoring Fehler erkennt.\n• Protokollierung (Logdatei oder Ereignisprotokoll) mit Zeitpunkt, gelöschten Objekten und Fehlern.\n• Ausführung unter einem eigenen Dienstkonto (z. B. gMSA) mit minimalen Rechten; keine Passwörter im Klartext im Skript.\n• Benachrichtigung bei Fehlern (Mail/Monitoring) und regelmäßige Kontrolle der Logs.\n• Skript versionieren (z. B. Git), signieren bzw. vor Veränderung schützen und dokumentieren.',
+     k:['Test mit -WhatIf / Testsystem','try/catch und Exit-Codes','Protokollierung','Dienstkonto mit minimalen Rechten, keine Klartext-Passwörter','Benachrichtigung / Monitoring','Versionierung und Dokumentation']},
+ en:{s:'Expert interview: you have written a PowerShell script that runs nightly as a scheduled task and deletes orphaned user profiles and old log files on the terminal servers. The examiner asks: "How do you make sure this script runs reliably and securely in production?"',
+     q:'Describe the measures you plan.',
+     m:'• Test run on a test system or with -WhatIf before deleting anything in production.\n• Parameters instead of hard-coded paths and retention periods; plausibility checks (e.g. path exists, is not empty).\n• Error handling with try/catch and defined exit codes so that the scheduled task or monitoring detects failures.\n• Logging (log file or event log) with time, deleted objects and errors.\n• Run under a dedicated service account (e.g. gMSA) with least privilege; no plain-text passwords in the script.\n• Notification on errors (mail/monitoring) and regular review of the logs.\n• Version the script (e.g. Git), sign it or protect it against modification, and document it.',
+     k:['Test with -WhatIf / test system','try/catch and exit codes','Logging','Service account with least privilege, no plain-text passwords','Notification / monitoring','Versioning and documentation']}}
+);
+
 </script>
 
 <script>

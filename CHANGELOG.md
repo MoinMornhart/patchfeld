@@ -10,6 +10,18 @@ All changes to Patchfeld. Version scheme: every digit runs from 0 to 9 –
 
 <!-- releases -->
 
+## 0.1.7 – 2026-09-11
+
+- Skripting & SQL auf 20 Fragen erweitert
+- Neue Themen: UPDATE ohne WHERE, Normalisierung und Anomalien, Datentypen, logische Auswertungsreihenfolge, cron, CSV-Benutzerimport per PowerShell, COUNT und NULL, Skriptvariablen und Exit-Codes, DELETE in Transaktionen, Unterabfragen, LIKE, Fremdschlüssel und ON DELETE, robuste Aufräumskripte
+- Neue Rechenaufgaben mit Zufallswerten: Ergebniszeilen einer Abfrage zählen, WHILE-Schleife nachvollziehen
+
+**English**
+
+- Scripting & SQL extended to 20 questions
+- New topics: UPDATE without WHERE, normalisation and anomalies, data types, logical evaluation order, cron, CSV user import with PowerShell, COUNT and NULL, script variables and exit codes, DELETE in transactions, subqueries, LIKE, foreign keys and ON DELETE, robust cleanup scripts
+- New random calculations: count result rows of a query, trace a WHILE loop
+
 ## 0.1.6 – 2026-09-11
 
 - Glossar auf 118 Fachbegriffe erweitert
