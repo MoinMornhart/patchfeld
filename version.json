@@ -1,17 +1,17 @@
 {
-  "version": "0.1.4",
+  "version": "0.1.5",
   "date": "2026-09-11",
   "file": "index.html",
   "notes": {
     "de": [
-      "Systemintegration & Rollout auf 20 Fragen erweitert",
-      "Neue Themen: Parallelbetrieb, Windows Autopilot/Intune, Testarten, sichere Löschung von NVMe-SSDs, Softwareverteilung in Ringen, Übergabe an den Betrieb, WSUS-Update-Ringe, Dokumentationsarten, Außerbetriebnahme nach DIN 66399, Lizenzen beim PC-Tausch, Anwenderkommunikation, Inbetriebnahme-Checkliste, Big Bang vs. stufenweise Umstellung",
-      "Neue Rechenaufgabe mit Zufallswerten: Rollout-Aufwand und -Dauer"
+      "Präsentation & Fachgespräch auf 20 Fragen erweitert",
+      "9 neue Prüferfragen mit Musterlösung: halbiertes Budget, IPsec-Tunnel im Detail, Eigenleistung, Datenschutz und Betriebsrat, Zeitabweichung, unbekannte Fragen, Wirtschaftlichkeit, Nervosität, Ransomware-Szenario",
+      "Neue Themen: genehmigungsfähige Projektthemen, Zeitnot in der Präsentation, überladene Folien, Inhalt des Projektantrags, Bewertung im Fachgespräch, Gliederung der Projektdokumentation"
     ],
     "en": [
-      "System integration & rollout extended to 20 questions",
-      "New topics: parallel operation, Windows Autopilot/Intune, test types, secure erasure of NVMe SSDs, ring-based software distribution, handover to operations, WSUS update rings, documentation types, decommissioning per DIN 66399, licences when replacing PCs, user communication, commissioning checklist, big bang vs phased switchover",
-      "New random calculation: rollout effort and duration"
+      "Presentation & expert interview extended to 20 questions",
+      "9 new examiner questions with model answers: halved budget, IPsec tunnel in detail, own contribution, data protection and works council, schedule deviation, unknown questions, economic viability, nerves, ransomware scenario",
+      "New topics: approvable project topics, running out of time, overloaded slides, content of the project application, assessment in the interview, structure of the project documentation"
     ]
   }
 }

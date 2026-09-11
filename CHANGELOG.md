@@ -10,6 +10,18 @@ All changes to Patchfeld. Version scheme: every digit runs from 0 to 9 –
 
 <!-- releases -->
 
+## 0.1.5 – 2026-09-11
+
+- Präsentation & Fachgespräch auf 20 Fragen erweitert
+- 9 neue Prüferfragen mit Musterlösung: halbiertes Budget, IPsec-Tunnel im Detail, Eigenleistung, Datenschutz und Betriebsrat, Zeitabweichung, unbekannte Fragen, Wirtschaftlichkeit, Nervosität, Ransomware-Szenario
+- Neue Themen: genehmigungsfähige Projektthemen, Zeitnot in der Präsentation, überladene Folien, Inhalt des Projektantrags, Bewertung im Fachgespräch, Gliederung der Projektdokumentation
+
+**English**
+
+- Presentation & expert interview extended to 20 questions
+- 9 new examiner questions with model answers: halved budget, IPsec tunnel in detail, own contribution, data protection and works council, schedule deviation, unknown questions, economic viability, nerves, ransomware scenario
+- New topics: approvable project topics, running out of time, overloaded slides, content of the project application, assessment in the interview, structure of the project documentation
+
 ## 0.1.4 – 2026-09-11
 
 - Systemintegration & Rollout auf 20 Fragen erweitert
