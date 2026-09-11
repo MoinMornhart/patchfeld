@@ -10,6 +10,18 @@ All changes to Patchfeld. Version scheme: every digit runs from 0 to 9 –
 
 <!-- releases -->
 
+## 0.0.9 – 2026-09-11
+
+- Ausfallsicherheit & Notfall auf 20 Fragen erweitert
+- Neue Themen: LACP statt STP-Blockade, VRRP/HSRP, BSI-200-4-Begriffe, unveränderliche Backups, Aktiv/Aktiv-Kapazität, Backupfenster, Klima und Brandschutz, GFS, USV-Shutdown-Reihenfolge, Georedundanz, Wiederherstellungstests, BCMS-Aufbau, Single Points of Failure
+- Neue Rechenaufgaben mit Zufallswerten: Verfügbarkeit serieller und paralleler Komponenten, Wochen-Backupvolumen inkrementell/differenziell
+
+**English**
+
+- Resilience & contingency extended to 20 questions
+- New topics: LACP instead of STP blocking, VRRP/HSRP, BSI 200-4 terms, immutable backups, active/active capacity, backup window, climate and fire protection, GFS, UPS shutdown order, georedundancy, restore tests, setting up a BCMS, single points of failure
+- New random calculations: availability of serial and parallel components, weekly backup volume incremental/differential
+
 ## 0.0.8 – 2026-09-11
 
 - Speicher & Virtualisierung auf 20 Fragen erweitert

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Patchfeld</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<meta name="app-version" content="0.0.8">
+<meta name="app-version" content="0.0.9">
 <meta name="theme-color" content="#1b1f24">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -311,8 +311,11 @@ dialog::backdrop{background:rgba(10,12,14,.55)}
 /* =====================================================================
    PATCHFELD – Kern: Version, Bereiche, Hilfsfunktionen, Generatoren
    ===================================================================== */
-const APP_VERSION = '0.0.8';
+const APP_VERSION = '0.0.9';
 const CHANGELOG = [
+  {v:'0.0.9', d:'2026-09-11',
+   de:['Ausfallsicherheit & Notfall auf 20 Fragen erweitert','Neue Themen: LACP statt STP-Blockade, VRRP/HSRP, BSI-200-4-Begriffe, unveränderliche Backups, Aktiv/Aktiv-Kapazität, Backupfenster, Klima und Brandschutz, GFS, USV-Shutdown-Reihenfolge, Georedundanz, Wiederherstellungstests, BCMS-Aufbau, Single Points of Failure','Neue Rechenaufgaben mit Zufallswerten: Verfügbarkeit serieller und paralleler Komponenten, Wochen-Backupvolumen inkrementell/differenziell'],
+   en:['Resilience & contingency extended to 20 questions','New topics: LACP instead of STP blocking, VRRP/HSRP, BSI 200-4 terms, immutable backups, active/active capacity, backup window, climate and fire protection, GFS, UPS shutdown order, georedundancy, restore tests, setting up a BCMS, single points of failure','New random calculations: availability of serial and parallel components, weekly backup volume incremental/differential']},
   {v:'0.0.8', d:'2026-09-11',
    de:['Speicher & Virtualisierung auf 20 Fragen erweitert','Neue Themen: RAID-5-Rebuild-Risiko, iSCSI (Initiator, Target, LUN), DAS/NFS/SMB/FC, Thin Provisioning, Datastore-Dimensionierung, Memory Ballooning, Container vs. VM, Deduplizierung und Tiering, Templates und Live-Migration, Snapshot-Konsolidierung, Hot-Spare-Rebuild','Neue Rechenaufgaben mit Zufallswerten: Schreib-IOPS mit RAID-Write-Penalty, Thin-Überbuchung'],
    en:['Storage & virtualisation extended to 20 questions','New topics: RAID 5 rebuild risk, iSCSI (initiator, target, LUN), DAS/NFS/SMB/FC, thin provisioning, datastore sizing, memory ballooning, containers vs VMs, deduplication and tiering, templates and live migration, snapshot consolidation, hot spare rebuild','New random calculations: write IOPS with RAID write penalty, thin overcommitment']},
@@ -2825,6 +2828,212 @@ Q.push(
      o:['Detect the emergency and report it via the reporting chain','Alert the crisis team and assess the situation','Take immediate measures and start emergency operation','Restart according to the recovery plan (prioritised by RTO)','Return to normal operation','Follow-up: document causes and improvements'],
      e:'Measures are only triggered in a targeted way once the situation is assessed. Restart follows the priority of the business processes; follow-up improves the contingency concept.',
      n:'Restoration is often started immediately – without an overview, unimportant systems are brought up first.'}}
+);
+
+/* ----- BEREICH:ha – Erweiterung ----- */
+/* Gesamtverfügbarkeit einer Kette aus seriellen und redundant (parallel) ausgelegten Komponenten */
+GEN.haSerialParallel = function(L){
+  const dec = (x, d) => fmt(x, d, L).replace(/([.,]\d*?)0+$/, '$1').replace(/[.,]$/, '');
+  const pct = x => dec(x * 100, 6);
+  const pool = [
+    [tx(L,'Internetanschluss','Internet connection'), pick([98.5,99,99.5])],
+    ['Firewall', pick([99.5,99.8,99.9])],
+    ['Core-Switch', pick([99.5,99.9,99.95])],
+    [tx(L,'Webserver','Web server'), pick([98,99,99.5])],
+    [tx(L,'Datenbankserver','Database server'), pick([99,99.5,99.8])]
+  ];
+  const idx = shuffle([0,1,2,3,4]).slice(0,4).sort((a,b) => a-b);
+  const red = shuffle([0,1,2,3]).slice(0, rnd(1,2));
+  const rows = idx.map((j,i) => { const a = pool[j][1]/100, n = red.includes(i) ? 2 : 1; return {name:pool[j][0], a, n, eff: n===2 ? 1-(1-a)**2 : a}; });
+  const A = rows.reduce((p,r) => p*r.eff, 1);
+  const v = Math.round(A*100000)/1000, dt = Math.round(8760*(1-A)*10)/10;
+  const par = rows.filter(r => r.n===2).map(r => `${r.name}: 1 − (1 − ${dec(r.a,4)})² = ${pct(r.eff)} %`).join('; ');
+  return { t:'in',
+    s: tx(L, 'Ein Online-Händler betreibt seinen Webshop über die folgende Kette von Komponenten. Die Stufen sind in Reihe geschaltet; eine redundant ausgelegte Stufe besteht aus zwei gleichen Geräten, von denen eines für den Betrieb genügt.',
+             'An online retailer runs its web shop over the following chain of components. The stages are connected in series; a redundant stage consists of two identical devices, one of which is sufficient for operation.'),
+    tb: {h: tx(L,['Stufe','Geräte','Verfügbarkeit je Gerät','Anordnung'],['Stage','Devices','Availability per device','Arrangement']),
+         r: rows.map(r => [r.name, r.n, pct(r.a)+' %', r.n===2 ? tx(L,'parallel (redundant)','parallel (redundant)') : tx(L,'einzeln','single')])},
+    q: tx(L, 'Berechnen Sie die Gesamtverfügbarkeit in Prozent (drei Nachkommastellen) und die daraus zu erwartende Ausfallzeit pro Jahr in Stunden (8.760 h, eine Nachkommastelle). Runden Sie erst das Endergebnis.',
+             'Calculate the total availability in percent (three decimal places) and the resulting expected downtime per year in hours (8,760 h, one decimal place). Round only the final result.'),
+    f: [ {l:tx(L,'Gesamtverfügbarkeit','Total availability'), v, tol:0.0011, u:'%'}, {l:tx(L,'Ausfallzeit pro Jahr','Downtime per year'), v:dt, tol:0.15, u:'h'} ],
+    e: tx(L, `Parallel: A = 1 − (1 − A₁)(1 − A₂) → ${par}. Reihe: A = A₁ × A₂ × … → ${rows.map(r => pct(r.eff)+' %').join(' × ')} = ${pct(A)} % ≈ ${fmt(v,3,L)} %. Ausfallzeit: 8.760 h × ${pct(1-A)} % = ${fmt(dt,1,L)} h.`,
+             `Parallel: A = 1 − (1 − A₁)(1 − A₂) → ${par}. Series: A = A₁ × A₂ × … → ${rows.map(r => pct(r.eff)+' %').join(' × ')} = ${pct(A)} % ≈ ${fmt(v,3,L)} %. Downtime: 8,760 h × ${pct(1-A)} % = ${fmt(dt,1,L)} h.`),
+    n: tx(L, 'Häufiger Fehler: anzunehmen, die Kette sei so verfügbar wie ihre schwächste Stufe, oder die Werte zu mitteln – in Reihe werden Verfügbarkeiten multipliziert, das Ergebnis liegt unter jeder einzelnen Stufe.',
+             'Common mistake: assuming the chain is as available as its weakest stage, or averaging the values – in series, availabilities are multiplied and the result is lower than any single stage.')
+  };
+};
+
+/* Sicherungswoche: Speicherbedarf und Anzahl einzuspielender Sicherungen (inkrementell/differenziell) */
+GEN.haBackupVolume = function(L){
+  const F = pick([400,600,800,1200,1500,2000]), p = pick([2,3,4,5]), c = F*p/100;
+  const inc = Math.random() < 0.5, k = rnd(1,6);
+  const DAY = {de:['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'], en:['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']}[L];
+  const day = DAY[k-1], vol = inc ? F + 6*c : F + 21*c, sets = inc ? 1 + k : 2;
+  const range = k===1 ? DAY[0] : tx(L, `${DAY[0]} bis ${day}`, `${DAY[0]} to ${day}`);
+  const diffs = [1,2,3,4,5,6].map(i => fmt(i*c,0,L)).join(' + ');
+  return { t:'in',
+    s: tx(L, `Der Fileserver eines Architekturbüros enthält ${fmt(F,0,L)} GB Daten. Er wird jeden Sonntag voll gesichert, von Montag bis Samstag jeweils ${inc?'inkrementell':'differenziell'}. Täglich ändern sich jeweils andere Daten im Umfang von ${p} % des Bestands. Kompression und Deduplizierung bleiben unberücksichtigt.`,
+             `An architecture firm's file server holds ${fmt(F,0,L)} GB of data. It receives a full backup every Sunday and ${inc?'an incremental':'a differential'} backup each day from Monday to Saturday. Each day, different data amounting to ${p} % of the total changes. Ignore compression and deduplication.`),
+    q: tx(L, `Wie viel Speicherplatz in GB belegt eine komplette Sicherungswoche (Sonntag bis Samstag)? Wie viele Sicherungen müssen Sie mindestens einspielen, wenn der Server unmittelbar nach der Sicherung vom ${day} ausfällt?`,
+             `How much storage in GB does one complete backup week (Sunday to Saturday) occupy? How many backups must you restore at least if the server fails immediately after the ${day} backup?`),
+    f: [ {l:tx(L,'Speicherbedarf der Woche','Storage for the week'), v:vol, tol:0, u:'GB'}, {l:tx(L,'Einzuspielende Sicherungen','Backups to restore'), v:sets, tol:0} ],
+    e: inc
+      ? tx(L, `Tägliche Änderung: ${p} % von ${fmt(F,0,L)} GB = ${fmt(c,0,L)} GB. Inkrementell sichert nur die Änderungen seit der letzten Sicherung: ${fmt(F,0,L)} + 6 × ${fmt(c,0,L)} = ${fmt(vol,0,L)} GB. Wiederherstellung: Vollsicherung + alle Inkremente (${range}) = ${sets} Sicherungen.`,
+              `Daily change: ${p} % of ${fmt(F,0,L)} GB = ${fmt(c,0,L)} GB. Incremental backups only save the changes since the last backup: ${fmt(F,0,L)} + 6 × ${fmt(c,0,L)} = ${fmt(vol,0,L)} GB. Restore: full backup + all increments (${range}) = ${sets} backups.`)
+      : tx(L, `Tägliche Änderung: ${p} % von ${fmt(F,0,L)} GB = ${fmt(c,0,L)} GB. Differenziell sichert alle Änderungen seit der letzten Vollsicherung, jede Sicherung wächst: ${diffs} = ${fmt(21*c,0,L)} GB; gesamt ${fmt(F,0,L)} + ${fmt(21*c,0,L)} = ${fmt(vol,0,L)} GB. Wiederherstellung: Vollsicherung + differenzielle Sicherung vom ${day} = 2 Sicherungen.`,
+              `Daily change: ${p} % of ${fmt(F,0,L)} GB = ${fmt(c,0,L)} GB. Differential backups save all changes since the last full backup, so each one grows: ${diffs} = ${fmt(21*c,0,L)} GB; total ${fmt(F,0,L)} + ${fmt(21*c,0,L)} = ${fmt(vol,0,L)} GB. Restore: full backup + the ${day} differential = 2 backups.`),
+    n: inc
+      ? tx(L, 'Naheliegend, aber falsch: nur Vollsicherung plus letzte Sicherung einzuspielen – das gilt für differenzielle Sicherungen; bei inkrementellen wird die lückenlose Kette seit der Vollsicherung benötigt.',
+              'Tempting but wrong: restoring only the full backup plus the latest backup – that applies to differential backups; incremental backups need the complete chain since the full backup.')
+      : tx(L, 'Häufiger Fehler: differenzielle Sicherungen wie inkrementelle mit 6 × tägliche Änderung zu rechnen – jede differenzielle Sicherung enthält alle Änderungen seit der Vollsicherung und wird täglich größer.',
+              'Common mistake: calculating differential backups like incremental ones with 6 × the daily change – each differential backup contains all changes since the full backup and grows every day.')
+  };
+};
+
+Q.push(
+{id:'ha-06', a:'ha', gen:'haSerialParallel'},
+{id:'ha-07', a:'ha', t:'sc', c:0,
+ de:{s:'Um die Bandbreite zwischen einem Etagen-Switch und dem Core-Switch zu verdoppeln, hat ein Kollege ein zweites Patchkabel zwischen den beiden Geräten gesteckt. Die Übertragungsrate bleibt unverändert, in der Switch-Oberfläche steht einer der beiden Ports auf „Blocking“ bzw. „Discarding“.',
+     q:'Wie erklären Sie das Verhalten, und was ist die richtige Maßnahme?',
+     o:['Spanning Tree blockiert den zweiten Link, um eine Schleife zu verhindern; beide Ports müssen auf beiden Switches zu einer Link-Aggregation (LACP, IEEE 802.1AX) gebündelt werden','Das zweite Kabel ist defekt und muss ersetzt werden, danach werden beide Links automatisch gemeinsam genutzt','Spanning Tree muss auf beiden Switches deaktiviert werden, damit beide Links gleichzeitig Daten übertragen','Auf dem Etagen-Switch muss VRRP eingerichtet werden, damit der Datenverkehr auf beide Links verteilt wird'],
+     e:'Zwei parallele Links zwischen zwei Switches bilden eine Layer-2-Schleife; STP/RSTP schaltet deshalb einen Port ab. Eine LACP-Gruppe erscheint für STP als ein logischer Link: Der Verkehr wird auf beide Leitungen verteilt, und fällt eine aus, läuft der Betrieb über die andere weiter.',
+     n:'STP abzuschalten beseitigt zwar die Blockierung, erzeugt aber eine echte Schleife – Broadcast-Stürme legen dann das gesamte Netz lahm.'},
+ en:{s:'To double the bandwidth between a floor switch and the core switch, a colleague has plugged a second patch cable between the two devices. The throughput remains unchanged, and the switch interface shows one of the two ports as "Blocking" or "Discarding".',
+     q:'How do you explain this behaviour, and what is the correct measure?',
+     o:['Spanning Tree blocks the second link to prevent a loop; both ports must be bundled into a link aggregation (LACP, IEEE 802.1AX) on both switches','The second cable is defective and must be replaced; after that, both links are used together automatically','Spanning Tree must be disabled on both switches so that both links transmit data at the same time','VRRP must be set up on the floor switch so that traffic is distributed across both links'],
+     e:'Two parallel links between two switches form a layer 2 loop, so STP/RSTP disables one port. An LACP group appears to STP as one logical link: traffic is distributed over both lines, and if one fails, operation continues over the other.',
+     n:'Disabling STP does remove the blocking, but it creates a real loop – broadcast storms then bring down the entire network.'}},
+{id:'ha-08', a:'ha', t:'mc', c:[0,1,2],
+ de:{s:'Das Standardgateway eines Standorts ist bisher ein einzelner Layer-3-Switch. Künftig sollen zwei Geräte das Gateway per VRRP redundant bereitstellen. Sie erklären dem Kunden das Konzept.',
+     q:'Welche Aussagen zu VRRP sind korrekt? (Mehrere Antworten)',
+     o:['Die Clients tragen als Standardgateway eine virtuelle IP-Adresse ein, die keinem der beiden Geräte fest gehört','Ein Gerät ist anhand seiner Priorität Master; fällt es aus, übernimmt das Backup-Gerät die virtuelle IP- und MAC-Adresse','VRRP ist ein offener Standard, HSRP ist das vergleichbare proprietäre Protokoll von Cisco','Jeder Client muss zwei Standardgateways eintragen und bei einem Ausfall selbst umschalten','VRRP verteilt die Pakete automatisch gleichmäßig auf beide Geräte (Load Balancing)','Mit VRRP ist ein zweiter Internetanschluss überflüssig, weil das Gateway bereits redundant ist'],
+     e:'VRRP ist ein First-Hop-Redundancy-Protokoll: Für die Clients ändert sich bei einem Ausfall nichts, weil IP- und MAC-Adresse des Gateways gleich bleiben. Aktiv ist dabei immer nur der Master einer VRRP-Gruppe.',
+     n:'Die Lastverteilung ist verlockend, weil zwei Geräte vorhanden sind – pro VRRP-Gruppe leitet aber nur der Master weiter. Last lässt sich höchstens über mehrere Gruppen (z. B. je VLAN ein anderer Master) aufteilen.'},
+ en:{s:'The default gateway of a site has so far been a single layer 3 switch. In future, two devices are to provide the gateway redundantly via VRRP. You explain the concept to the customer.',
+     q:'Which statements about VRRP are correct? (Multiple answers)',
+     o:['The clients use a virtual IP address as their default gateway, which does not permanently belong to either device','Based on its priority, one device is master; if it fails, the backup device takes over the virtual IP and MAC address','VRRP is an open standard; HSRP is the comparable proprietary protocol from Cisco','Each client must configure two default gateways and switch over itself in the event of a failure','VRRP automatically distributes packets evenly across both devices (load balancing)','With VRRP a second internet connection is unnecessary because the gateway is already redundant'],
+     e:'VRRP is a first-hop redundancy protocol: nothing changes for the clients in the event of a failure because the gateway\'s IP and MAC address stay the same. Only the master of a VRRP group is ever active.',
+     n:'Load balancing is tempting because there are two devices – but per VRRP group only the master forwards. Load can at most be split across several groups (e.g. a different master per VLAN).'}},
+{id:'ha-09', a:'ha', t:'match',
+ de:{s:'Ein mittelständischer Maschinenbauer baut ein Business Continuity Management nach BSI-Standard 200-4 auf. Für das erste Workshop-Handout sollen Sie zentrale Begriffe erläutern.',
+     q:'Ordnen Sie jedem Begriff die zutreffende Beschreibung zu.',
+     p:[['Business Impact Analyse (BIA)','Ermittelt zeitkritische Geschäftsprozesse und die Schäden eines Ausfalls im Zeitverlauf'],['MTPD / maximal tolerierbare Ausfallzeit (MTA)','Zeitraum, nach dem ein Ausfall nicht mehr hinnehmbar bzw. existenzbedrohend ist'],['RTO (Wiederanlaufzeit)','Zeit, in der ein Prozess oder System mindestens im Notbetrieb wieder verfügbar sein muss'],['RPO','Maximal tolerierbarer Datenverlust, angegeben als Zeitraum'],['Wiederanlaufplan','Schrittfolge zur Wiederherstellung eines Systems einschließlich seiner Abhängigkeiten'],['Notfallhandbuch','Bündelt Alarmierung, Kontakte, Zuständigkeiten und Pläne – auch ausgedruckt verfügbar']],
+     e:'Die BIA liefert MTPD, RTO und RPO je Prozess; daraus werden Kontinuitätsstrategien und Pläne abgeleitet. Das RTO muss kleiner sein als die MTPD, sonst wird die Toleranzgrenze überschritten.',
+     n:'RTO und RPO werden oft verwechselt: Das RTO misst die Zeit bis zum Wiederanlauf, das RPO den Datenverlust rückwärts ab dem Schadenszeitpunkt.'},
+ en:{s:'A medium-sized mechanical engineering company is setting up business continuity management according to BSI standard 200-4. You are to explain key terms for the first workshop handout.',
+     q:'Match each term to the right description.',
+     p:[['Business impact analysis (BIA)','Identifies time-critical business processes and the damage caused by an outage over time'],['MTPD / maximum tolerable downtime (MTA)','Period after which an outage is no longer acceptable or threatens the company\'s existence'],['RTO (recovery time objective)','Time within which a process or system must be available again, at least in emergency operation'],['RPO','Maximum tolerable data loss, stated as a period of time'],['Recovery plan (Wiederanlaufplan)','Sequence of steps to restore a system including its dependencies'],['Emergency manual (Notfallhandbuch)','Bundles alerting, contacts, responsibilities and plans – also available in printed form']],
+     e:'The BIA delivers MTPD, RTO and RPO per process; continuity strategies and plans are derived from them. The RTO must be shorter than the MTPD, otherwise the tolerance limit is exceeded.',
+     n:'RTO and RPO are often mixed up: the RTO measures the time until recovery, the RPO the data loss backwards from the time of the incident.'}},
+{id:'ha-10', a:'ha', t:'mc', c:[0,1,2],
+ de:{s:'Bei einem Ransomware-Angriff auf eine Steuerkanzlei wurden neben dem Fileserver auch alle Sicherungen verschlüsselt. Das Backup-NAS war Mitglied der Windows-Domäne und per SMB-Freigabe mit einem Domänen-Admin-Konto eingebunden. Sie sollen das Backup-Konzept überarbeiten.',
+     q:'Welche Maßnahmen schützen die Sicherungen wirksam vor einem solchen Angriff? (Mehrere Antworten)',
+     o:['Zusätzliche Kopie auf unveränderlichem Speicher (Immutable/WORM, z. B. Object Lock) mit festgelegter Aufbewahrungsfrist','Regelmäßig ausgelagerte Offline-Kopie, z. B. Bänder, die nach der Sicherung aus der Library entnommen werden','Backup-Server und -Speicher aus der Produktivdomäne herauslösen und mit eigenen Zugangsdaten und MFA absichern','Das Backup-NAS von RAID 5 auf RAID 6 umstellen','Die inkrementellen Sicherungen stündlich statt täglich auf dasselbe NAS schreiben','Zusätzlich Schattenkopien (VSS) auf dem Fileserver aktivieren'],
+     e:'Wirksam ist, was ein Angreifer mit erbeuteten Domänenrechten nicht erreichen oder nicht verändern kann: unveränderliche oder physisch getrennte Kopien und eine eigenständige Authentifizierung für die Backup-Infrastruktur (vgl. 3-2-1-1-0-Regel).',
+     n:'RAID 6 wirkt verlockend, weil es „mehr Sicherheit“ verspricht – es schützt aber nur vor Plattenausfällen. Verschlüsselte Daten werden genauso redundant gespeichert wie unverschlüsselte.'},
+ en:{s:'In a ransomware attack on a tax consultancy, all backups were encrypted along with the file server. The backup NAS was a member of the Windows domain and was mounted via an SMB share using a domain admin account. You are to revise the backup concept.',
+     q:'Which measures effectively protect the backups against such an attack? (Multiple answers)',
+     o:['Additional copy on immutable storage (immutable/WORM, e.g. Object Lock) with a defined retention period','Regular offline copy stored off-site, e.g. tapes that are removed from the library after the backup','Separate the backup server and storage from the production domain and protect them with their own credentials and MFA','Change the backup NAS from RAID 5 to RAID 6','Write the incremental backups hourly instead of daily to the same NAS','Additionally enable shadow copies (VSS) on the file server'],
+     e:'What works is whatever an attacker with stolen domain rights cannot reach or change: immutable or physically separated copies and independent authentication for the backup infrastructure (cf. the 3-2-1-1-0 rule).',
+     n:'RAID 6 is tempting because it promises "more security" – but it only protects against disk failures. Encrypted data is stored just as redundantly as unencrypted data.'}},
+{id:'ha-11', a:'ha', gen:'haBackupVolume'},
+{id:'ha-12', a:'ha', t:'sc', c:0,
+ de:{s:'Ein Kunde betreibt seine Webanwendung auf einem Aktiv/Aktiv-Cluster aus zwei Knoten hinter einem Load Balancer. Beide Knoten sind im Tagesgeschäft zu je etwa 70 % ausgelastet. Der IT-Leiter ist zufrieden: „Wir sind hochverfügbar und nutzen beide Server voll aus.“',
+     q:'Wie beurteilen Sie die Situation?',
+     o:['Die Hochverfügbarkeit besteht nur auf dem Papier: Fällt ein Knoten aus, müsste der andere rund 140 % Last tragen; die Last je Knoten muss unter ca. 50 % bleiben oder ein dritter Knoten ergänzt werden (N+1)','Die Lösung ist optimal, weil bei Aktiv/Aktiv beide Knoten genutzt werden und keine Hardware ungenutzt bereitsteht','Das Hauptrisiko ist ein Split-Brain; mit einem Quorum-Zeugen ist die Lösung ausreichend abgesichert','Es genügt, den Load Balancer redundant auszulegen, da er der einzige Single Point of Failure ist'],
+     e:'Bei Aktiv/Aktiv muss jeder verbleibende Knoten die Last des ausgefallenen mittragen können. Bei zwei Knoten ist das nur bei höchstens etwa 50 % Last je Knoten gewährleistet; sonst folgt dem Ausfall eine Überlast und damit womöglich der Totalausfall.',
+     n:'Split-Brain ist ein echtes Clusterrisiko, löst aber nicht das Kapazitätsproblem: Auch mit Quorum kann ein einzelner Knoten keine 140 % Last tragen.'},
+ en:{s:'A customer runs its web application on an active/active cluster of two nodes behind a load balancer. In daily business both nodes are each about 70 % utilised. The IT manager is satisfied: "We are highly available and make full use of both servers."',
+     q:'How do you assess the situation?',
+     o:['High availability exists only on paper: if one node fails, the other would have to carry about 140 % load; the load per node must stay below approx. 50 % or a third node must be added (N+1)','The solution is optimal because both nodes are used in active/active and no hardware sits idle','The main risk is split brain; with a quorum witness the solution is sufficiently protected','It is enough to make the load balancer redundant, as it is the only single point of failure'],
+     e:'In active/active, each remaining node must be able to take on the load of the failed one. With two nodes this is only guaranteed at a maximum of about 50 % load per node; otherwise the failure is followed by overload and possibly a total outage.',
+     n:'Split brain is a real cluster risk but does not solve the capacity problem: even with a quorum, a single node cannot carry 140 % load.'}},
+{id:'ha-13', a:'ha', t:'in', f:[{v:4.2, tol:0.05, u:'h'}, {v:477, tol:1, u:'MB/s'}],
+ de:{s:'Der Fileserver eines Kunden mit 6 TB Daten soll künftig jede Nacht voll gesichert werden. Das Backup-Ziel erreicht einen effektiven Durchsatz von 400 MB/s. Das Backup-Fenster reicht von 22:00 bis 05:00 Uhr. Es gilt 1 TB = 1.000.000 MB.',
+     q:'Wie lange dauert die Vollsicherung in Stunden (eine Nachkommastelle)? Welcher effektive Durchsatz wäre mindestens nötig, wenn der Datenbestand auf 12 TB wächst und das Fenster gleich bleibt? Runden Sie den Durchsatz auf ganze MB/s auf.',
+     l:['Dauer der Vollsicherung','Mindestdurchsatz bei 12 TB'],
+     e:'6.000.000 MB ÷ 400 MB/s = 15.000 s = 4,17 h ≈ 4,2 h – passt ins Fenster. Fenster: 22:00 bis 05:00 = 7 h × 3.600 = 25.200 s. 12.000.000 MB ÷ 25.200 s = 476,19 MB/s → mindestens 477 MB/s.',
+     n:'Naheliegend, aber falsch: bei doppelter Datenmenge einfach den doppelten Durchsatz (800 MB/s) anzusetzen – maßgeblich ist das verfügbare Fenster von 7 Stunden, nicht die bisherige Laufzeit.'},
+ en:{s:'A customer\'s file server holding 6 TB of data is to receive a full backup every night in future. The backup target achieves an effective throughput of 400 MB/s. The backup window runs from 22:00 to 05:00. Assume 1 TB = 1,000,000 MB.',
+     q:'How long does the full backup take in hours (one decimal place)? What effective throughput would be needed at least if the data grows to 12 TB and the window stays the same? Round the throughput up to whole MB/s.',
+     l:['Duration of full backup','Minimum throughput at 12 TB'],
+     e:'6,000,000 MB ÷ 400 MB/s = 15,000 s = 4.17 h ≈ 4.2 h – fits into the window. Window: 22:00 to 05:00 = 7 h × 3,600 = 25,200 s. 12,000,000 MB ÷ 25,200 s = 476.19 MB/s → at least 477 MB/s.',
+     n:'Tempting but wrong: simply doubling the throughput (800 MB/s) for twice the data – what matters is the available 7-hour window, not the previous run time.'}},
+{id:'ha-14', a:'ha', t:'mc', c:[0,1,2],
+ de:{s:'Ein Kunde lässt seinen Serverraum mit sechs Racks modernisieren. Nach einem Schwelbrand an einer Steckdosenleiste im Nachbargebäude sollen Klimatisierung und Brandschutz überarbeitet werden.',
+     q:'Welche Maßnahmen empfehlen Sie? (Mehrere Antworten)',
+     o:['Kalt-/Warmgang-Einhausung, damit sich Zu- und Abluft nicht vermischen','Brandfrüherkennung mit Rauchansaugsystem (RAS), das Brände bereits in der Entstehung meldet','Gaslöschanlage (z. B. Inertgas) oder Sauerstoffreduktionsanlage, die ohne Löschmittelschäden an der Hardware auskommt','Die Klimatisierung dauerhaft auf 16 °C einstellen, weil kältere Zuluft die Ausfallsicherheit deutlich erhöht','Pulverfeuerlöscher als Standard-Handfeuerlöscher im Serverraum bereitstellen','Die relative Luftfeuchtigkeit möglichst unter 10 % halten, um Kondensation sicher auszuschließen'],
+     e:'Einhausung steigert die Kühleffizienz, ein RAS erkennt Schwelbrände sehr früh, und Inertgas bzw. Sauerstoffreduktion löscht bzw. verhindert Brände ohne Rückstände. Als Handfeuerlöscher eignen sich CO₂-Löscher; empfohlen sind Zulufttemperaturen von etwa 18–27 °C (ASHRAE) und eine moderate Luftfeuchte.',
+     n:'16 °C klingen nach „mehr Sicherheit“, bringen aber kaum Nutzen und kosten viel Energie – moderne Hardware ist für deutlich höhere Zulufttemperaturen ausgelegt. Sehr trockene Luft erhöht zudem das Risiko elektrostatischer Entladungen.'},
+ en:{s:'A customer is having its server room with six racks modernised. After a smouldering fire on a power strip in the neighbouring building, climate control and fire protection are to be revised.',
+     q:'Which measures do you recommend? (Multiple answers)',
+     o:['Cold/hot aisle containment so that supply and exhaust air do not mix','Early fire detection with an aspirating smoke detection system (ASD) that reports fires as they start','Gas extinguishing system (e.g. inert gas) or oxygen reduction system that causes no extinguishing agent damage to the hardware','Permanently set the air conditioning to 16 °C, because colder supply air significantly increases reliability','Provide powder fire extinguishers as the standard portable extinguishers in the server room','Keep the relative humidity below 10 % if possible to rule out condensation reliably'],
+     e:'Containment increases cooling efficiency, an ASD detects smouldering fires very early, and inert gas or oxygen reduction extinguishes or prevents fires without residue. CO₂ extinguishers are suitable as portable extinguishers; supply air temperatures of about 18–27 °C (ASHRAE) and moderate humidity are recommended.',
+     n:'16 °C sounds like "more safety" but brings little benefit and costs a lot of energy – modern hardware is designed for much higher supply air temperatures. Very dry air also increases the risk of electrostatic discharge.'}},
+{id:'ha-15', a:'ha', t:'match',
+ de:{s:'Sie stellen der Geschäftsleitung eines Handelsunternehmens das neue Datensicherungskonzept vor und erläutern dabei die verwendeten Begriffe.',
+     q:'Ordnen Sie jedem Begriff die zutreffende Beschreibung zu.',
+     p:[['Vollsicherung','Sichert alle ausgewählten Daten; längste Laufzeit, einfachste Wiederherstellung'],['Inkrementelle Sicherung','Sichert nur die Änderungen seit der letzten Sicherung beliebigen Typs'],['Differenzielle Sicherung','Sichert alle Änderungen seit der letzten Vollsicherung'],['GFS-Prinzip','Generationenprinzip mit täglichen, wöchentlichen und monatlichen Sicherungen (Sohn, Vater, Großvater)'],['Immutable Backup','Sicherung, die während einer festgelegten Frist weder geändert noch gelöscht werden kann'],['3-2-1-Regel','Drei Kopien der Daten auf zwei verschiedenen Medien, davon eine außer Haus']],
+     e:'Inkrementell ist schnell und platzsparend, braucht aber zur Wiederherstellung die ganze Kette; differenziell braucht nur Voll- plus letzte Sicherung. GFS regelt die Aufbewahrung, Immutable Backups und die 3-2-1-Regel schützen vor Ransomware und Standortschäden.',
+     n:'Inkrementell und differenziell werden am häufigsten vertauscht: Bezugspunkt der inkrementellen Sicherung ist die letzte Sicherung, der differenziellen die letzte Vollsicherung.'},
+ en:{s:'You present the new data backup concept to the management of a trading company and explain the terms used.',
+     q:'Match each term to the right description.',
+     p:[['Full backup','Backs up all selected data; longest run time, simplest restore'],['Incremental backup','Backs up only the changes since the last backup of any type'],['Differential backup','Backs up all changes since the last full backup'],['GFS principle','Generation scheme with daily, weekly and monthly backups (son, father, grandfather)'],['Immutable backup','Backup that cannot be changed or deleted during a defined retention period'],['3-2-1 rule','Three copies of the data on two different media, one of them off-site']],
+     e:'Incremental is fast and saves space but needs the whole chain for a restore; differential needs only the full plus the latest backup. GFS governs retention; immutable backups and the 3-2-1 rule protect against ransomware and site damage.',
+     n:'Incremental and differential are swapped most often: the reference point of an incremental backup is the last backup, that of a differential backup the last full backup.'}},
+{id:'ha-16', a:'ha', t:'order',
+ de:{s:'Ein Serverraum wird von einer USV mit Netzwerkkarte versorgt. Angeschlossen sind zwei Virtualisierungshosts mit Anwendungs- und Datenbank-VMs, ein iSCSI-Storage und die Core-Switches. Die Überbrückungszeit beträgt 20 Minuten. Sie konfigurieren den automatischen Shutdown für einen längeren Stromausfall.',
+     q:'Bringen Sie die Schritte in die richtige Reihenfolge.',
+     o:['Netzausfall: Die USV schaltet auf Batteriebetrieb und meldet das Ereignis über ihre Netzwerkkarte (SNMP/Agent) an die Shutdown-Software','Die Shutdown-Software wartet die eingestellte Verzögerung bzw. Restlaufzeit-Schwelle ab, falls der Strom zurückkehrt','Die Anwendungs-VMs werden heruntergefahren','Die Datenbank-VM wird heruntergefahren','Die Virtualisierungshosts werden heruntergefahren','Das iSCSI-Storage wird heruntergefahren','Die USV schaltet ihre Ausgänge ab, bevor die Batterie tiefentladen ist'],
+     e:'Heruntergefahren wird entgegen den Abhängigkeiten: erst die Anwendungen, dann die Datenbank, auf die sie zugreifen, dann die Hosts und zuletzt das Storage, auf dem die VMs liegen. Die Switches bleiben bis zum Schluss an, weil die Shutdown-Befehle über das Netzwerk laufen. Die Schwelle muss so gewählt sein, dass die Restlaufzeit für alle Schritte reicht.',
+     n:'Wird das Storage vor den Hosts abgeschaltet, verlieren noch laufende VMs ihre Disks – das kann Dateisysteme und Datenbanken beschädigen.'},
+ en:{s:'A server room is supplied by a UPS with a network card. Connected are two virtualisation hosts with application and database VMs, an iSCSI storage system and the core switches. The runtime is 20 minutes. You configure the automatic shutdown for a longer power outage.',
+     q:'Put the steps in the correct order.',
+     o:['Power failure: the UPS switches to battery operation and reports the event to the shutdown software via its network card (SNMP/agent)','The shutdown software waits for the configured delay or remaining-runtime threshold in case power returns','The application VMs are shut down','The database VM is shut down','The virtualisation hosts are shut down','The iSCSI storage is shut down','The UPS switches off its outputs before the battery is deeply discharged'],
+     e:'Shutdown runs against the dependencies: first the applications, then the database they access, then the hosts, and finally the storage on which the VMs reside. The switches stay on until the end because the shutdown commands travel over the network. The threshold must leave enough remaining runtime for all steps.',
+     n:'If the storage is switched off before the hosts, VMs that are still running lose their disks – this can damage file systems and databases.'}},
+{id:'ha-17', a:'ha', t:'sc', c:0,
+ de:{s:'Ein Versicherungsmakler plant ein zweites Rechenzentrum in 250 km Entfernung als georedundanten Standort. Die Geschäftsleitung fordert: „Alle Datenbanken werden synchron gespiegelt, damit wir bei einem Ausfall keinerlei Daten verlieren (RPO = 0).“',
+     q:'Wie bewerten Sie diese Anforderung?',
+     o:['Die Ziele stehen in Konflikt: Bei synchroner Spiegelung wartet jeder Schreibvorgang auf die Bestätigung des entfernten Standorts; die Signallaufzeit über 250 km bremst schreibintensive Systeme deutlich. Üblich ist asynchrone Replikation mit einem kleinen, vereinbarten RPO > 0','Die Anforderung ist problemlos umsetzbar, weil bei ausreichender Bandbreite die Entfernung keine Rolle spielt','Die Anforderung ist problemlos umsetzbar, weil auch asynchrone Replikation ein RPO von 0 garantiert','Die Entfernung ist zu gering für Georedundanz; erst ab 1.000 km gelten Rechenzentren als georedundant'],
+     e:'Licht braucht in Glasfaser rund 5 µs pro km; über 250 km kommen mit Hin- und Rückweg und Netztechnik mehrere Millisekunden je Schreibvorgang hinzu. Synchrone Spiegelung ist daher nur über kurze Distanzen üblich (z. B. Metro-Cluster); über große Entfernungen repliziert man asynchron und legt ein realistisches RPO fest.',
+     n:'Bandbreite und Latenz werden oft verwechselt: Eine schnellere Leitung überträgt mehr Daten pro Sekunde, verkürzt aber nicht die Signallaufzeit, auf die jeder synchrone Schreibvorgang warten muss.'},
+ en:{s:'An insurance broker is planning a second data centre 250 km away as a georedundant site. Management demands: "All databases are mirrored synchronously so that we lose no data at all in the event of a failure (RPO = 0)."',
+     q:'How do you assess this requirement?',
+     o:['The goals conflict: with synchronous mirroring every write waits for acknowledgement from the remote site; the signal propagation time over 250 km slows write-intensive systems considerably. Asynchronous replication with a small, agreed RPO > 0 is usual','The requirement is easy to implement because distance does not matter if there is enough bandwidth','The requirement is easy to implement because asynchronous replication also guarantees an RPO of 0','The distance is too short for georedundancy; data centres only count as georedundant from 1,000 km'],
+     e:'Light needs about 5 µs per km in fibre; over 250 km, the round trip plus network equipment adds several milliseconds per write. Synchronous mirroring is therefore only usual over short distances (e.g. metro clusters); over long distances data is replicated asynchronously and a realistic RPO is defined.',
+     n:'Bandwidth and latency are often confused: a faster line transfers more data per second but does not shorten the propagation time that every synchronous write has to wait for.'}},
+{id:'ha-18', a:'ha', t:'sc', c:0,
+ de:{s:'Nach einem Hardwaredefekt soll der Datenbankserver einer Arztpraxis aus der Sicherung wiederhergestellt werden. Seit Monaten meldet die Backup-Software jede Nacht „erfolgreich“. Beim Restore stellt sich heraus, dass das Datenbankverzeichnis nach einer Softwareumstellung gar nicht mehr im Sicherungsauftrag enthalten war.',
+     q:'Welche Maßnahme hätte den Fehler am zuverlässigsten rechtzeitig aufgedeckt?',
+     o:['Regelmäßige, dokumentierte Wiederherstellungstests in einer isolierten Umgebung, bei denen auch geprüft wird, ob die Anwendung mit den zurückgesicherten Daten tatsächlich funktioniert','Die täglichen Statusmeldungen der Backup-Software sorgfältiger lesen und archivieren','Nach jeder Sicherung eine Prüfsummen-Verifikation der Sicherungsdateien durchführen','Die Anzahl der aufbewahrten Sicherungsgenerationen erhöhen'],
+     e:'Nur ein Restore-Test beweist, dass die richtigen Daten gesichert und nutzbar sind. Er sollte regelmäßig und nach jeder größeren Änderung stattfinden und dabei auch die Einhaltung des RTO messen.',
+     n:'Die Prüfsummen-Verifikation wirkt gründlich, prüft aber nur, ob das Gesicherte unverändert lesbar ist – dass wichtige Daten gar nicht im Auftrag stehen, erkennt sie nicht.'},
+ en:{s:'After a hardware defect, the database server of a medical practice is to be restored from backup. For months the backup software has reported "successful" every night. During the restore it turns out that, after a software migration, the database directory was no longer included in the backup job at all.',
+     q:'Which measure would have revealed the error in time most reliably?',
+     o:['Regular, documented restore tests in an isolated environment, which also check whether the application actually works with the restored data','Read and archive the daily status messages of the backup software more carefully','Run a checksum verification of the backup files after each backup','Increase the number of retained backup generations'],
+     e:'Only a restore test proves that the right data is backed up and usable. It should take place regularly and after every major change, also measuring whether the RTO is met.',
+     n:'Checksum verification seems thorough but only checks that what was backed up is readable and unchanged – it cannot detect that important data is not in the job at all.'}},
+{id:'ha-19', a:'ha', t:'order',
+ de:{s:'Ein Maschinenbauunternehmen will erstmals ein Business Continuity Management System (BCMS) nach BSI-Standard 200-4 aufbauen. Sie unterstützen den Business-Continuity-Beauftragten bei der Projektplanung.',
+     q:'Bringen Sie die Phasen in die richtige Reihenfolge.',
+     o:['Die Geschäftsleitung initiiert das BCMS: Leitlinie verabschieden, Verantwortliche benennen, Geltungsbereich festlegen','Business Impact Analyse: zeitkritische Prozesse mit MTPD, RTO und RPO ermitteln','Risikoanalyse für die zeitkritischen Prozesse und ihre Ressourcen','Soll-Ist-Vergleich durchführen und Kontinuitätsstrategien festlegen (z. B. Ausweichstandort, Redundanz)','Geschäftsfortführungs- und Wiederanlaufpläne erstellen und im Notfallhandbuch bündeln','Tests und Übungen durchführen (z. B. Wiederanlauftest, Stabsübung)','Ergebnisse auswerten und das BCMS kontinuierlich verbessern'],
+     e:'Erst die BIA zeigt, welche Prozesse zeitkritisch sind; nur für diese lohnen die detaillierte Risikoanalyse und die Strategieauswahl. Pläne sind erst belastbar, wenn sie geübt wurden – die Erkenntnisse fließen in die Verbesserung zurück (PDCA).',
+     n:'Häufig wird direkt mit dem Schreiben von Notfallplänen begonnen – ohne BIA fehlen RTO und Prioritäten, und die Pläne setzen bei den falschen Systemen an.'},
+ en:{s:'A mechanical engineering company wants to set up a business continuity management system (BCMS) according to BSI standard 200-4 for the first time. You support the business continuity officer in planning the project.',
+     q:'Put the phases in the correct order.',
+     o:['Management initiates the BCMS: adopt a policy, appoint those responsible, define the scope','Business impact analysis: identify time-critical processes with MTPD, RTO and RPO','Risk analysis for the time-critical processes and their resources','Carry out a target/actual comparison and define continuity strategies (e.g. alternative site, redundancy)','Create business continuity and recovery plans and bundle them in the emergency manual','Carry out tests and exercises (e.g. recovery test, crisis team exercise)','Evaluate the results and continuously improve the BCMS'],
+     e:'Only the BIA shows which processes are time-critical; detailed risk analysis and strategy selection are only worthwhile for those. Plans are only reliable once they have been exercised – the findings feed back into improvement (PDCA).',
+     n:'People often start straight away by writing emergency plans – without a BIA, RTOs and priorities are missing and the plans focus on the wrong systems.'}},
+{id:'ha-20', a:'ha', t:'open',
+ de:{s:'Fachgespräch (AP 2): Ein Logistikunternehmen hat an seinem Standort einen einzelnen Core-Switch, eine Firewall und einen DSL-Anschluss. Nach dem Ausfall des Core-Switches stand der Versand sechs Stunden still. Der Prüfer fragt: „Wie würden Sie das Netz dieses Kunden ausfallsicher gestalten?“',
+     q:'Erläutern Sie Ihr Konzept wie im Fachgespräch.',
+     m:'• Ausgangspunkt: Single Points of Failure identifizieren (Core-Switch, Firewall, WAN) und Anforderungen aus der BIA ableiten (RTO des Versandprozesses) – Kosten gegen Ausfallschaden abwägen.\n• Core: zwei Core-Switches als Stack bzw. MLAG, Gateway redundant per VRRP.\n• Uplinks: jeder Access-Switch mit zwei Leitungen an beide Core-Switches, gebündelt per LACP; RSTP als Schutz vor Schleifen.\n• Firewall: HA-Cluster (Aktiv/Passiv mit Session-Synchronisation).\n• WAN: Dual-WAN über zwei Provider mit unterschiedlicher Technik und Trassenführung (z. B. Glasfaser + 5G) mit automatischem Failover.\n• Strom: redundante Netzteile an getrennten Stromkreisen bzw. USVs.\n• Betrieb: Monitoring mit Alarmierung, Konfigurationsbackups, dokumentierte und regelmäßig getestete Umschaltung.',
+     k:['SPOFs identifiziert, Bezug zu BIA und Kosten','Redundanter Core (Stack/MLAG, VRRP)','Doppelte Uplinks mit LACP, RSTP','Firewall-Cluster','Dual-WAN mit verschiedenen Providern/Medien','Monitoring und Failover-Tests']},
+ en:{s:'Expert interview (AP 2): A logistics company has a single core switch, one firewall and one DSL line at its site. After the core switch failed, shipping came to a standstill for six hours. The examiner asks: "How would you make this customer\'s network resilient?"',
+     q:'Explain your concept as in the expert interview.',
+     m:'• Starting point: identify single points of failure (core switch, firewall, WAN) and derive requirements from the BIA (RTO of the shipping process) – weigh costs against outage damage.\n• Core: two core switches as a stack or MLAG, gateway made redundant via VRRP.\n• Uplinks: each access switch connected with two lines to both core switches, bundled via LACP; RSTP as loop protection.\n• Firewall: HA cluster (active/passive with session synchronisation).\n• WAN: dual WAN via two providers with different technology and cable routes (e.g. fibre + 5G) with automatic failover.\n• Power: redundant power supplies on separate circuits or UPSs.\n• Operations: monitoring with alerting, configuration backups, documented and regularly tested failover.',
+     k:['SPOFs identified, link to BIA and costs','Redundant core (stack/MLAG, VRRP)','Dual uplinks with LACP, RSTP','Firewall cluster','Dual WAN with different providers/media','Monitoring and failover tests']}}
 );
 
 /* ===== BEREICH:pm – Projektmanagement & Wirtschaftlichkeit (3. Lehrjahr) ===== */

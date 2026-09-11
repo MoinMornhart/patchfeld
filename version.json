@@ -1,17 +1,17 @@
 {
-  "version": "0.0.8",
+  "version": "0.0.9",
   "date": "2026-09-11",
   "file": "index.html",
   "notes": {
     "de": [
-      "Speicher & Virtualisierung auf 20 Fragen erweitert",
-      "Neue Themen: RAID-5-Rebuild-Risiko, iSCSI (Initiator, Target, LUN), DAS/NFS/SMB/FC, Thin Provisioning, Datastore-Dimensionierung, Memory Ballooning, Container vs. VM, Deduplizierung und Tiering, Templates und Live-Migration, Snapshot-Konsolidierung, Hot-Spare-Rebuild",
-      "Neue Rechenaufgaben mit Zufallswerten: Schreib-IOPS mit RAID-Write-Penalty, Thin-Überbuchung"
+      "Ausfallsicherheit & Notfall auf 20 Fragen erweitert",
+      "Neue Themen: LACP statt STP-Blockade, VRRP/HSRP, BSI-200-4-Begriffe, unveränderliche Backups, Aktiv/Aktiv-Kapazität, Backupfenster, Klima und Brandschutz, GFS, USV-Shutdown-Reihenfolge, Georedundanz, Wiederherstellungstests, BCMS-Aufbau, Single Points of Failure",
+      "Neue Rechenaufgaben mit Zufallswerten: Verfügbarkeit serieller und paralleler Komponenten, Wochen-Backupvolumen inkrementell/differenziell"
     ],
     "en": [
-      "Storage & virtualisation extended to 20 questions",
-      "New topics: RAID 5 rebuild risk, iSCSI (initiator, target, LUN), DAS/NFS/SMB/FC, thin provisioning, datastore sizing, memory ballooning, containers vs VMs, deduplication and tiering, templates and live migration, snapshot consolidation, hot spare rebuild",
-      "New random calculations: write IOPS with RAID write penalty, thin overcommitment"
+      "Resilience & contingency extended to 20 questions",
+      "New topics: LACP instead of STP blocking, VRRP/HSRP, BSI 200-4 terms, immutable backups, active/active capacity, backup window, climate and fire protection, GFS, UPS shutdown order, georedundancy, restore tests, setting up a BCMS, single points of failure",
+      "New random calculations: availability of serial and parallel components, weekly backup volume incremental/differential"
     ]
   }
 }
