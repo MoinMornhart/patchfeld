@@ -8,6 +8,8 @@ Gebaut für 5–15 Minuten am Abend, am Handy wie am PC.
 
 ## Starten
 
+- **Online:** https://moinmornhart.github.io/patchfeld/ – auf dem Handy öffnen und
+  „Zum Startbildschirm hinzufügen“. Aktualisiert sich automatisch.
 - **Lokal:** `index.html` im Browser öffnen. Keine Installation, kein Build-Schritt,
   alles läuft offline (nur die Schriftarten werden bei Verbindung von Google Fonts
   geladen, sonst greifen Systemschriften).

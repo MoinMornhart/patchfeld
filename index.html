@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Patchfeld</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<meta name="app-version" content="0.2.0">
+<meta name="app-version" content="0.2.1">
 <meta name="theme-color" content="#1b1f24">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -311,8 +311,11 @@ dialog::backdrop{background:rgba(10,12,14,.55)}
 /* =====================================================================
    PATCHFELD – Kern: Version, Bereiche, Hilfsfunktionen, Generatoren
    ===================================================================== */
-const APP_VERSION = '0.2.0';
+const APP_VERSION = '0.2.1';
 const CHANGELOG = [
+  {v:'0.2.1', d:'2026-09-12',
+   de:['Veröffentlichung auf GitHub Pages: https://moinmornhart.github.io/patchfeld/','Update-Prüfung nutzt standardmäßig die GitHub-Pages-Version – auch die lokale Datei meldet neue Versionen'],
+   en:['Published on GitHub Pages: https://moinmornhart.github.io/patchfeld/','Update check uses the GitHub Pages version by default – the local file also reports new versions']},
   {v:'0.2.0', d:'2026-09-11',
    de:['Linux-Administration auf 20 Fragen erweitert','Neue Themen: Umleitungen in crontab, Sticky Bit, sudoers, /etc/fstab mit UUID, usermod -aG, SSH-Härtung, /etc/passwd und /etc/shadow, journalctl, Shell-Werkzeuge, cron-Ausdrücke, apt-Updates im Wartungsfenster, eigener systemd-Dienst, Fehlersuche nach Update','Neue Rechenaufgaben mit Zufallswerten: umask zu Rechten, symbolisches chmod zu Oktalwert'],
    en:['Linux administration extended to 20 questions','New topics: redirection in crontab, sticky bit, sudoers, /etc/fstab with UUID, usermod -aG, SSH hardening, /etc/passwd and /etc/shadow, journalctl, shell tools, cron expressions, apt updates in a maintenance window, custom systemd service, troubleshooting after an update','New random calculations: umask to permissions, symbolic chmod to octal']},
@@ -5515,7 +5518,8 @@ function pickLang(){
 /* ---------- Update-Prüfung ---------- */
 function cmpVer(a, b){ const pa = String(a).split('.').map(Number), pb = String(b).split('.').map(Number); for (let i = 0; i < 3; i++){ if ((pa[i]||0) !== (pb[i]||0)) return (pa[i]||0) - (pb[i]||0); } return 0; }
 const isHosted = () => /^https?:$/.test(location.protocol);
-function updateSource(){ return st.settings.updateUrl || (isHosted() ? new URL('version.json', location.href).href : ''); }
+const UPDATE_HOME = 'https://moinmornhart.github.io/patchfeld/version.json';
+function updateSource(){ return st.settings.updateUrl || (isHosted() && !/claude\.ai|claudeusercontent/.test(location.hostname) ? new URL('version.json', location.href).href : UPDATE_HOME); }
 let pendingUpdate = null;
 async function checkUpdate(manual){
   const src = updateSource();
@@ -5857,7 +5861,7 @@ VIEWS.settings = () => { const s = st.settings; return `<section class="stack"><
   <div class="panel pad stack"><span class="label">${x('Updates','Updates')}</span>
     <p class="small muted">${x(`Installiert: v${APP_VERSION}. Die App prüft beim Start und alle 6 Stunden, ob eine neue Version vorliegt.`, `Installed: v${APP_VERSION}. The app checks for a new version at start-up and every 6 hours.`)} ${st.lastCheck ? x('Zuletzt geprüft:','Last checked:') + ' ' + new Date(st.lastCheck).toLocaleString(L === 'en' ? 'en-GB' : 'de-DE') : ''}</p>
     <label class="row" style="gap:8px"><input type="checkbox" id="sAuto" data-chg="autoUpdate" ${s.autoUpdate ? 'checked' : ''}> ${x('Automatisch aktualisieren (nicht während einer Runde oder Prüfung)','Update automatically (not during a round or exam)')}</label>
-    <div class="field"><label class="label" for="sUrl">${x('Update-Adresse (nur für die lokale Datei nötig)','Update address (only needed for the local file)')}</label><input type="url" id="sUrl" value="${esc(s.updateUrl)}" placeholder="https://…/version.json" data-chg="updateUrl"></div>
+    <div class="field"><label class="label" for="sUrl">${x('Eigene Update-Adresse (leer = GitHub Pages)','Custom update address (empty = GitHub Pages)')}</label><input type="url" id="sUrl" value="${esc(s.updateUrl)}" placeholder="https://…/version.json" data-chg="updateUrl"></div>
     <div class="row"><button class="btn ghost small" data-act="checkUpdate">${x('Jetzt prüfen','Check now')}</button><button class="btn ghost small" data-act="changelog">${x('Was ist neu?','What\'s new?')}</button></div></div>
   <div class="panel pad stack"><span class="label">${x('Datensicherung','Backup')}</span>
     <p class="small muted">${x('Dein Fortschritt liegt nur in diesem Browser. Exportiere ihn regelmäßig als JSON, um ihn auf ein anderes Gerät zu übertragen.','Your progress only lives in this browser. Export it regularly as JSON to move it to another device.')}</p>

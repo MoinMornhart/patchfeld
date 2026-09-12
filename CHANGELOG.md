@@ -10,6 +10,16 @@ All changes to Patchfeld. Version scheme: every digit runs from 0 to 9 –
 
 <!-- releases -->
 
+## 0.2.1 – 2026-09-12
+
+- Veröffentlichung auf GitHub Pages: https://moinmornhart.github.io/patchfeld/
+- Update-Prüfung nutzt standardmäßig die GitHub-Pages-Version – auch die lokale Datei meldet neue Versionen
+
+**English**
+
+- Published on GitHub Pages: https://moinmornhart.github.io/patchfeld/
+- Update check uses the GitHub Pages version by default – the local file also reports new versions
+
 ## 0.2.0 – 2026-09-11
 
 - Linux-Administration auf 20 Fragen erweitert
