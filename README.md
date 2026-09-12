@@ -49,11 +49,18 @@ Jede Änderung wird als eigene Version veröffentlicht – mit Commit-Nachricht
 `vX.Y.Z: …`, Git-Tag `vX.Y.Z`, Eintrag in `CHANGELOG.md`, in `version.json` und im
 In-App-Changelog. Details: [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md).
 
-**Autoupdate:** Die App fragt beim Start und alle 6 Stunden `version.json` ab.
-Läuft sie von einem Webserver, lädt sie eine neue Version automatisch (nie während
-einer Runde oder Prüfung). Als lokale Datei kann sie sich nicht selbst
-überschreiben – trägt man in den Einstellungen die Adresse einer gehosteten
-`version.json` ein, zeigt sie einen Hinweis mit Link zur neuen Datei.
+**Autoupdate:** Jede Version wird auf GitHub veröffentlicht. Die App fragt beim
+Start, alle 6 Stunden und beim Zurückkehren in den Tab die `version.json` auf
+GitHub Pages ab.
+
+| Wie du Patchfeld nutzt | Was bei einem Update passiert |
+|---|---|
+| Online / Handy (`moinmornhart.github.io/patchfeld`) | lädt die neue Version automatisch (nie während einer Runde oder Prüfung) |
+| Lokal mit `start.cmd` bzw. `start.sh` | holt vor jedem Start per `git pull` das Neueste von GitHub |
+| Lokale `index.html` direkt geöffnet | Hinweisleiste mit „Neue Version herunterladen“ – die Datei ersetzt die alte |
+
+Fortschritt liegt im Browser je Adresse getrennt; zum Wechsel zwischen Online- und
+lokaler Version den Export/Import in den Einstellungen nutzen.
 
 ## Projektstruktur
 

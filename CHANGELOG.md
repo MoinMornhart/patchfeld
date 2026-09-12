@@ -10,6 +10,18 @@ All changes to Patchfeld. Version scheme: every digit runs from 0 to 9 –
 
 <!-- releases -->
 
+## 0.2.2 – 2026-09-12
+
+- Autoupdate für die lokale Datei: Hinweisleiste mit „Neue Version herunterladen“ direkt von GitHub
+- Neue Startskripte start.cmd (Windows) und start.sh holen vor jedem Start per git pull die neueste Version
+- Jedes Release wird automatisch nach GitHub gepusht (release.js --push)
+
+**English**
+
+- Autoupdate for the local file: banner with "Download new version" straight from GitHub
+- New launchers start.cmd (Windows) and start.sh fetch the latest version via git pull before every start
+- Every release is pushed to GitHub automatically (release.js --push)
+
 ## 0.2.1 – 2026-09-12
 
 - Veröffentlichung auf GitHub Pages: https://moinmornhart.github.io/patchfeld/

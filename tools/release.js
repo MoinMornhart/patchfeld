@@ -75,4 +75,9 @@ if (args.includes('--commit')) {
   execSync('git add -A', { cwd: ROOT, stdio: 'inherit' });
   execSync('git commit -F .git/RELEASE_MSG', { cwd: ROOT, stdio: 'inherit' });
   execSync(`git tag -a v${next} -m "Patchfeld v${next}"`, { cwd: ROOT, stdio: 'inherit' });
+  /* --push: auf GitHub veröffentlichen – GitHub Pages und alle Autoupdates holen sich dann die neue Version */
+  if (args.includes('--push')) {
+    execSync('git push origin main', { cwd: ROOT, stdio: 'inherit' });
+    execSync(`git push origin v${next}`, { cwd: ROOT, stdio: 'inherit' });
+  }
 }

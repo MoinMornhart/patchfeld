@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Patchfeld</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<meta name="app-version" content="0.2.1">
+<meta name="app-version" content="0.2.2">
 <meta name="theme-color" content="#1b1f24">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -311,8 +311,11 @@ dialog::backdrop{background:rgba(10,12,14,.55)}
 /* =====================================================================
    PATCHFELD – Kern: Version, Bereiche, Hilfsfunktionen, Generatoren
    ===================================================================== */
-const APP_VERSION = '0.2.1';
+const APP_VERSION = '0.2.2';
 const CHANGELOG = [
+  {v:'0.2.2', d:'2026-09-12',
+   de:['Autoupdate für die lokale Datei: Hinweisleiste mit „Neue Version herunterladen“ direkt von GitHub','Neue Startskripte start.cmd (Windows) und start.sh holen vor jedem Start per git pull die neueste Version','Jedes Release wird automatisch nach GitHub gepusht (release.js --push)'],
+   en:['Autoupdate for the local file: banner with \"Download new version\" straight from GitHub','New launchers start.cmd (Windows) and start.sh fetch the latest version via git pull before every start','Every release is pushed to GitHub automatically (release.js --push)']},
   {v:'0.2.1', d:'2026-09-12',
    de:['Veröffentlichung auf GitHub Pages: https://moinmornhart.github.io/patchfeld/','Update-Prüfung nutzt standardmäßig die GitHub-Pages-Version – auch die lokale Datei meldet neue Versionen'],
    en:['Published on GitHub Pages: https://moinmornhart.github.io/patchfeld/','Update check uses the GitHub Pages version by default – the local file also reports new versions']},
@@ -5539,10 +5542,24 @@ function showUpdate(){
   const el = document.getElementById('banner');
   el.innerHTML = `<div class="banner-in"><span class="led warn blink"></span><b>${x('Update','Update')} v${esc(j.version)}</b><span class="muted">${esc(notes[0] || '')}</span>
     ${sameOrigin ? `<button class="btn small" id="updNow">${x('Jetzt aktualisieren','Update now')}</button>`
-                 : `<a class="btn small" href="${esc(new URL(j.file || 'index.html', src).href)}" target="_blank" rel="noopener">${x('Neue Version öffnen','Open new version')}</a>`}</div>`;
+                 : `<button class="btn small" id="updDl">${x('Neue Version herunterladen','Download new version')}</button><a class="btn ghost small" href="${esc(new URL(j.file || 'index.html', src).href)}" target="_blank" rel="noopener">${x('Online öffnen','Open online')}</a>`}</div>`;
   el.hidden = false;
   const b = document.getElementById('updNow'); if (b) b.onclick = applyUpdate;
+  const dl = document.getElementById('updDl'); if (dl) dl.onclick = () => downloadNew(j, src);
   if (sameOrigin && st.settings.autoUpdate && !busy()){ toast(x(`Aktualisiere auf v${j.version} …`, `Updating to v${j.version} …`)); setTimeout(applyUpdate, 1800); }
+}
+/* Lokale Datei: neueste index.html von GitHub laden und als Datei speichern (ersetzt die alte) */
+async function downloadNew(j, src){
+  try {
+    const r = await fetch(new URL(j.file || 'index.html', src).href + '?v=' + encodeURIComponent(j.version), {cache:'no-store'});
+    const html = await r.text();
+    if (!r.ok || !html.includes(`const APP_VERSION = '${j.version}'`)) throw new Error('bad file');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([html], {type:'text/html'})); a.download = 'index.html';
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+    dialog(x(`Version ${j.version} heruntergeladen`, `Version ${j.version} downloaded`),
+      `<p>${x('Ersetze die bisherige <b>index.html</b> durch die heruntergeladene Datei und öffne sie neu. Dein Fortschritt bleibt erhalten, solange die Datei am selben Ort liegt.','Replace your current <b>index.html</b> with the downloaded file and reopen it. Your progress is kept as long as the file stays in the same place.')}</p>
+       <p class="small muted">${x('Ganz automatisch geht es mit <b>start.cmd</b> (Windows) bzw. <b>start.sh</b> im Projektordner: Sie holen vor jedem Start das Neueste von GitHub.','Fully automatic: <b>start.cmd</b> (Windows) or <b>start.sh</b> in the project folder fetch the latest version from GitHub before every start.')}</p>`);
+  } catch(e){ toast(x('Download fehlgeschlagen – öffne die Online-Version.','Download failed – open the online version.')); }
 }
 async function applyUpdate(){
   save();

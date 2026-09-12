@@ -1,15 +1,17 @@
 {
-  "version": "0.2.1",
+  "version": "0.2.2",
   "date": "2026-09-12",
   "file": "index.html",
   "notes": {
     "de": [
-      "Veröffentlichung auf GitHub Pages: https://moinmornhart.github.io/patchfeld/",
-      "Update-Prüfung nutzt standardmäßig die GitHub-Pages-Version – auch die lokale Datei meldet neue Versionen"
+      "Autoupdate für die lokale Datei: Hinweisleiste mit „Neue Version herunterladen“ direkt von GitHub",
+      "Neue Startskripte start.cmd (Windows) und start.sh holen vor jedem Start per git pull die neueste Version",
+      "Jedes Release wird automatisch nach GitHub gepusht (release.js --push)"
     ],
     "en": [
-      "Published on GitHub Pages: https://moinmornhart.github.io/patchfeld/",
-      "Update check uses the GitHub Pages version by default – the local file also reports new versions"
+      "Autoupdate for the local file: banner with \"Download new version\" straight from GitHub",
+      "New launchers start.cmd (Windows) and start.sh fetch the latest version via git pull before every start",
+      "Every release is pushed to GitHub automatically (release.js --push)"
     ]
   }
 }
