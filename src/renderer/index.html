@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'">
+  <title>Patchfeld</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h5V5h8v4h5v11H3z"/><path class="pins" d="M8 12v3M10.5 12v3M13 12v3M15.5 12v3"/></svg>
+      <span class="brand-name">Patchfeld</span>
+      <span id="app-version" class="muted small"></span>
+    </div>
+    <div id="update-banner" class="update-banner" hidden>
+      <span id="update-text"></span>
+      <button id="update-install" type="button" class="primary" data-i18n="update_install" hidden></button>
+    </div>
+    <div class="topbar-actions">
+      <a id="open-trainer" class="ghost-link" href="trainer.html" data-i18n="trainer_nav"></a>
+      <button id="lang-toggle" type="button" class="ghost"></button>
+      <button id="open-settings" type="button" class="ghost" data-i18n="settings"></button>
+    </div>
+  </header>
+
+  <main id="home" class="view home">
+    <h1 id="home-title" data-i18n="home_title"></h1>
+    <p class="muted" data-i18n="home_sub"></p>
+    <div id="course-grid" class="course-grid"></div>
+
+    <section id="trainer-panel" class="trainer-panel">
+      <div class="trainer-text">
+        <div class="label" data-i18n="trainer_label"></div>
+        <h2 data-i18n="trainer_title"></h2>
+        <p class="muted" data-i18n="trainer_sub"></p>
+      </div>
+      <div id="trainer-stats" class="trainer-stats"></div>
+      <div class="trainer-actions">
+        <a class="button primary" href="trainer.html#training" data-i18n="trainer_practice"></a>
+        <a class="button" href="trainer.html#pruefung" data-i18n="trainer_exam"></a>
+        <a class="button ghost" href="trainer.html#glossar" data-i18n="trainer_glossary"></a>
+      </div>
+    </section>
+  </main>
+
+  <main id="course" class="view course" hidden>
+    <section class="chat-pane">
+      <div class="pane-head">
+        <button id="back-home" type="button" class="ghost" data-i18n="back"></button>
+        <h2 id="course-name"></h2>
+        <span id="course-badge" class="badge"></span>
+        <span class="spacer"></span>
+        <button id="new-day" type="button" class="ghost" data-i18n="new_day"></button>
+        <button id="toggle-profile" type="button" class="ghost" data-i18n="profile"></button>
+      </div>
+      <div id="messages" class="messages"></div>
+      <div id="command-chips" class="chips"></div>
+      <form id="composer" class="composer">
+        <textarea id="composer-input" rows="2" data-i18n-ph="composer_ph"></textarea>
+        <button id="send-btn" type="submit" class="primary" data-i18n="send"></button>
+      </form>
+    </section>
+
+    <section class="work-pane">
+      <div class="exercise">
+        <div class="label"><span data-i18n="exercise"></span> <span id="exercise-kind" class="kind"></span></div>
+        <h3 id="exercise-title"></h3>
+        <div id="exercise-body" class="md"></div>
+      </div>
+      <div class="answer-wrap">
+        <div class="label"><span data-i18n="answer"></span> · <span id="answer-hint" class="hint"></span></div>
+        <div id="task-area" class="task-area" hidden></div>
+        <textarea id="answer" spellcheck="true" data-i18n-ph="answer_ph"></textarea>
+      </div>
+      <div class="toolbar">
+        <button id="check-btn" type="button" class="primary"><span data-i18n="check"></span> <kbd data-i18n="check_hint"></kbd></button>
+        <button id="submit-btn" type="button" data-i18n="submit"></button>
+        <span id="check-status" class="muted small"></span>
+      </div>
+      <div class="output-wrap">
+        <div class="label" data-i18n="result"></div>
+        <div id="result" class="output"></div>
+      </div>
+    </section>
+
+    <aside id="profile-pane" class="profile-pane" hidden></aside>
+  </main>
+
+  <dialog id="settings-dialog">
+    <form method="dialog" class="settings">
+      <h2 data-i18n="settings"></h2>
+
+      <section>
+        <h3 data-i18n="claude_title"></h3>
+        <p class="muted small" data-i18n="claude_info"></p>
+        <div class="field-grid">
+          <label><span data-i18n="model"></span>
+            <select id="model-select">
+              <option value="" data-i18n="model_default"></option>
+              <option value="opus" data-i18n="model_opus"></option>
+              <option value="sonnet" data-i18n="model_sonnet"></option>
+            </select>
+          </label>
+          <label><span data-i18n="effort"></span>
+            <select id="effort-select">
+              <option value="low" data-i18n="effort_low"></option>
+              <option value="medium" data-i18n="effort_medium"></option>
+              <option value="high" data-i18n="effort_high"></option>
+            </select>
+          </label>
+          <label><span data-i18n="ui_lang"></span>
+            <select id="lang-select">
+              <option value="de">Deutsch</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <details>
+        <summary data-i18n="api_key_title"></summary>
+        <p id="key-status" class="muted small"></p>
+        <div class="row">
+          <input id="api-key" type="password" autocomplete="off" placeholder="sk-ant-…">
+          <button id="save-key" type="button" data-i18n="api_key_save"></button>
+          <button id="remove-key" type="button" class="ghost danger-text" data-i18n="api_key_remove"></button>
+        </div>
+        <p class="muted small" data-i18n="api_key_help"></p>
+      </details>
+
+      <section>
+        <h3 data-i18n="updates"></h3>
+        <div class="row">
+          <span id="settings-version" class="muted"></span>
+          <button id="check-updates" type="button" data-i18n="check_updates"></button>
+        </div>
+        <p id="update-status" class="muted small"></p>
+      </section>
+
+      <section id="danger-zone">
+        <h3 data-i18n="danger"></h3>
+        <button id="reset-course" type="button" class="danger" data-i18n="reset_course"></button>
+      </section>
+
+      <div class="dialog-actions">
+        <button value="close" class="primary" data-i18n="close"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="i18n.js"></script>
+  <script src="md.js"></script>
+  <script src="catalog.js"></script>
+  <script src="engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

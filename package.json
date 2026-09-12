@@ -1,0 +1,61 @@
+{
+  "name": "patchfeld",
+  "productName": "Patchfeld",
+  "version": "0.2.3",
+  "description": "Lern-App mit KI-Mentor für die Ausbildung Fachinformatiker/-in Systemintegration: fünf Kurse vom 1. Lehrjahr bis zur Abschlussprüfung, tägliche Level-Sessions, IHK-Aufgaben direkt in der App lösen und prüfen lassen.",
+  "main": "src/main/main.js",
+  "author": "MoinMornhart",
+  "license": "UNLICENSED",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MoinMornhart/patchfeld.git"
+  },
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test \"test/**/*.test.js\"",
+    "selftest": "electron . --selftest",
+    "graphics": "electron scripts/graphics.js",
+    "check": "node scripts/check.js",
+    "bump": "node scripts/bump.js",
+    "dist": "electron-builder --win",
+    "release": "node scripts/release.js"
+  },
+  "build": {
+    "appId": "de.moinmornhart.patchfeld",
+    "productName": "Patchfeld",
+    "files": [
+      "src/**/*",
+      "prompts/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/@anthropic-ai/claude-agent-sdk-*/**"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "Patchfeld-Setup-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "MoinMornhart",
+        "repo": "patchfeld",
+        "releaseType": "draft"
+      }
+    ]
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.269",
+    "electron-updater": "^6.8.9",
+    "zod": "^4.6.2"
+  },
+  "devDependencies": {
+    "electron": "^44.3.0",
+    "electron-builder": "^26.15.3"
+  }
+}

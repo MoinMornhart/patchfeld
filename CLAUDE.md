@@ -1,23 +1,22 @@
 # Patchfeld – Hinweise für die Arbeit am Projekt
 
-Lern-App für die Ausbildung Fachinformatiker/-in Systemintegration. Eine Datei (`index.html`),
-kein Build-Schritt, offline lauffähig, Deutsch und Englisch.
+Windows-Lern-App (Electron) für die Ausbildung Fachinformatiker/-in Systemintegration – aufgebaut
+**1:1 wie das Schwesterprojekt Codewerk** (`C:\Projekte\Codewerk`): KI-Mentor über das Claude Agent SDK,
+fünf Kurse mit Level 0–10, Tages-Sessions, Lernprofil. Dazu kommt der Prüfungstrainer (360 IHK-Aufgaben).
+Im Zweifel bei Aufbau, Skripten, README oder Release-Ablauf: in Codewerk nachsehen und genauso machen.
 
 ## Regeln
 
-- **Beide Sprachen:** Jede neue Frage, jeder UI-Text braucht Deutsch und Englisch (`de`/`en` bzw. `x('…','…')`).
-- **Versionen:** Jede Stelle 0–9, `0.0.9 → 0.1.0`, `0.9.9 → 1.0.0`. Jede Änderung ist ein eigenes Release.
-- **Commits:** Erste Zeile immer `vX.Y.Z: <was sich geändert hat>`, Body mit Stichpunkten DE und EN, Tag `vX.Y.Z`.
-  Am einfachsten: `node tools/release.js --de "…|…" --en "…|…" --commit --push` (erzwingt der Hook `.githooks/commit-msg`).
-- **Autoupdate immer erhalten:** Jedes Release wird nach GitHub gepusht (github.com/MoinMornhart/patchfeld, Pages:
-  moinmornhart.github.io/patchfeld). Die App prüft dort `version.json`; gehostet lädt sie neu, lokal bietet sie den Download an,
-  `start.cmd`/`start.sh` holen per `git pull`. Diesen Update-Weg nie brechen.
-- **Vor jedem Release:** `node tools/check.js` muss fehlerfrei sein.
-- **Fragen-IDs** nie ändern oder wiederverwenden (Lernfortschritt hängt daran).
-- Fragen handlungsorientiert im IHK-Stil mit Situation, Erklärung `e` und naheliegendem Fehler `n` – siehe `docs/FRAGENFORMAT.md`.
-- Gestaltung: nüchtern-technisch (Rack, Patchfeld, Status-LEDs), Bereiche in T568B-Aderfarben; Tokens in `:root`.
+- **Erklären und Machen:** Der Mentor erklärt, der Lernende löst Aufgaben im Arbeitsbereich (Katalog oder eigene).
+- **Beide Sprachen:** Jeder UI-Text (`src/renderer/i18n.js`), jede Frage (`de`/`en`) und beide Mentor-Prompts.
+- **Versionen:** `package.json` ist maßgeblich. Nebenstellen 0–9, `0.0.9 → 0.1.0`, `0.9.9 → 1.0.0`.
+- **Releases:** `npm run bump -- --title "…" --de "…" --en "…"` (Commit `[Patchfeld X.Y.Z] Titel` mit DE/EN-Liste, Tag),
+  danach `npm run release` (Push, GitHub-Release mit Installer). Nur so kommt das Autoupdate bei den Nutzern an.
+- **Vor jedem Release:** `npm test` und `npm run selftest` müssen grün sein.
+- **Fragen-IDs** nie ändern oder wiederverwenden (Lernfortschritt hängt daran). Format: `docs/FRAGENFORMAT.md`.
 
-## Dateien
+## Aufbau
 
-`index.html` App · `version.json` Update-Quelle · `sw.js` Offline/Updates · `CHANGELOG.md` ·
-`docs/` Fragenformat & Entwicklung · `tools/release.js` · `tools/check.js`
+`src/main` Hauptprozess (main, mentor, catalog, store, updater, preload) · `src/renderer` Oberfläche
+(index.html + app.js = Kurse, trainer.html + trainer.js = Prüfungstrainer, catalog.js = Fragen, engine.js = Aufgaben-Engine)
+· `src/shared` Kurse, Version · `prompts` Mentor · `scripts` bump, release, check, graphics · `test` node --test

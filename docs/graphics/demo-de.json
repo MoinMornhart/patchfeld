@@ -1,0 +1,63 @@
+{
+  "settings": { "uiLang": "de", "model": "", "effort": "medium", "apiKeyEnc": null },
+  "courses": {
+    "lj1": {
+      "sessionId": null,
+      "day": 3,
+      "sessionDates": ["2026-09-10", "2026-09-11", "2026-09-12"],
+      "archive": [],
+      "exercise": null,
+      "answer": "",
+      "taskAnswer": null,
+      "usedTasks": ["net-03", "net-05"],
+      "profile": {
+        "level": 3,
+        "lesson": 2,
+        "phase": "Lektion 2 – Subnetting mit Blockgröße",
+        "progress_percent": 40,
+        "streak": 3,
+        "goals": "1. Lehrjahr, IT-Dienstleister · AP 1 im März · 4 Std/Woche · Sessions à 45 Min · erst verstehen, dann rechnen",
+        "mastered": ["OSI-Modell", "Binär ↔ Dezimal", "Private IPv4-Bereiche", "Subnetzmaske ↔ Präfix"],
+        "shaky": ["Blockgröße im 4. Oktett", "Broadcastadresse"],
+        "open": ["VLSM", "IPv6-Kurzschreibweise"],
+        "mistakes": [
+          { "topic": "2^h statt 2^h − 2 Hosts gerechnet", "clean_reviews": 1, "next_review": "Lektion 3" },
+          { "topic": "Broadcast = Netz + Blockgröße (statt − 1)", "clean_reviews": 0, "next_review": "Lektion 3" }
+        ],
+        "projects": [
+          { "level": 1, "name": "Glossar Netzwerkgrundlagen der Nordhafen Logistik", "rating": "Fachlichkeit 4 · Vollständigkeit 4 · Begründung 3" },
+          { "level": 2, "name": "Weg eines Pakets durch die Schichten", "rating": "7/8 Punkte" }
+        ],
+        "glossary": [
+          { "term": "Präfixlänge (prefix length)", "meaning": "Anzahl der Netzbits, z. B. /26 = 26 Bit Netzanteil" },
+          { "term": "Blockgröße (block size)", "meaning": "Abstand der Netzadressen im interessanten Oktett: 256 − Maskenwert" },
+          { "term": "Broadcastadresse", "meaning": "Letzte Adresse eines Netzes – erreicht alle Hosts, nicht an Geräte vergebbar" }
+        ],
+        "recommendation": "Blockgröße und Broadcast sicher machen, danach VLSM. Hausaufgabe: 10 Subnetting-Aufgaben im Prüfungstrainer."
+      },
+      "transcript": [
+        { "type": "day", "text": "[Patchfeld · 1. Lehrjahr · Tag 3]" },
+        { "type": "mentor", "text": "Guten Morgen! Heute steht **Level 3 · Lektion 2 – Subnetting mit Blockgröße** auf dem Plan.\n\n🔁 Zuerst zwei Wiederholungsfragen:\n\n1. Welcher Maske entspricht `/26`?\n2. Warum sind in einem Netz nicht alle Adressen an Geräte vergebbar?" },
+        { "type": "user", "text": "1. 255.255.255.192\n2. Die erste ist die Netzadresse und die letzte die Broadcastadresse." },
+        { "type": "mentor", "text": "Beides richtig. ✅\n\n💡 **Blockgröße (block size)**\n\nStell dir eine Straße vor, in der jeder Block gleich viele Hausnummern hat. Bei `/26` ist das 4. Oktett der „interessante“: **256 − 192 = 64**. Die Netze beginnen also bei 0, 64, 128, 192.\n\n| Netz | Erster Host | Letzter Host | Broadcast |\n|---|---|---|---|\n| .64 | .65 | .126 | .127 |\n\n⚠️ Prüfungsfalle: Broadcast ist *Netz + Blockgröße − 1*, nicht + Blockgröße." },
+        { "type": "tool", "name": "load_exam_task", "title": "Netzwerkgrundlagen · Rechenaufgabe" },
+        { "type": "mentor", "text": "🧩 **Aufgabe 1** liegt in deinem Arbeitsbereich – eine echte IHK-Rechenaufgabe mit frischen Zahlen. Rechne selbst, klick **✓ Prüfen** und schick mir dann deinen Rechenweg mit **„An Mentor senden“**." }
+      ]
+    },
+    "ap1": {
+      "sessionId": null,
+      "day": 1,
+      "sessionDates": ["2026-09-09"],
+      "archive": [],
+      "exercise": null,
+      "answer": "",
+      "taskAnswer": null,
+      "usedTasks": [],
+      "transcript": [],
+      "profile": {
+        "level": 0, "lesson": 2, "phase": "Lektion 2", "progress_percent": 20, "streak": 1,
+        "goals": "", "mastered": ["DHCP-Ablauf (DORA)"], "shaky": [], "open": [], "mistakes": [], "projects": [], "glossary": [], "recommendation": ""
+      }
+    }
+  }
+}

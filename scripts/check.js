@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /* Patchfeld – Prüfwerkzeug für den Fragenkatalog
  *
- * Aufruf:  node tools/check.js [--min 20] [--area hw]
+ * Aufruf:  npm run check   bzw.   node scripts/check.js [--min 20] [--area hw] [--frag datei.js]
  *
  * Prüft:
- *  - Syntax aller Inline-Skripte in index.html
+ *  - Syntax aller Skripte der Oberfläche (src/renderer/*.js)
  *  - Fragen: eindeutige IDs, gültiger Bereich, Typ, beide Sprachen (de/en) mit gleicher Struktur,
  *    Lösungsindizes, Erklärung (e) und naheliegender Fehler (n)
  *  - Generatoren: 300 Durchläufe je Sprache ohne NaN/undefined, Lösungen vorhanden
  *  - Glossar-Einträge
- *  - Versionsnummern in index.html, version.json und CHANGELOG.md stimmen überein
+ *  - Version in package.json folgt dem Zählerschema und steht in CHANGELOG.md und CHANGELOG.en.md
  * Exit-Code 1 bei Fehlern.
  */
 const fs = require('fs');
@@ -17,7 +17,7 @@ const path = require('path');
 const vm = require('vm');
 
 const ROOT = path.resolve(__dirname, '..');
-const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+const RENDERER = path.join(ROOT, 'src', 'renderer');
 const args = process.argv.slice(2);
 const MIN = +(args[args.indexOf('--min') + 1] || 0) || 0;
 const ONLY = args.includes('--area') ? args[args.indexOf('--area') + 1] : null;
@@ -25,18 +25,20 @@ const ONLY = args.includes('--area') ? args[args.indexOf('--area') + 1] : null;
 const errors = [], warns = [];
 const err = m => errors.push(m), warn = m => warns.push(m);
 
-/* Skripte extrahieren */
-const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
-scripts.forEach((code, i) => { try { new vm.Script(code, {filename:`script#${i}`}); } catch (e) { err(`Syntaxfehler in Skript #${i}: ${e.message}`); } });
+/* Syntax aller Oberflächen-Skripte */
+for (const file of fs.readdirSync(RENDERER).filter(f => f.endsWith('.js'))) {
+  try { new vm.Script(fs.readFileSync(path.join(RENDERER, file), 'utf8'), {filename: file}); } catch (e) { err(`Syntaxfehler in ${file}: ${e.message}`); }
+}
 
-/* Nur Daten-Skripte ausführen (Kern, Fragen, Glossar), nicht die UI */
-/* --frag datei.js: zusätzlichen Fragen-Block (noch nicht in index.html) mitprüfen */
+/* Katalog ausführen (Bereiche, Generatoren, Fragen, Glossar) */
+/* --frag datei.js: zusätzlichen Fragen-Block (noch nicht im Katalog) mitprüfen */
 const FRAG = args.includes('--frag') ? fs.readFileSync(path.resolve(args[args.indexOf('--frag') + 1]), 'utf8') : '';
-const dataCode = scripts.filter(c => !/APP – Teil/.test(c)).join('\n;\n') + '\n;\n' + FRAG + '\n;globalThis.__out = {APP_VERSION, CHANGELOG, AREAS, AREA, Q, GEN, GLOSSAR};';
+const dataCode = fs.readFileSync(path.join(RENDERER, 'catalog.js'), 'utf8') + '\n;\n' + FRAG + '\n;globalThis.__out = {AREAS, AREA, Q, GEN, GLOSSAR};';
 const sandbox = {console, Math, Number, String, JSON, Object, Array, Date};
 vm.createContext(sandbox);
 try { vm.runInContext(dataCode, sandbox); } catch (e) { err(`Laufzeitfehler in Daten-Skripten: ${e.message}`); report(); }
-const {APP_VERSION, CHANGELOG, AREAS, AREA, Q, GEN, GLOSSAR} = sandbox.__out;
+const {AREAS, AREA, Q, GEN, GLOSSAR} = sandbox.__out;
+const APP_VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
 
 const TYPES = ['sc', 'mc', 'in', 'match', 'order', 'open'];
 const isStr = s => typeof s === 'string' && s.trim().length > 0;
@@ -105,12 +107,11 @@ for (const g of GLOSSAR) {
 }
 
 /* Versionen */
-const vj = JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8'));
-const cl = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
-if (vj.version !== APP_VERSION) err(`version.json (${vj.version}) ≠ APP_VERSION (${APP_VERSION})`);
-if (CHANGELOG[0].v !== APP_VERSION) err(`In-App-CHANGELOG beginnt mit ${CHANGELOG[0].v}, erwartet ${APP_VERSION}`);
-if (!cl.includes(`## ${APP_VERSION} `)) err(`CHANGELOG.md ohne Abschnitt ${APP_VERSION}`);
-if (!/^\d\.\d\.\d$/.test(APP_VERSION)) err(`Version ${APP_VERSION} verletzt das Schema (jede Stelle 0–9)`);
+for (const file of ['CHANGELOG.md', 'CHANGELOG.en.md']) {
+  const text = fs.readFileSync(path.join(ROOT, file), 'utf8');
+  if (!text.includes(`## [Patchfeld ${APP_VERSION}]`)) err(`${file} ohne Eintrag für ${APP_VERSION}`);
+}
+if (!/^\d+\.\d\.\d$/.test(APP_VERSION)) err(`Version ${APP_VERSION} verletzt das Schema (Nebenstellen 0–9)`);
 
 /* Übersicht */
 const counts = {}, types = {};

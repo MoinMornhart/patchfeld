@@ -1,8 +1,12 @@
 # Fragenformat
 
-Alle Fragen stehen in `index.html`, je Bereich in einem eigenen `<script>`-Block mit
+Alle Fragen stehen in `src/renderer/catalog.js`, je Bereich in einem eigenen Abschnitt mit
 dem Kommentar `/* ===== BEREICH:<id> – … ===== */`. Jede Frage ist ein Objekt in
-`Q.push(...)`. Nach jeder Änderung: `node tools/check.js`.
+`Q.push(...)`. Nach jeder Änderung: `npm run check` und `npm test`.
+
+Der Katalog wird dreifach genutzt: vom Prüfungstrainer (`trainer.html`), vom Arbeitsbereich
+der Kurse (`app.js`) und vom Mentor im Hauptprozess (`src/main/catalog.js`, Werkzeug
+`load_exam_task`). Instanziierung, Bewertung und Darstellung stecken in `src/renderer/engine.js`.
 
 ## Gemeinsame Felder
 
@@ -57,7 +61,8 @@ und `tb` (Tabelle: `{h:['Spalte',…], r:[['Wert',…],…]}`).
 Ein Generator in `GEN` ist eine Funktion `(L) => ({t:'in', s, q, f:[{l, v, tol, u}], e, n, code?, tb?})`,
 die bei jedem Aufruf neue Zufallswerte liefert. Texte über `tx(L, de, en)`, Zahlen über
 `fmt(n, dezimalen, L)` bzw. `eur(n, L)`. Die Erklärung `e` rechnet den Lösungsweg mit
-den konkreten Zahlen vor. `tools/check.js` ruft jeden Generator 300-mal pro Sprache auf.
+den konkreten Zahlen vor. `scripts/check.js` ruft jeden Generator 300-mal pro Sprache auf,
+`test/catalog.test.js` prüft zusätzlich, dass jede Aufgabe ihre eigene Lösung als richtig bewertet.
 
 ## Qualitätsregeln
 
