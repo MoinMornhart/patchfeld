@@ -6,6 +6,10 @@ Neueste Einträge oben. Versionsschema: siehe [README.md](README.md).
 
 <!-- EINTRÄGE -->
 
+## [Patchfeld 0.2.4] – 2026-09-12
+- Windows-Icon (build/icon.ico) wird von npm run graphics mit allen Größen erzeugt – der Installer-Build braucht keine eigene Umwandlung mehr
+- Erste veröffentlichte Windows-Version mit KI-Mentor, fünf Kursen und Prüfungstrainer (enthält alle Änderungen aus 0.2.3)
+
 ## [Patchfeld 0.2.3] – 2026-09-12
 - Patchfeld ist jetzt eine Windows-App (Electron) mit Installer – aufgebaut wie Codewerk
 - KI-Mentor über dein Claude-Konto: fünf Kurse (1. Lehrjahr, 2. Lehrjahr · AP 1, 3. Lehrjahr · AP 2, Projekt & Fachgespräch, WiSo) mit Level 0–10, Tages-Sessions und Lernprofil

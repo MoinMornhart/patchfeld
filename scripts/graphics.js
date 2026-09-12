@@ -6,7 +6,7 @@
 //   docs/assets/screenshot-*-de|en.png         real screenshots of the running app
 // The app runs from a throwaway data folder filled with docs/graphics/demo-*.json; the task in the
 // work area is a real catalog task and is really checked by the app, not faked.
-const { app, BrowserWindow, nativeTheme } = require('electron');
+const { app, BrowserWindow, nativeTheme, nativeImage } = require('electron');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -56,6 +56,32 @@ function save(image, ...targets) {
     fs.writeFileSync(target, png);
     console.log(`✓ ${path.relative(ROOT, target)} (${width}×${height})`);
   }
+}
+
+// Windows icon (build/icon.ico) with several sizes as PNG entries, so electron-builder
+// does not have to convert the PNG itself.
+function writeIco(pngPath, icoPath) {
+  const source = nativeImage.createFromPath(pngPath);
+  const sizes = [16, 24, 32, 48, 64, 128, 256];
+  const images = sizes.map((s) => source.resize({ width: s, height: s, quality: 'best' }).toPNG());
+  const header = Buffer.alloc(6);
+  header.writeUInt16LE(0, 0);
+  header.writeUInt16LE(1, 2); // type: icon
+  header.writeUInt16LE(images.length, 4);
+  const dir = Buffer.alloc(16 * images.length);
+  let offset = 6 + dir.length;
+  images.forEach((png, i) => {
+    const s = sizes[i] >= 256 ? 0 : sizes[i]; // 0 means 256
+    dir.writeUInt8(s, i * 16);
+    dir.writeUInt8(s, i * 16 + 1);
+    dir.writeUInt16LE(1, i * 16 + 4); // colour planes
+    dir.writeUInt16LE(32, i * 16 + 6); // bits per pixel
+    dir.writeUInt32LE(png.length, i * 16 + 8);
+    dir.writeUInt32LE(offset, i * 16 + 12);
+    offset += png.length;
+  });
+  fs.writeFileSync(icoPath, Buffer.concat([header, dir, ...images]));
+  console.log(`✓ ${path.relative(ROOT, icoPath)} (${sizes.join(', ')} px)`);
 }
 
 async function renderPage(file, query, width, height, ...targets) {
@@ -164,6 +190,7 @@ app.whenReady()
     await renderPage('banner.html', { lang: 'de' }, 1600, 560, path.join(ASSETS, 'banner-de.png'));
     await renderPage('banner.html', { lang: 'en' }, 1600, 560, path.join(ASSETS, 'banner-en.png'));
     await renderPage('icon.html', {}, 512, 512, path.join(ROOT, 'build', 'icon.png'), path.join(ASSETS, 'icon.png'));
+    writeIco(path.join(ROOT, 'build', 'icon.png'), path.join(ROOT, 'build', 'icon.ico'));
 
     await captureApp('de');
     currentTask = writeDemo('en');

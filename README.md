@@ -25,7 +25,7 @@
   <a href="#für-entwickler">Für Entwickler</a>
 </p>
 
-<p align="center"><sub><b>Patchfeld-Version:</b> 0.2.3</sub></p>
+<p align="center"><sub><b>Patchfeld-Version:</b> 0.2.4</sub></p>
 
 ---
 
