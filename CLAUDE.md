@@ -1,3 +1,5 @@
+Lies zuerst den Projektstand: @STAND.md
+
 # Patchfeld – Hinweise für die Arbeit am Projekt
 
 Windows-Lern-App (Electron) für die Ausbildung Fachinformatiker/-in Systemintegration – aufgebaut
